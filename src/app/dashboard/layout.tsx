@@ -1,27 +1,53 @@
+"use client"
+
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import React from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  
+  // Basic logic to determine if we are in a specific class
+  const classMatch = pathname.match(/\/dashboard\/classes\/([^/]+)/);
+  const activeClass = classMatch ? classMatch[1] : null;
+
   return (
     <div className="flex min-h-screen bg-muted/40">
       {/* Sidebar */}
       <aside className="w-64 border-r border-border bg-background flex flex-col hidden md:flex shadow-sm">
         <div className="p-6 border-b border-border">
-          <Link href="/" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
             <span className="text-ecu-purple drop-shadow-sm">Pirate</span>
             <span className="text-ecu-gold drop-shadow-sm">Study</span>
           </Link>
         </div>
-        <nav className="flex-1 p-4 space-y-1.5">
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2.5 bg-ecu-purple/10 text-ecu-purple font-semibold rounded-lg shadow-sm border border-ecu-purple/10">
+        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+          <Link 
+            href="/dashboard" 
+            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${
+              !activeClass ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/10' : 'text-foreground border-transparent hover:bg-muted'
+            }`}
+          >
             <span className="text-xl">📚</span> My Classes
           </Link>
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted font-medium rounded-lg transition-colors">
-            <span className="text-xl">📝</span> Study Plans
-          </Link>
-          <Link href="/dashboard" className="flex items-center gap-3 px-3 py-2.5 text-muted-foreground hover:bg-muted font-medium rounded-lg transition-colors">
-            <span className="text-xl">🎯</span> Practice Exams
-          </Link>
+          
+          {/* Active Class Hierarchy Options */}
+          {activeClass && (
+            <div className="pl-6 mt-2 space-y-1">
+              <div className="px-3 py-1.5 text-sm font-bold text-foreground">
+                {activeClass.toUpperCase()}
+              </div>
+              <Link href={`/dashboard/classes/${activeClass}`} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname === `/dashboard/classes/${activeClass}` ? 'bg-muted text-ecu-purple font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                <span>🏠</span> Overview
+              </Link>
+              <Link href={`/dashboard/classes/${activeClass}/study-plans`} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname.includes('study-plans') ? 'bg-muted text-ecu-purple font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                <span>📝</span> Study Plans
+              </Link>
+              <Link href={`/dashboard/classes/${activeClass}/practice-exams`} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname.includes('practice-exams') ? 'bg-muted text-ecu-purple font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
+                <span>🎯</span> Practice Exams
+              </Link>
+            </div>
+          )}
         </nav>
         <div className="p-6 border-t border-border text-xs text-muted-foreground font-medium">
           PirateStudy © {new Date().getFullYear()}

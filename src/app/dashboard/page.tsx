@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -41,10 +42,12 @@ export default function DashboardPage() {
               <span className="px-2.5 py-1 bg-ecu-gold/20 text-ecu-purple text-xs font-bold rounded-md">Active</span>
             </div>
             <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed">Algorithmic Problem Solving. Introduction to problem-solving concepts and program design.</p>
-            <Button variant="outline" className="w-full justify-between group-hover:bg-ecu-purple group-hover:text-primary-foreground group-hover:border-ecu-purple shadow-sm transition-all duration-300 rounded-xl">
-              <span>View Materials</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </Button>
+            <Link href="/dashboard/classes/csci1010" className="w-full block">
+              <Button variant="outline" className="w-full justify-between group-hover:bg-ecu-purple group-hover:text-primary-foreground group-hover:border-ecu-purple shadow-sm transition-all duration-300 rounded-xl">
+                <span>View Materials</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Button>
+            </Link>
           </div>
         </div>
 
@@ -57,10 +60,12 @@ export default function DashboardPage() {
               <span className="px-2.5 py-1 bg-ecu-gold/20 text-ecu-purple text-xs font-bold rounded-md">Active</span>
             </div>
             <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed">College Algebra. Functions, graphs, equations, and inequalities. Essential for STEM.</p>
-            <Button variant="outline" className="w-full justify-between group-hover:bg-ecu-gold group-hover:text-secondary-foreground group-hover:border-ecu-gold shadow-sm transition-all duration-300 rounded-xl">
-              <span>View Materials</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-            </Button>
+            <Link href="/dashboard/classes/math1065" className="w-full block">
+              <Button variant="outline" className="w-full justify-between group-hover:bg-ecu-gold group-hover:text-secondary-foreground group-hover:border-ecu-gold shadow-sm transition-all duration-300 rounded-xl">
+                <span>View Materials</span>
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+              </Button>
+            </Link>
           </div>
         </div>
 
