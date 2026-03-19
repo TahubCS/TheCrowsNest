@@ -33,16 +33,16 @@ export default function Home() {
 
           <div className="flex flex-col w-full gap-3">
             <Link
-              href="/dashboard"
+              href="/login"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-ecu-purple text-primary-foreground shadow-lg shadow-ecu-purple/20 hover:bg-ecu-purple/90 h-11 px-8 hover:-translate-y-0.5"
             >
-              Login with ECU Email
+              Log In
             </Link>
             <Link
-              href="/dashboard"
-              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-ecu-gold text-secondary-foreground shadow-lg shadow-ecu-gold/20 hover:bg-ecu-gold/90 h-11 px-8 hover:-translate-y-0.5"
+              href="/signup"
+              className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-background border-2 border-ecu-gold text-foreground shadow-sm hover:bg-ecu-gold/10 hover:border-ecu-gold h-11 px-8 hover:-translate-y-0.5"
             >
-              Canvas Direct Login
+              Sign Up
             </Link>
           </div>
 
