@@ -4,7 +4,7 @@ import Image from "next/image";
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background to-ecu-purple/10 relative overflow-hidden">
-      
+
       {/* Decorative background blobs */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-ecu-purple/5 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
       <div className="absolute top-0 right-0 w-96 h-96 bg-ecu-gold/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
@@ -18,34 +18,34 @@ export default function Home() {
             </span>
           </div>
           <h1 className="text-6xl font-extrabold tracking-tighter sm:text-7xl xl:text-8xl bg-clip-text text-transparent bg-gradient-to-r from-ecu-purple to-ecu-gold pb-2 drop-shadow-sm">
-            PirateStudy
+            The Crow's Nest
           </h1>
           <p className="text-xl sm:text-2xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">
             Connect with thousands of ECU students to share notes, build study plans, and crush your exams.
           </p>
         </div>
-        
+
         <div className="flex flex-col gap-6 mt-8 w-full max-w-md items-center bg-background/60 backdrop-blur-xl p-8 rounded-2xl border border-border shadow-2xl">
           <div className="w-full text-center">
             <h2 className="text-lg font-semibold text-foreground mb-1">Welcome aboard</h2>
             <p className="text-sm text-muted-foreground">Sign up or login to continue</p>
           </div>
-          
+
           <div className="flex flex-col w-full gap-3">
-            <Link 
+            <Link
               href="/dashboard"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-ecu-purple text-primary-foreground shadow-lg shadow-ecu-purple/20 hover:bg-ecu-purple/90 h-11 px-8 hover:-translate-y-0.5"
             >
               Login with ECU Email
             </Link>
-            <Link 
+            <Link
               href="/dashboard"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-ecu-gold text-secondary-foreground shadow-lg shadow-ecu-gold/20 hover:bg-ecu-gold/90 h-11 px-8 hover:-translate-y-0.5"
             >
               Canvas Direct Login
             </Link>
           </div>
-          
+
           <p className="text-xs text-muted-foreground text-center mt-2 px-4">
             *Requires a valid <span className="font-medium text-primary">@students.ecu.edu</span> email address to register.
           </p>
