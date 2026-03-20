@@ -68,15 +68,6 @@ export default function DashboardPage() {
             </div>
           </div>
         </Link>
-
-        {/* Add Class Card */}
-        <div className="bg-background/50 rounded-2xl border-2 border-dashed border-border hover:border-ecu-purple hover:bg-ecu-purple/5 flex flex-col items-center justify-center p-8 text-center text-muted-foreground hover:text-ecu-purple transition-all duration-300 cursor-pointer min-h-[240px] group">
-          <div className="w-14 h-14 rounded-full bg-muted group-hover:bg-ecu-purple/20 flex items-center justify-center mb-4 transition-colors">
-            <span className="text-3xl font-light text-foreground group-hover:text-ecu-purple">+</span>
-          </div>
-          <span className="font-semibold text-lg text-foreground group-hover:text-ecu-purple">Join New Class</span>
-          <p className="text-sm mt-1">Use the search bar above</p>
-        </div>
       </div>
     </div>
   );
