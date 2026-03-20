@@ -16,28 +16,46 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mt-8">
-        <Link href={`/dashboard/classes/${classId}/study-plans`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[200px]">
+        <Link href={`/dashboard/classes/${classId}/study-plans`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="text-8xl">📝</span>
+            <span className="text-6xl sm:text-8xl">📝</span>
           </div>
-          <h3 className="font-bold text-2xl group-hover:text-ecu-purple transition-colors mb-2">Study Plans</h3>
-          <p className="text-muted-foreground max-w-[80%]">Community-driven study guides and weekly planners specifically for {formattedClass}.</p>
+          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-purple-400 transition-colors mb-2">Study Plans</h3>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Community-driven weekly planners for {formattedClass}.</p>
         </Link>
 
-        <Link href={`/dashboard/classes/${classId}/practice-exams`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[200px]">
+        <Link href={`/dashboard/classes/${classId}/practice-exams`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="text-8xl">🎯</span>
+            <span className="text-6xl sm:text-8xl">🎯</span>
           </div>
-          <h3 className="font-bold text-2xl group-hover:text-ecu-gold transition-colors mb-2">Practice Exams</h3>
-          <p className="text-muted-foreground max-w-[80%]">Past exams, flashcards, and quizzes submitted by students who previously took {formattedClass}.</p>
+          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-ecu-gold transition-colors mb-2">Practice Exams</h3>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Past exams and quizzes submitted by old students.</p>
+        </Link>
+        
+        <Link href={`/dashboard/classes/${classId}/flashcards`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="text-6xl sm:text-8xl">🗂️</span>
+          </div>
+          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-green-400 transition-colors mb-2">Flashcards</h3>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Quick memorization decks tailored to your focus units.</p>
+        </Link>
+
+        <Link href={`/dashboard/classes/${classId}/ai-tutor`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
+          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <span className="text-6xl sm:text-8xl">🤖</span>
+          </div>
+          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-blue-400 transition-colors mb-2">AI Study Tutor</h3>
+          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Get instant, step-by-step guidance on {formattedClass} topics.</p>
         </Link>
       </div>
 
       {/* Course Timeline & Syllabus tracker */}
-      <div className="mt-16 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="mt-12 sm:mt-16 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-2xl font-bold tracking-tight">Course Timeline</h2>
-          <span className="hidden sm:inline-block text-sm px-3 py-1 bg-ecu-gold/20 text-ecu-purple rounded-full font-semibold">Select topics to focus AI study tools</span>
+          <span className="inline-block text-sm px-4 py-1.5 bg-ecu-gold/10 border border-ecu-gold/30 text-purple-400 rounded-full font-bold shadow-sm whitespace-nowrap text-center">
+            Select topics to focus AI study tools
+          </span>
         </div>
 
         <div className="bg-background rounded-2xl border border-border p-6 shadow-sm">
@@ -45,44 +63,58 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
             
             {/* Unit 1 */}
             <div className="relative pl-8">
-              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-ecu-purple ring-4 ring-background"></div>
+              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-purple-500/80 ring-4 ring-background"></div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-bold text-foreground">Unit 1: Introduction & Fundamentals</h3>
                   <p className="text-sm text-muted-foreground mt-1">Variables, memory allocation, and basic logic loops. Chapters 1-3.</p>
                 </div>
-                <button className="text-xs font-semibold px-4 py-2 rounded-lg border border-ecu-purple text-ecu-purple bg-ecu-purple/10 hover:bg-ecu-purple/20 transition-colors shrink-0 flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-ecu-purple animate-pulse"></div>
-                  Currently Focusing
-                </button>
+                <label className="cursor-pointer shrink-0 group/checkbox">
+                  <input type="checkbox" className="peer sr-only" defaultChecked />
+                  <div className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground group-hover/checkbox:bg-muted peer-checked:border-purple-400 peer-checked:text-purple-400 peer-checked:bg-purple-400/10 transition-all flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse hidden peer-checked:block"></div>
+                    <span className="block peer-checked:hidden text-muted-foreground group-hover/checkbox:text-foreground transition-colors">Focus AI on this</span>
+                    <span className="hidden peer-checked:block">Currently Focusing</span>
+                  </div>
+                </label>
               </div>
             </div>
 
             {/* Unit 2 */}
             <div className="relative pl-8">
-              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-muted border-2 border-border ring-4 ring-background"></div>
+              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-muted border-2 border-border ring-4 ring-background transition-colors peer-checked:bg-purple-500/80"></div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Unit 2: Advanced Data Structures</h3>
                   <p className="text-sm text-muted-foreground mt-1">Hash maps, linked lists, and tree traversal algorithms.</p>
                 </div>
-                <button className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0">
-                  Focus AI on this
-                </button>
+                <label className="cursor-pointer shrink-0 group/checkbox">
+                  <input type="checkbox" className="peer sr-only" />
+                  <div className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground group-hover/checkbox:bg-muted peer-checked:border-purple-400 peer-checked:text-purple-400 peer-checked:bg-purple-400/10 transition-all flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse hidden peer-checked:block"></div>
+                    <span className="block peer-checked:hidden text-muted-foreground group-hover/checkbox:text-foreground transition-colors">Focus AI on this</span>
+                    <span className="hidden peer-checked:block">Currently Focusing</span>
+                  </div>
+                </label>
               </div>
             </div>
 
             {/* Unit 3 */}
             <div className="relative pl-8">
-              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-muted border-2 border-border ring-4 ring-background"></div>
+              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-muted border-2 border-border ring-4 ring-background transition-colors peer-checked:bg-purple-500/80"></div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                   <h3 className="text-lg font-semibold text-foreground">Unit 3: Object-Oriented Design</h3>
                   <p className="text-sm text-muted-foreground mt-1">Polymorphism, inheritance, and clean architectural principles.</p>
                 </div>
-                <button className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground hover:bg-muted hover:text-foreground transition-colors shrink-0">
-                  Focus AI on this
-                </button>
+                <label className="cursor-pointer shrink-0 group/checkbox">
+                  <input type="checkbox" className="peer sr-only" />
+                  <div className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground group-hover/checkbox:bg-muted peer-checked:border-purple-400 peer-checked:text-purple-400 peer-checked:bg-purple-400/10 transition-all flex items-center justify-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse hidden peer-checked:block"></div>
+                    <span className="block peer-checked:hidden text-muted-foreground group-hover/checkbox:text-foreground transition-colors">Focus AI on this</span>
+                    <span className="hidden peer-checked:block">Currently Focusing</span>
+                  </div>
+                </label>
               </div>
             </div>
 
