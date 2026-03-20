@@ -86,10 +86,14 @@ export interface StudyPlanItem {
   classId: string;
   semester: string; // e.g., "Fall 2026"
   status: "PLANNED" | "IN_PROGRESS" | "COMPLETED";
+  itemId?: string;
+  title?: string;
+  type?: string;
 }
 
 export interface StudyPlan {
   planId: string;
+  classId?: string;
   userEmail: string;
   title: string;
   description?: string;

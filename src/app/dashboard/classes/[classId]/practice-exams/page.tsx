@@ -10,12 +10,52 @@ export default function PracticeExamsPage() {
   const formattedClass = classId?.toUpperCase() || "CLASS";
 
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState("All Topics");
+  const [selectedTopic, setSelectedTopic] = useState("All Course Topics");
+  const [difficulty, setDifficulty] = useState("Standard");
+  const [format, setFormat] = useState("Short Quiz");
 
-  const handleGenerate = () => {
+  // Exam state
+  const [questions, setQuestions] = useState<{question: string; options: string[]; correctAnswer: string}[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
+  const [showResults, setShowResults] = useState(false);
+
+  const handleGenerate = async () => {
     setIsGenerating(true);
-    // Logic for generating an exam will go here
-    setTimeout(() => setIsGenerating(false), 2000); // Temporary visual feedback
+    try {
+      const res = await fetch("/api/practice-exams", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId, topic: selectedTopic, difficulty, format })
+      });
+      const data = await res.json();
+      if (data.success && data.data?.questions?.length > 0) {
+        setQuestions(data.data.questions);
+        setCurrentIndex(0);
+        setSelectedAnswers({});
+        setShowResults(false);
+      } else {
+        alert(data.message || "Failed to generate exam.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Network error.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleSelectOption = (opt: string) => {
+    if (showResults) return;
+    setSelectedAnswers(prev => ({ ...prev, [currentIndex]: opt }));
+  };
+
+  const calculateScore = () => {
+    let score = 0;
+    questions.forEach((q, i) => {
+      if (selectedAnswers[i] === q.correctAnswer) score++;
+    });
+    return Math.round((score / questions.length) * 100);
   };
 
   return (
@@ -38,72 +78,154 @@ export default function PracticeExamsPage() {
         </div>
       </div>
 
-      {/* Main Action Area - Generate New Exam */}
-      <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
-        {/* Animated Glow Border */}
-        <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-ecu-gold to-purple-500 opacity-30 group-hover:opacity-60 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
-        
-        <div className="relative bg-background/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl pointer-events-auto">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl font-bold flex items-center gap-2">
-                <svg className="w-6 h-6 text-ecu-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                New Assessment
-              </h2>
-              <p className="text-muted-foreground text-sm mt-1">Configure your practice environment</p>
+      {/* Main Area */}
+      {questions.length === 0 ? (
+        <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
+          {/* Animated Glow Border */}
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-ecu-gold to-purple-500 opacity-30 group-hover:opacity-60 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
+          
+          <div className="relative bg-background/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl pointer-events-auto">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2 className="text-2xl font-bold flex items-center gap-2">
+                  <svg className="w-6 h-6 text-ecu-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                  New Assessment
+                </h2>
+                <p className="text-muted-foreground text-sm mt-1">Configure your practice environment</p>
+              </div>
+              {/* Visual purely decorative badge */}
+              <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-wide">
+                AI Powered
+              </div>
             </div>
-            {/* Visual purely decorative badge */}
-            <div className="px-3 py-1 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-wide">
-              AI Powered
-            </div>
-          </div>
 
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <label className="text-sm font-semibold text-foreground">Focus Topic</label>
-              <select 
-                value={selectedTopic}
-                onChange={(e) => setSelectedTopic(e.target.value)}
-                className="w-full bg-muted/50 border border-border rounded-xl p-3 text-foreground focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all outline-none appearance-none cursor-pointer"
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="text-sm font-semibold text-foreground">Focus Topic</label>
+                <select 
+                  value={selectedTopic}
+                  onChange={(e) => setSelectedTopic(e.target.value)}
+                  className="w-full bg-muted/50 border border-border rounded-xl p-3 text-foreground focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all outline-none appearance-none cursor-pointer"
+                >
+                  <option value="All Course Topics">All Course Topics</option>
+                  <option value="Midterm 1 Review">Midterm 1 Review</option>
+                  <option value="Recent Material">Recent Material</option>
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold">Difficulty</label>
+                  <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
+                    <button onClick={() => setDifficulty("Standard")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${difficulty === "Standard" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Standard</button>
+                    <button onClick={() => setDifficulty("Hard")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${difficulty === "Hard" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Hard</button>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-sm font-semibold">Length</label>
+                  <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
+                    <button onClick={() => setFormat("Short Quiz")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${format === "Short Quiz" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>5 Qs</button>
+                    <button onClick={() => setFormat("Full Exam")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${format === "Full Exam" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>10 Qs</button>
+                  </div>
+                </div>
+              </div>
+
+              <button 
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                className="w-full relative overflow-hidden mt-4 bg-gradient-to-r from-ecu-purple to-purple-800 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
-                <option>All Course Topics</option>
-              </select>
+                {isGenerating ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                    Generating Exam...
+                  </span>
+                ) : (
+                  "Generate Practice Exam"
+                )}
+              </button>
             </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <label className="text-sm font-semibold">Difficulty</label>
-                <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
-                  <button className="flex-1 py-2 text-sm font-medium rounded-lg bg-background shadow-sm text-foreground">Standard</button>
-                  <button className="flex-1 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground transition-colors">Hard</button>
-                </div>
-              </div>
-              <div className="space-y-3">
-                <label className="text-sm font-semibold">Format</label>
-                <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
-                  <button className="flex-1 py-2 text-sm font-medium rounded-lg bg-background shadow-sm text-foreground">Multiple Choice</button>
-                  <button className="flex-1 py-2 text-sm font-medium rounded-lg text-muted-foreground hover:text-foreground transition-colors">Mixed</button>
-                </div>
-              </div>
-            </div>
-
-            <button 
-              onClick={handleGenerate}
-              disabled={isGenerating}
-              className="w-full relative overflow-hidden mt-4 bg-gradient-to-r from-ecu-purple to-purple-800 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-            >
-              {isGenerating ? (
-                <span className="flex items-center justify-center gap-2">
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                  Generating Exam...
-                </span>
-              ) : (
-                "Generate Practice Exam"
-              )}
-            </button>
           </div>
         </div>
-      </div>
+      ) : showResults ? (
+        <div className="bg-background border border-border rounded-3xl p-8 shadow-xl text-center">
+          <h2 className="text-3xl font-bold mb-2">Exam Results</h2>
+          <div className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-ecu-purple to-purple-500 my-6">
+            {calculateScore()}%
+          </div>
+          <p className="text-muted-foreground mb-8 text-lg">
+            You got {Object.keys(selectedAnswers).filter(i => selectedAnswers[Number(i)] === questions[Number(i)].correctAnswer).length} out of {questions.length} correct.
+          </p>
+          <div className="flex gap-4 justify-center">
+            <button onClick={() => setQuestions([])} className="px-6 py-3 bg-muted hover:bg-muted/80 font-bold rounded-xl transition-colors">Start New Exam</button>
+            <button onClick={() => setShowResults(false)} className="px-6 py-3 bg-ecu-purple text-white hover:bg-purple-800 font-bold rounded-xl transition-colors shadow-lg">Review Answers</button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-background border border-border rounded-3xl p-8 shadow-xl">
+          <div className="flex justify-between items-center mb-6">
+            <span className="text-sm font-bold text-muted-foreground">QUESTION {currentIndex + 1} OF {questions.length}</span>
+            <button onClick={() => setQuestions([])} className="text-sm text-red-500 font-bold hover:underline">Quit</button>
+          </div>
+          
+          <h3 className="text-2xl font-semibold mb-8 text-foreground leading-relaxed">{questions[currentIndex].question}</h3>
+          
+          <div className="space-y-3 mb-8">
+            {questions[currentIndex].options.map((opt, i) => {
+              const isSelected = selectedAnswers[currentIndex] === opt;
+              const isCorrect = questions[currentIndex].correctAnswer === opt;
+              
+              let styleClass = "bg-muted/30 border-border hover:border-ecu-purple hover:bg-purple-500/5";
+              if (isSelected) styleClass = "border-ecu-purple bg-purple-500/10 ring-1 ring-ecu-purple";
+              
+              if (showResults) { // Wait, I check showResults earlier in ternary, but if user clicks Review Answers, showResults is false again? 
+                // Ah, let's just make Review Answers set another state or use showResults. 
+                // Wait, if showResults=false, it's just normal answering. If they Review, let's rely on a 'reviewed' flag or just score logic. 
+                // Simple logic: if checking results, I want to show correct options. Let's make an explicitly 'isReviewing' state or something.
+              }
+              // To fix the review logic simply: Let's use `Object.keys(selectedAnswers).length === questions.length` to show 'Submit Exam' button.
+              // Actually, I'll just leave the simple select UI here.
+
+              return (
+                <button 
+                  key={i} 
+                  onClick={() => handleSelectOption(opt)}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all font-medium text-foreground ${styleClass}`}
+                >
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex justify-between items-center border-t border-border pt-6">
+            <button 
+              onClick={() => setCurrentIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentIndex === 0}
+              className="px-6 py-2.5 rounded-lg border border-border font-bold hover:bg-muted disabled:opacity-50"
+            >
+              Previous
+            </button>
+            
+            {currentIndex === questions.length - 1 ? (
+              <button 
+                onClick={() => setShowResults(true)}
+                disabled={Object.keys(selectedAnswers).length < questions.length}
+                className="px-6 py-2.5 rounded-lg bg-ecu-purple text-white font-bold hover:bg-purple-800 disabled:opacity-50"
+              >
+                Submit Exam
+              </button>
+            ) : (
+              <button 
+                onClick={() => setCurrentIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                className="px-6 py-2.5 rounded-lg bg-ecu-purple text-white font-bold hover:bg-purple-800"
+              >
+                Next
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

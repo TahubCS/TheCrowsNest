@@ -20,6 +20,7 @@ export default function ClassStudyPlansPage() {
   const [newTitle, setNewTitle] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const loadPlans = async () => {
     try {
@@ -65,6 +66,37 @@ export default function ClassStudyPlansPage() {
       alert("Failed to create plan");
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGenerateAIPlan = async () => {
+    if (!newTitle.trim()) {
+      alert("Please enter a title for your generated plan.");
+      return;
+    }
+    
+    setIsGenerating(true);
+    try {
+      const res = await fetch("/api/study-plans/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: newTitle, description: newDesc, classId })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        await loadPlans();
+        setNewTitle("");
+        setNewDesc("");
+        setShowForm(false);
+      } else {
+        alert(data.message || "Failed to generate AI plan.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Network error.");
+    } finally {
+      setIsGenerating(false);
     }
   };
 
@@ -137,8 +169,11 @@ export default function ClassStudyPlansPage() {
               />
             </div>
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={isSubmitting} className="bg-ecu-purple hover:bg-ecu-purple/90 font-bold px-6">
-                {isSubmitting ? "Creating..." : "Save Plan"}
+              <Button type="button" onClick={handleGenerateAIPlan} disabled={isGenerating || isSubmitting} className="bg-gradient-to-r from-ecu-purple to-purple-800 text-white font-bold px-6 border-transparent shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all">
+                {isGenerating ? "Synthesizing Canvas..." : "✨ Auto-Generate with AI"}
+              </Button>
+              <Button type="submit" disabled={isSubmitting || isGenerating} className="bg-muted hover:bg-muted/80 text-foreground font-bold px-6">
+                {isSubmitting ? "Saving..." : "Create Empty Plan"}
               </Button>
               <Button type="button" variant="outline" onClick={() => setShowForm(false)} className="font-bold border-border">
                 Cancel

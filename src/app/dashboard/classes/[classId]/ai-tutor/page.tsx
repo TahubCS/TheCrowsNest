@@ -11,20 +11,43 @@ export default function AITutorPage() {
 
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
+  const [messages, setMessages] = useState<{ role: "student" | "tutor"; text: string }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const messages: any[] = []; // Empty chat state
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isTyping]);
 
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!message.trim()) return;
+  const handleSend = async (e?: React.FormEvent, presetMessage?: string) => {
+    e?.preventDefault();
+    const textToSend = presetMessage || message;
+    if (!textToSend.trim()) return;
     
-    // In a real app, this adds the message to the list and calls the API
-    setIsTyping(true);
+    const updatedMessages = [...messages, { role: "student" as const, text: textToSend }];
+    setMessages(updatedMessages);
     setMessage("");
+    setIsTyping(true);
     
-    // Simulate AI response delay
-    setTimeout(() => setIsTyping(false), 2000);
+    try {
+      const res = await fetch("/api/ai-tutor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId, question: textToSend })
+      });
+      const data = await res.json();
+      
+      if (res.ok && data.success) {
+        setMessages([...updatedMessages, { role: "tutor" as const, text: data.data.answer }]);
+      } else {
+        setMessages([...updatedMessages, { role: "tutor" as const, text: data.message || "I encountered an error retrieving that information." }]);
+      }
+    } catch (error) {
+      console.error(error);
+      setMessages([...updatedMessages, { role: "tutor" as const, text: "A network error occurred while contacting the Knowledge Base." }]);
+    } finally {
+      setIsTyping(false);
+    }
   };
 
   useEffect(() => {
@@ -78,19 +101,35 @@ export default function AITutorPage() {
               </div>
               
               <div className="grid grid-cols-1 gap-2 text-left mt-8">
-                <button onClick={() => setMessage("Can you explain the main concepts we've covered so far?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-blue-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
+                <button onClick={() => handleSend(undefined, "Can you explain the main concepts we've covered so far?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-blue-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
                   <span className="text-blue-500 font-bold mr-2 group-hover/btn:mr-3 transition-all">→</span>
                   Can you explain the main concepts we've covered so far?
                 </button>
-                <button onClick={() => setMessage("I'm confused about the recent lecture notes. Can we review them together?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-cyan-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
+                <button onClick={() => handleSend(undefined, "I'm confused about the recent lecture notes. Can we review them together?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-cyan-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
                   <span className="text-cyan-500 font-bold mr-2 group-hover/btn:mr-3 transition-all">→</span>
                   I'm confused about the recent lecture notes. Can we review them together?
                 </button>
               </div>
             </div>
           ) : (
-            <div className="w-full flex flex-col space-y-4">
-              {/* Real messages would render here */}
+            <div className="w-full flex flex-col space-y-6 pb-4">
+              {messages.map((msg, i) => (
+                <div key={i} className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}>
+                  <div className={`max-w-[85%] rounded-3xl p-5 shadow-sm ${msg.role === "student" ? "bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-br-sm" : "bg-muted/60 border border-border text-foreground rounded-bl-sm text-left"}`}>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
+                  </div>
+                </div>
+              ))}
+              {isTyping && (
+                <div className="flex justify-start">
+                  <div className="bg-muted/60 border border-border rounded-3xl rounded-bl-sm p-5 shadow-sm flex gap-1.5 items-center">
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce"></div>
+                    <div className="w-2 h-2 rounded-full bg-cyan-500 animate-bounce delay-75"></div>
+                    <div className="w-2 h-2 rounded-full bg-blue-500 animate-bounce delay-150"></div>
+                  </div>
+                </div>
+              )}
+              <div ref={messagesEndRef} />
             </div>
           )}
         </div>
