@@ -1,36 +1,25 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🏴‍☠️ TheCrow's Nest: An ECU Student Hub
 
-## Getting Started
+### The Inspiration
+Born out of a high-pressure ECU Hackathon, **TheCrow's Nest** was inspired by the need for a unified, high-performance center for Pirate students to manage their academic lives. We wanted to move beyond the clunky interfaces of traditional university portals and create something that felt **premium, responsive, and alive**.
 
-First, run the development server:
+### How We Built It
+We leveraged a cutting-edge 2026 stack to ensure maximum scalability and speed:
+- **Framework**: Next.js 16 (App Router) for hybrid rendering and optimized routing.
+- **Styling**: Tailwind CSS 4.0 for that vibrant, glassmorphic ECU-purple and gold aesthetic.
+- **Database**: Amazon DynamoDB for ultra-low latency NoSQL storage.
+- **Security**: NextAuth.js v5 with custom JWT strategies to handle academic profiles.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+### Technical Challenges & Learnings
+The biggest hurdle was the **Stale Session Problem**. In a modern SSR environment, ensuring that a user's enrolled class list updates *instantly* across the sidebar and dashboard—without forcing a re-login—required bypassing standard JWT caches. We learned to combine custom API lookups with event-based client-side triggers to keep the UI perfectly synced with the database.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Mathematically, the hackathon energy followed the logic of:
+$$
+\text{Productivity} = \sum_{t=0}^{\text{Deadline}} \frac{\text{Coffee}_t \times \text{Code}_t}{\sqrt{\text{Sleep}_t}}
+$$
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### The Challenge
+Building a "WOW" factor in under 48 hours meant prioritizing visual excellence. Avoiding placeholders and using AI-generated assets ensured the project felt finished from the very first render. 
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+**Go Pirates! 🏴‍☠️**
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
