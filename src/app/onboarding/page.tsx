@@ -2,16 +2,21 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import majorClassData from "@/lib/data/major-class-map.json";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { update: updateSession } = useSession();
   const [step, setStep] = useState(1);
+  const [level, setLevel] = useState("Undergraduate");
   const [major, setMajor] = useState("Computer Science (BS)");
   const [year, setYear] = useState("Freshman");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   // Typecasting access due to dynamic keys
   const recommendedClasses = (majorClassData as any)[major]?.[year] || [];
@@ -22,10 +27,40 @@ export default function OnboardingPage() {
     );
   };
 
-  const completeOnboarding = () => {
-    // In a real app, this would hit /api/onboarding to save profile and classes
-    // and flip the `onboardingComplete` flag on the DB
-    router.push("/dashboard");
+  const completeOnboarding = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/onboarding", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          level,
+          major,
+          yearOfStudy: year,
+          enrolledClasses: selectedClasses,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Something went wrong.");
+        setLoading(false);
+        return;
+      }
+
+      // Update the NextAuth session so it knows onboarding is now complete
+      await updateSession({ onboardingComplete: true, major, yearOfStudy: year });
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -51,7 +86,11 @@ export default function OnboardingPage() {
             <div className="space-y-5">
               <div className="space-y-2">
                 <label className="text-sm font-semibold">Level of Study</label>
-                <select className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:ring-2 focus:ring-ecu-purple cursor-pointer shadow-sm">
+                <select
+                  value={level}
+                  onChange={(e) => setLevel(e.target.value)}
+                  className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:ring-2 focus:ring-ecu-purple cursor-pointer shadow-sm"
+                >
                   <option>Undergraduate</option>
                   <option>Masters</option>
                   <option>Doctoral</option>
@@ -144,11 +183,15 @@ export default function OnboardingPage() {
                 Back
               </Button>
               <Button 
-                onClick={completeOnboarding} 
-                className="flex-[2] h-12 bg-ecu-gold text-ecu-purple hover:bg-ecu-gold/90 font-bold rounded-xl shadow-md text-base"
+                onClick={completeOnboarding}
+                disabled={loading}
+                className="flex-[2] h-12 bg-ecu-gold text-ecu-purple hover:bg-ecu-gold/90 font-bold rounded-xl shadow-md text-base disabled:opacity-60"
               >
-                Complete Setup ({selectedClasses.length} selected)
+                {loading ? "Saving..." : `Complete Setup (${selectedClasses.length} selected)`}
               </Button>
+              {error && (
+                <p className="text-sm text-red-500 font-medium text-center w-full">{error}</p>
+              )}
             </div>
           </div>
         )}

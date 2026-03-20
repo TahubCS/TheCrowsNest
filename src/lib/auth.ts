@@ -3,6 +3,7 @@
  * 
  * Uses credentials provider (email + password) with JWT sessions.
  * Validates against DynamoDB user store.
+ * Includes onboardingComplete, isAdmin, pirateId in session.
  */
 
 import NextAuth from "next-auth";
@@ -37,8 +38,12 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           id: user.id,
           name: user.name,
           email: user.email,
-          major: user.major,
           pirateId: user.pirateId,
+          major: user.major || "",
+          yearOfStudy: user.yearOfStudy || "",
+          enrolledClasses: user.enrolledClasses || [],
+          onboardingComplete: user.onboardingComplete ?? false,
+          isAdmin: user.isAdmin ?? false,
         };
       },
     }),
@@ -49,17 +54,34 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   pages: {
-    signIn: "/", // Use the landing page as the sign-in page
+    signIn: "/login",
   },
 
   callbacks: {
     // Embed custom fields in the JWT token
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id as string;
-        token.major = user.major as string;
         token.pirateId = user.pirateId as string;
+        token.major = user.major as string;
+        token.yearOfStudy = user.yearOfStudy as string;
+        token.onboardingComplete = user.onboardingComplete as boolean;
+        token.isAdmin = user.isAdmin as boolean;
       }
+
+      // Allow session updates (e.g. after onboarding)
+      if (trigger === "update" && session) {
+        if (session.onboardingComplete !== undefined) {
+          token.onboardingComplete = session.onboardingComplete;
+        }
+        if (session.major !== undefined) {
+          token.major = session.major;
+        }
+        if (session.yearOfStudy !== undefined) {
+          token.yearOfStudy = session.yearOfStudy;
+        }
+      }
+
       return token;
     },
 
@@ -67,8 +89,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id as string;
-        session.user.major = token.major as string;
         session.user.pirateId = token.pirateId as string;
+        session.user.major = token.major as string;
+        session.user.yearOfStudy = token.yearOfStudy as string;
+        session.user.onboardingComplete = token.onboardingComplete as boolean;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },
