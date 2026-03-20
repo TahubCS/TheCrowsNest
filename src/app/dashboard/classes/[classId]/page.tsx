@@ -1,5 +1,15 @@
 import Link from 'next/link';
 
+// MOCK DATA TOGGLE: 
+// Leave this array empty `[]` to view the Empty State.
+// Uncomment the filled array to view the Populated State.
+const MOCK_MATERIALS: any[] = [];
+/* const MOCK_MATERIALS = [
+  { id: 1, name: "_Syllabus_Fall.pdf", type: "Syllabus", uploader: { name: "Professor", initial: "P", color: "bg-ecu-gold", text: "text-ecu-purple" }, updated: "2 days ago", icon: "text-red-600 bg-red-100" },
+  { id: 2, name: "Chapter_1_Introduction.pptx", type: "Lecture Slides", uploader: { name: "Jacob (Student)", initial: "J", color: "bg-muted", text: "text-foreground" }, updated: "1 week ago", icon: "text-blue-600 bg-blue-100" },
+  { id: 3, name: "Midterm_1_Review.docx", type: "Study Guide", uploader: { name: "Alex (Student)", initial: "A", color: "bg-ecu-purple", text: "text-white" }, updated: "3 weeks ago", icon: "text-green-600 bg-green-100" }
+]; */
+
 export default async function ClassOverviewPage({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = await params;
   const formattedClass = classId.toUpperCase();
@@ -133,78 +143,53 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
         </div>
 
         <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
-          <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-            <div className="col-span-6 md:col-span-5">File Name</div>
-            <div className="col-span-3 md:col-span-2 hidden md:block">Type</div>
-            <div className="col-span-4 md:col-span-3">Uploaded By</div>
-            <div className="col-span-2 text-right">Action</div>
-          </div>
-          
-          <div className="divide-y divide-border">
-            {/* Mock Syllabus */}
-            <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
-              <div className="col-span-6 md:col-span-5 flex items-center gap-3">
-                <div className="w-8 h-8 rounded shrink-0 bg-red-100 flex items-center justify-center text-red-600">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
-                </div>
-                <div className="overflow-hidden">
-                  <p className="font-medium text-foreground truncate">{formattedClass}_Syllabus_Fall.pdf</p>
-                  <p className="text-xs text-muted-foreground">Updated 2 days ago</p>
-                </div>
+          {MOCK_MATERIALS.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
+              <div className="w-20 h-20 bg-muted/50 rounded-full flex items-center justify-center mb-5 border-4 border-background shadow-sm">
+                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
               </div>
-              <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">Syllabus</div>
-              <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full shrink-0 bg-ecu-gold text-[10px] flex items-center justify-center text-ecu-purple font-bold">P</div>
-                <span className="truncate">Professor</span>
-              </div>
-              <div className="col-span-2 text-right">
-                <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
-              </div>
+              <h3 className="font-extrabold text-xl mb-2 text-foreground">No Materials Available</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
+                Be the first to upload the syllabus, study guides, or your lecture notes to help train the AI for this class!
+              </p>
+              <button className="text-sm bg-ecu-purple text-primary-foreground hover:bg-ecu-purple/90 px-8 py-3 rounded-xl font-bold shadow-md transition-all hover:-translate-y-0.5">
+                Upload First File
+              </button>
             </div>
-
-            {/* Mock Lecture Slides */}
-            <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
-              <div className="col-span-6 md:col-span-5 flex items-center gap-3">
-                <div className="w-8 h-8 rounded shrink-0 bg-blue-100 flex items-center justify-center text-blue-600">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
-                </div>
-                <div className="overflow-hidden">
-                  <p className="font-medium text-foreground truncate">Chapter_1_Introduction.pptx</p>
-                  <p className="text-xs text-muted-foreground">Updated 1 week ago</p>
-                </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                <div className="col-span-6 md:col-span-5">File Name</div>
+                <div className="col-span-3 md:col-span-2 hidden md:block">Type</div>
+                <div className="col-span-4 md:col-span-3">Uploaded By</div>
+                <div className="col-span-2 text-right">Action</div>
               </div>
-              <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">Lecture Slides</div>
-              <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full shrink-0 bg-muted flex items-center justify-center text-[10px] font-bold">J</div>
-                <span className="truncate">Jacob (Student)</span>
+              
+              <div className="divide-y divide-border">
+                {MOCK_MATERIALS.map((file) => (
+                  <div key={file.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
+                    <div className="col-span-6 md:col-span-5 flex items-center gap-3">
+                      <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center ${file.icon}`}>
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="font-medium text-foreground truncate">{file.id === 1 ? formattedClass : ''}{file.name}</p>
+                        <p className="text-xs text-muted-foreground">Updated {file.updated}</p>
+                      </div>
+                    </div>
+                    <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">{file.type}</div>
+                    <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
+                      <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold ${file.uploader.color} ${file.uploader.text}`}>{file.uploader.initial}</div>
+                      <span className="truncate">{file.uploader.name}</span>
+                    </div>
+                    <div className="col-span-2 text-right">
+                      <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="col-span-2 text-right">
-                <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
-              </div>
-            </div>
-
-            {/* Mock Study Guide */}
-            <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
-              <div className="col-span-6 md:col-span-5 flex items-center gap-3">
-                <div className="w-8 h-8 rounded shrink-0 bg-green-100 flex items-center justify-center text-green-600">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
-                </div>
-                <div className="overflow-hidden">
-                  <p className="font-medium text-foreground truncate">Midterm_1_Comprehensive_Review.docx</p>
-                  <p className="text-xs text-muted-foreground">Updated 3 weeks ago</p>
-                </div>
-              </div>
-              <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">Study Guide</div>
-              <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
-                <div className="w-6 h-6 rounded-full shrink-0 bg-ecu-purple text-white flex items-center justify-center text-[10px] font-bold">A</div>
-                <span className="truncate">Alex (Student)</span>
-              </div>
-              <div className="col-span-2 text-right">
-                <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
-              </div>
-            </div>
-            
-          </div>
+            </>
+          )}
         </div>
         
         <p className="text-xs text-muted-foreground text-center">
