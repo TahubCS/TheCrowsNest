@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-ecu-gold drop-shadow-sm">Nest</span>
           </Link>
         </div>
-        <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <Link
             href="/dashboard"
             className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${!activeClass && pathname === '/dashboard' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
@@ -59,16 +59,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-xl">📚</span> My Classes
           </Link>
 
-          <Link
-            href="/dashboard/study-plans"
-            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${pathname === '/dashboard/study-plans' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
-              }`}
-          >
-            <span className="text-xl">🗺️</span> Study Plans
-          </Link>
-
-          {/* Enrolled Classes List */}
-          <div className="pl-4 mt-2 space-y-2">
+          {/* Enrolled Classes List — directly under My Classes */}
+          <div className="pl-4 space-y-1">
             {enrolledClasses.map((cls, idx) => {
               const isGold = idx % 2 !== 0;
               const activeBg = isGold ? 'bg-ecu-gold/10 text-ecu-gold border-ecu-gold/30' : 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20';
@@ -96,6 +88,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       </Link>
                       <Link href={`/dashboard/classes/${cls.classId}/practice-exams`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('practice-exams') ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
                         Practice Exams
+                      </Link>
+                      <Link href={`/dashboard/classes/${cls.classId}/flashcards`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('flashcards') ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                        Flashcards
+                      </Link>
+                      <Link href={`/dashboard/classes/${cls.classId}/ai-tutor`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('ai-tutor') ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                        AI Study Tutor
                       </Link>
                     </div>
                   )}
