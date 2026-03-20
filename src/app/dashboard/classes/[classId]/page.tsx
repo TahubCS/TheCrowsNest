@@ -3,12 +3,12 @@ import Link from 'next/link';
 // MOCK DATA TOGGLE: 
 // Leave this array empty `[]` to view the Empty State.
 // Uncomment the filled array to view the Populated State.
-const MOCK_MATERIALS: any[] = [];
-/* const MOCK_MATERIALS = [
+//const MOCK_MATERIALS: any[] = [];
+const MOCK_MATERIALS = [
   { id: 1, name: "_Syllabus_Fall.pdf", type: "Syllabus", uploader: { name: "Professor", initial: "P", color: "bg-ecu-gold", text: "text-ecu-purple" }, updated: "2 days ago", icon: "text-red-600 bg-red-100" },
   { id: 2, name: "Chapter_1_Introduction.pptx", type: "Lecture Slides", uploader: { name: "Jacob (Student)", initial: "J", color: "bg-muted", text: "text-foreground" }, updated: "1 week ago", icon: "text-blue-600 bg-blue-100" },
   { id: 3, name: "Midterm_1_Review.docx", type: "Study Guide", uploader: { name: "Alex (Student)", initial: "A", color: "bg-ecu-purple", text: "text-white" }, updated: "3 weeks ago", icon: "text-green-600 bg-green-100" }
-]; */
+];
 
 export default async function ClassOverviewPage({ params }: { params: Promise<{ classId: string }> }) {
   const { classId } = await params;
@@ -41,7 +41,7 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
           <h3 className="font-bold text-xl sm:text-2xl group-hover:text-ecu-gold transition-colors mb-2">Practice Exams</h3>
           <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Past exams and quizzes submitted by old students.</p>
         </Link>
-        
+
         <Link href={`/dashboard/classes/${classId}/flashcards`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
           <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
             <span className="text-6xl sm:text-8xl">🗂️</span>
@@ -70,7 +70,7 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
 
         <div className="bg-background rounded-2xl border border-border p-6 shadow-sm">
           <div className="relative border-l-2 border-muted ml-3 space-y-8 py-2">
-            
+
             {/* Unit 1 */}
             <div className="relative pl-8">
               <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-purple-500/80 ring-4 ring-background"></div>
@@ -164,7 +164,7 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
                 <div className="col-span-4 md:col-span-3">Uploaded By</div>
                 <div className="col-span-2 text-right">Action</div>
               </div>
-              
+
               <div className="divide-y divide-border">
                 {MOCK_MATERIALS.map((file) => (
                   <div key={file.id} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
@@ -191,7 +191,7 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
             </>
           )}
         </div>
-        
+
         <p className="text-xs text-muted-foreground text-center">
           *These materials are processed by our AI to automatically generate personalized flashcards and exams for you.
         </p>
