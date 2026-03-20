@@ -34,40 +34,40 @@ export default function DashboardPage() {
       {/* Course Grid */}
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-8">
         {/* Mock Class 1 */}
-        <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative">
-          <div className="h-2.5 bg-gradient-to-r from-ecu-purple to-ecu-purple/70"></div>
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="font-bold text-xl group-hover:text-ecu-purple transition-colors">CSCI 1010</h3>
-              <span className="px-2.5 py-1 bg-ecu-gold/20 text-ecu-purple text-xs font-bold rounded-md">Active</span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed">Algorithmic Problem Solving. Introduction to problem-solving concepts and program design.</p>
-            <Link href="/dashboard/classes/csci1010" className="w-full block">
-              <Button variant="outline" className="w-full justify-between group-hover:bg-ecu-purple group-hover:text-primary-foreground group-hover:border-ecu-purple shadow-sm transition-all duration-300 rounded-xl">
+        <Link href="/dashboard/classes/csci1010" className="block group h-full">
+          <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full flex flex-col">
+            <div className="h-2.5 bg-gradient-to-r from-ecu-purple to-ecu-purple/70"></div>
+            <div className="p-6 flex flex-col flex-1">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-bold text-xl group-hover:text-ecu-purple transition-colors">CSCI 1010</h3>
+                <span className="px-2.5 py-1 bg-ecu-gold/20 text-ecu-purple text-xs font-bold rounded-md">Active</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed flex-1">Algorithmic Problem Solving. Introduction to problem-solving concepts and program design.</p>
+              <div className="flex items-center justify-between w-full h-10 px-4 py-2 border-2 border-border/80 bg-background text-sm font-medium group-hover:bg-ecu-purple group-hover:text-primary-foreground group-hover:border-ecu-purple shadow-sm transition-all duration-300 rounded-xl">
                 <span>View Materials</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Button>
-            </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        </Link>
 
         {/* Mock Class 2 */}
-        <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative">
-          <div className="h-2.5 bg-gradient-to-r from-ecu-gold to-ecu-gold/70"></div>
-          <div className="p-6">
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="font-bold text-xl group-hover:text-ecu-gold transition-colors">MATH 1065</h3>
-              <span className="px-2.5 py-1 bg-ecu-gold/20 text-ecu-purple text-xs font-bold rounded-md">Active</span>
-            </div>
-            <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed">College Algebra. Functions, graphs, equations, and inequalities. Essential for STEM.</p>
-            <Link href="/dashboard/classes/math1065" className="w-full block">
-              <Button variant="outline" className="w-full justify-between group-hover:bg-ecu-gold group-hover:text-secondary-foreground group-hover:border-ecu-gold shadow-sm transition-all duration-300 rounded-xl">
+        <Link href="/dashboard/classes/math1065" className="block group h-full">
+          <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full flex flex-col">
+            <div className="h-2.5 bg-gradient-to-r from-ecu-gold to-ecu-gold/70"></div>
+            <div className="p-6 flex flex-col flex-1">
+              <div className="flex justify-between items-start mb-4">
+                <h3 className="font-bold text-xl group-hover:text-ecu-gold transition-colors">MATH 1065</h3>
+                <span className="px-2.5 py-1 bg-ecu-gold/20 text-ecu-purple text-xs font-bold rounded-md">Active</span>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6 line-clamp-2 leading-relaxed flex-1">College Algebra. Functions, graphs, equations, and inequalities. Essential for STEM.</p>
+              <div className="flex items-center justify-between w-full h-10 px-4 py-2 border-2 border-border/80 bg-background text-sm font-medium group-hover:bg-ecu-gold group-hover:text-secondary-foreground group-hover:border-ecu-gold shadow-sm transition-all duration-300 rounded-xl">
                 <span>View Materials</span>
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-              </Button>
-            </Link>
+              </div>
+            </div>
           </div>
-        </div>
+        </Link>
 
         {/* Add Class Card */}
         <div className="bg-background/50 rounded-2xl border-2 border-dashed border-border hover:border-ecu-purple hover:bg-ecu-purple/5 flex flex-col items-center justify-center p-8 text-center text-muted-foreground hover:text-ecu-purple transition-all duration-300 cursor-pointer min-h-[240px] group">

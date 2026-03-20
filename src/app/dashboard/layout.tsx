@@ -12,10 +12,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const activeClass = classMatch ? classMatch[1] : null;
 
   return (
-    <div className="flex min-h-screen bg-muted/40">
+    <div className="flex h-screen overflow-hidden bg-muted/40">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-background flex flex-col hidden md:flex shadow-sm">
-        <div className="p-6 border-b border-border">
+      <aside className="w-64 h-full border-r border-border bg-background flex flex-col hidden md:flex shadow-sm shrink-0">
+        <div className="p-6 border-b border-border shrink-0">
           <Link href="/dashboard" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
             <span className="text-ecu-purple drop-shadow-sm">Pirate</span>
             <span className="text-ecu-gold drop-shadow-sm">Study</span>
@@ -76,15 +76,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             
           </div>
         </nav>
-        <div className="p-6 border-t border-border text-xs text-muted-foreground font-medium">
+        <div className="p-6 border-t border-border shrink-0 text-xs text-muted-foreground font-medium">
           PirateStudy © {new Date().getFullYear()}
         </div>
       </aside>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Topbar */}
-        <header className="h-16 border-b border-border bg-background/80 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-20 shadow-sm">
+        <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center md:hidden">
             <span className="font-bold text-lg tracking-tight">
               <span className="text-ecu-purple">Pirate</span>
