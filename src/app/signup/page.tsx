@@ -13,8 +13,6 @@ export default function SignupPage() {
     firstName: "",
     lastName: "",
     email: "",
-    pirateId: "",
-    major: "",
     password: "",
     confirmPassword: "",
   });
@@ -66,18 +64,6 @@ export default function SignupPage() {
       return;
     }
 
-    if (!form.pirateId.trim()) {
-      setError("Pirate ID is required.");
-      setLoading(false);
-      return;
-    }
-
-    if (!form.major.trim()) {
-      setError("Major is required.");
-      setLoading(false);
-      return;
-    }
-
     try {
       // Call the register API
       const res = await fetch("/api/auth/register", {
@@ -87,8 +73,6 @@ export default function SignupPage() {
           name: `${form.firstName.trim()} ${form.lastName.trim()}`,
           email: form.email.trim(),
           password: form.password,
-          pirateId: form.pirateId.trim(),
-          major: form.major.trim(),
         }),
       });
 
@@ -184,40 +168,6 @@ export default function SignupPage() {
               ) : (
                 <p className="text-[11px] text-muted-foreground">Must be a valid @students.ecu.edu email address.</p>
               )}
-            </div>
-
-            {/* Pirate ID & Major */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="pirateId">
-                  Pirate ID
-                </label>
-                <Input
-                  id="pirateId"
-                  name="pirateId"
-                  type="text"
-                  value={form.pirateId}
-                  onChange={(e) => updateField("pirateId", e.target.value)}
-                  placeholder="900123456"
-                  required
-                  className="h-11 border-border focus-visible:ring-ecu-purple"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="major">
-                  Major
-                </label>
-                <Input
-                  id="major"
-                  name="major"
-                  type="text"
-                  value={form.major}
-                  onChange={(e) => updateField("major", e.target.value)}
-                  placeholder="Computer Science"
-                  required
-                  className="h-11 border-border focus-visible:ring-ecu-purple"
-                />
-              </div>
             </div>
 
             {/* Password */}

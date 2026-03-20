@@ -1,0 +1,27 @@
+{
+  "Computer Science (BS)": {
+    "Freshman": [
+      {"id": "csci1010", "code": "CSCI 1010", "name": "Algorithmic Problem Solving. Introduction to problem-solving concepts and program design.", "credits": 3},
+      {"id": "math1065", "code": "MATH 1065", "name": "College Algebra. Functions, graphs, equations, and inequalities.", "credits": 3},
+      {"id": "engl1100", "code": "ENGL 1100", "name": "Foundations of College Writing. Essay drafting and peer review.", "credits": 3}
+    ],
+    "Sophomore": [
+      {"id": "csci2540", "code": "CSCI 2540", "name": "Data Structures. Trees, lists, queues, hashing, sorting.", "credits": 3},
+      {"id": "csci2530", "code": "CSCI 2530", "name": "Software Engineering I. Methodologies for large-scale systems.", "credits": 3},
+      {"id": "math2171", "code": "MATH 2171", "name": "Calculus I. Limits, derivatives, integration.", "credits": 4}
+    ]
+  },
+  "Nursing (BSN)": {
+    "Freshman": [
+      {"id": "nurs1001", "code": "NURS 1001", "name": "Introduction to Nursing. History and ethics of patient care.", "credits": 3},
+      {"id": "biol1050", "code": "BIOL 1050", "name": "General Biology. Cellular and molecular functions.", "credits": 3},
+      {"id": "chem1150", "code": "CHEM 1150", "name": "General Chemistry I. Atomic structure and stoichiometry.", "credits": 3}
+    ]
+  },
+  "Business Administration (BSBA)": {
+    "Freshman": [
+      {"id": "busa1000", "code": "BUSA 1000", "name": "Intro to Business. Foundations of management and markets.", "credits": 3},
+      {"id": "econ2113", "code": "ECON 2113", "name": "Principles of Microeconomics. Supply, demand, and market structures.", "credits": 3}
+    ]
+  }
+}
