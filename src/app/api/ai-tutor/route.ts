@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { BedrockAgentRuntimeClient, RetrieveAndGenerateCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockAgentRuntimeClient, RetrieveCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = new BedrockAgentRuntimeClient({
+    const clientAgent = new BedrockAgentRuntimeClient({
+      region: process.env.AWS_REGION || "us-east-1",
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        ...(process.env.AWS_SESSION_TOKEN && {
+          sessionToken: process.env.AWS_SESSION_TOKEN,
+        }),
+      },
+    });
+
+    const clientRuntime = new BedrockRuntimeClient({
       region: process.env.AWS_REGION || "us-east-1",
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -34,31 +46,42 @@ export async function POST(request: NextRequest) {
     });
 
     const knowledgeBaseId = "7PEG1WNUAY";
-    
-    // We retrieve and generate a response from Bedrock using Claude 3 Haiku
-    const command = new RetrieveAndGenerateCommand({
-      input: { text: `You are an AI tutor for class ${classId}. Use the provided context to answer the student's question securely. Question: ${question}` },
-      retrieveAndGenerateConfiguration: {
-        type: "KNOWLEDGE_BASE",
-        knowledgeBaseConfiguration: {
-          knowledgeBaseId,
-          modelArn: `arn:aws:bedrock:${process.env.AWS_REGION || "us-east-1"}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`
-        }
+
+    // Step 1: Retrieve context from Knowledge Base
+    const retrieveCommand = new RetrieveCommand({
+      knowledgeBaseId,
+      retrievalQuery: { text: `Class ${classId}: ${question}` },
+      retrievalConfiguration: {
+        vectorSearchConfiguration: { numberOfResults: 5 }
       }
     });
 
-    const response = await client.send(command);
-    
+    const retrieveResponse = await clientAgent.send(retrieveCommand);
+    const contextResults = retrieveResponse.retrievalResults || [];
+    const contextTexts = contextResults.map(r => r.content?.text).filter(Boolean).join("\n\n---\n\n");
+
+    // Step 2: Generate response using Claude 4.6 Sonnet
+    const systemPrompt = `You are an AI tutor exclusively for class ${classId}. Use ONLY the provided context to answer the student's question securely. Do not make up answers outside the syllabus context.`;
+    const userPrompt = `Context:\n<context>\n${contextTexts}\n</context>\n\nQuestion: ${question}`;
+
+    const converseCommand = new ConverseCommand({
+      modelId: "us.anthropic.claude-opus-4-20250514-v1:0",
+      system: [{ text: systemPrompt }],
+      messages: [{ role: "user", content: [{ text: userPrompt }] }]
+    });
+
+    const response = await clientRuntime.send(converseCommand);
+
     // Extract answer and cited text references
-    const answer = response.output?.text || "I was unable to find an answer in the class materials.";
-    const citations = response.citations || [];
+    const answer = response.output?.message?.content?.[0]?.text || "I was unable to find an answer in the class materials.";
+    const citationsCount = contextResults.length;
 
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Answer generated.",
       data: {
         answer,
-        sourcesUsed: citations.length,
+        sourcesUsed: citationsCount,
         relevanceScores: [],
       },
     });

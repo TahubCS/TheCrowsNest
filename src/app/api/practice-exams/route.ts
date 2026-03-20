@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { BedrockAgentRuntimeClient, RetrieveAndGenerateCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockAgentRuntimeClient, RetrieveCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = new BedrockAgentRuntimeClient({
+    const clientAgent = new BedrockAgentRuntimeClient({
+      region: process.env.AWS_REGION || "us-east-1",
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        ...(process.env.AWS_SESSION_TOKEN && {
+          sessionToken: process.env.AWS_SESSION_TOKEN,
+        }),
+      },
+    });
+
+    const clientRuntime = new BedrockRuntimeClient({
       region: process.env.AWS_REGION || "us-east-1",
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -34,45 +46,51 @@ export async function POST(request: NextRequest) {
     });
 
     const knowledgeBaseId = "7PEG1WNUAY";
-    
-    // Strict prompt for multiple choice questions
-    const numQuestions = format === "Short Quiz" ? 5 : 10;
-    
-    const prompt = `You are an expert professor writing a practice exam for your students.
-Topic focus: ${topic || "All Course Topics"}
-Difficulty level: ${difficulty || "Standard"}
-Format: ${format || "Multiple Choice"}
 
-Using ONLY the provided class materials in your knowledge base, generate exactly ${numQuestions} multiple-choice questions.
-CRITICAL INSTRUCTIONS:
-1. You MUST return ONLY a raw JSON array of objects.
-2. Do NOT use markdown code blocks (e.g. no \`\`\`json).
-3. Do NOT include any conversational text before or after the JSON.
-4. Each object must have exactly these keys: "question", "options" (an array of exactly 4 strings), and "correctAnswer" (which must exactly match one of the options).
-
-Example format:
-[
-  {
-    "question": "What is the capital of France?",
-    "options": ["London", "Berlin", "Paris", "Madrid"],
-    "correctAnswer": "Paris"
-  }
-]`;
-
-    const command = new RetrieveAndGenerateCommand({
-      input: { text: prompt },
-      retrieveAndGenerateConfiguration: {
-        type: "KNOWLEDGE_BASE",
-        knowledgeBaseConfiguration: {
-          knowledgeBaseId,
-          modelArn: `arn:aws:bedrock:${process.env.AWS_REGION || "us-east-1"}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`
-        }
+    // Step 1: Retrieve context from Knowledge Base
+    const retrieveCommand = new RetrieveCommand({
+      knowledgeBaseId,
+      retrievalQuery: { text: `Practice Exam for ${classId} topic: ${topic || "general course concepts"}` },
+      retrievalConfiguration: {
+        vectorSearchConfiguration: { numberOfResults: 5 }
       }
     });
 
-    const response = await client.send(command);
-    let answerText = response.output?.text || "[]";
-    
+    const retrieveResponse = await clientAgent.send(retrieveCommand);
+    const contextResults = retrieveResponse.retrievalResults || [];
+    const contextTexts = contextResults.map(r => r.content?.text).filter(Boolean).join("\n\n---\n\n");
+
+    const count = format === "Short Quiz" ? 5 : 10;
+
+    const promptText = `Generate precisely ${count} multiple-choice exam questions for class ${classId}.
+Context from class materials:
+<context>
+${contextTexts}
+</context>
+
+Topic: ${topic || "Comprehensive Review"}
+Difficulty: ${difficulty}
+
+CRITICAL INSTRUCTION: Analyze the syllabus context carefully and extract the most important information.
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO OTHER TEXT. 
+Format exactly like this strictly:
+[
+  { 
+    "question": "What is ...?", 
+    "options": ["A", "B", "C", "D"], 
+    "correctAnswer": 0, 
+    "explanation": "Because..." 
+  }
+]`;
+
+    const converseCommand = new ConverseCommand({
+      modelId: "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      messages: [{ role: "user", content: [{ text: promptText }] }]
+    });
+
+    const response = await clientRuntime.send(converseCommand);
+    let answerText = response.output?.message?.content?.[0]?.text || "[]";
+    const citationsCount = contextResults.length;
     // Try to strip Markdown blocks
     answerText = answerText.trim();
     if (answerText.startsWith("\`\`\`json")) answerText = answerText.substring(7);

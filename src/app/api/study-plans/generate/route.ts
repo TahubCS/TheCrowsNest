@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { BedrockAgentRuntimeClient, RetrieveAndGenerateCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockAgentRuntimeClient, RetrieveCommand } from "@aws-sdk/client-bedrock-agent-runtime";
+import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { createStudyPlan } from "@/lib/db";
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4 } from 'uuid';
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -24,7 +25,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const client = new BedrockAgentRuntimeClient({
+    const clientAgent = new BedrockAgentRuntimeClient({
+      region: process.env.AWS_REGION || "us-east-1",
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        ...(process.env.AWS_SESSION_TOKEN && {
+          sessionToken: process.env.AWS_SESSION_TOKEN,
+        }),
+      },
+    });
+
+    const clientRuntime = new BedrockRuntimeClient({
       region: process.env.AWS_REGION || "us-east-1",
       credentials: {
         accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
@@ -37,40 +49,49 @@ export async function POST(request: NextRequest) {
 
     const knowledgeBaseId = "7PEG1WNUAY";
 
-    // Strict prompt for creating a structured study schedule
-    const prompt = `You are an expert academic advisor building a structured study plan for a student.
-Context: Create a study plan titled "${title}" the following description (if any): "${description || 'General course synthesis'}".
-
-Using ONLY the provided course syllabus and lecture materials in your knowledge base, generate a study schedule.
-CRITICAL INSTRUCTIONS:
-1. You MUST return ONLY a raw JSON array of objects.
-2. Do NOT use markdown code blocks (e.g. no \`\`\`json).
-3. Do NOT include any conversational text before or after the JSON.
-4. Each object in the array represents a study task, and must have exactly these keys:
-   - "title" (string: succinct milestone or topic name)
-   - "type" (string: must be one of "Reading", "Assignment", "Test", "Lecture", "Review" or "Other")
-   - "status" (string: must be exactly "PLANNED")
-
-Example format:
-[
-  { "title": "Read Chapter 1 textbook", "type": "Reading", "status": "PLANNED" },
-  { "title": "Complete Homework 1 on Vectors", "type": "Assignment", "status": "PLANNED" }
-]`;
-
-    const command = new RetrieveAndGenerateCommand({
-      input: { text: prompt },
-      retrieveAndGenerateConfiguration: {
-        type: "KNOWLEDGE_BASE",
-        knowledgeBaseConfiguration: {
-          knowledgeBaseId,
-          modelArn: `arn:aws:bedrock:${process.env.AWS_REGION || "us-east-1"}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`
-        }
+    // Step 1: Retrieve context from Knowledge Base
+    const retrieveCommand = new RetrieveCommand({
+      knowledgeBaseId,
+      retrievalQuery: { text: `Study plan schedule for ${classId}` },
+      retrievalConfiguration: {
+        vectorSearchConfiguration: { numberOfResults: 5 }
       }
     });
 
-    const response = await client.send(command);
-    let answerText = response.output?.text || "[]";
-    
+    const retrieveResponse = await clientAgent.send(retrieveCommand);
+    const contextResults = retrieveResponse.retrievalResults || [];
+    const contextTexts = contextResults.map(r => r.content?.text).filter(Boolean).join("\n\n---\n\n");
+
+    const promptText = `Generate a structured weekly study plan for class ${classId}.
+Title: ${title}
+Description: ${description || "General course synthesis"}
+
+Context from class materials:
+<context>
+${contextTexts}
+</context>
+
+The study plan should have exactly 5 important tasks extracted from the syllabus or course materials.
+CRITICAL INSTRUCTION: Analyze the syllabus context carefully and extract the most important information.
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO OTHER TEXT. 
+Format exactly like this strictly:
+[
+  { 
+    "title": "Read Chapter 1", 
+    "type": "Reading", 
+    "status": "PLANNED" 
+  }
+]`;
+
+    const converseCommand = new ConverseCommand({
+      modelId: "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+      messages: [{ role: "user", content: [{ text: promptText }] }]
+    });
+
+    const response = await clientRuntime.send(converseCommand);
+    let answerText = response.output?.message?.content?.[0]?.text || "[]";
+    const citationsCount = contextResults.length;
+
     // Strip markdown blocks securely
     answerText = answerText.trim();
     if (answerText.startsWith("\`\`\`json")) answerText = answerText.substring(7);
@@ -84,7 +105,7 @@ Example format:
       if (!Array.isArray(items)) {
         throw new Error("Parsed JSON is not an array");
       }
-      
+
       // Add secure UUIDs to parsed items to match database schema Let's actually map them
       items = items.map(item => ({
         itemId: uuidv4(),
