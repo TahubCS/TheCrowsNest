@@ -1,30 +1,42 @@
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { auth } from "@/lib/auth";
 
-export default function ProfilePage() {
+export default async function ProfilePage() {
+  const session = await auth();
+  
+  // Extract fields from DB session
+  const userName = session?.user?.name || "Student";
+  const userEmail = session?.user?.email || "No Email found";
+  const userMajor = (session?.user as any)?.major || "Computer Science (BS)";
+  
+  // Split name back into First and Last for the form fields
+  const [firstName, ...lastNameParts] = userName.split(" ");
+  const lastName = lastNameParts.join(" ");
+
   return (
-    <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Your Profile</h1>
         <p className="text-muted-foreground mt-2 text-lg">Manage your personal information and academic preferences.</p>
       </div>
 
-      <div className="bg-background rounded-2xl border border-border p-8 shadow-sm">
+      <div className="max-w-3xl bg-background rounded-2xl border border-border p-8 shadow-sm">
         <form className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
               <label className="text-sm font-semibold">First Name</label>
-              <Input defaultValue="Muhammad" className="bg-muted/50" />
+              <Input defaultValue={firstName} className="bg-muted/50" />
             </div>
             <div className="space-y-2">
               <label className="text-sm font-semibold">Last Name</label>
-              <Input defaultValue="Khatri" className="bg-muted/50" />
+              <Input defaultValue={lastName} className="bg-muted/50" />
             </div>
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-semibold">ECU Email</label>
-            <Input defaultValue="khatrim22@students.ecu.edu" disabled className="bg-muted/50 text-muted-foreground cursor-not-allowed border-dashed" />
+            <Input defaultValue={userEmail} disabled className="bg-muted/50 text-muted-foreground cursor-not-allowed border-dashed" />
             <p className="text-xs text-muted-foreground">Your university email cannot be changed.</p>
           </div>
 
@@ -32,12 +44,15 @@ export default function ProfilePage() {
             <div className="space-y-2">
               <label className="text-sm font-semibold text-ecu-purple">Academic Major</label>
               <div className="relative">
-                <select className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ecu-purple shadow-sm cursor-pointer">
-                  <option>Computer Science (BS)</option>
-                  <option>Engineering</option>
-                  <option>Business Administration</option>
-                  <option>Nursing</option>
-                  <option>Biology</option>
+                <select 
+                  defaultValue={userMajor}
+                  className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ecu-purple shadow-sm cursor-pointer"
+                >
+                  <option value="Computer Science (BS)">Computer Science (BS)</option>
+                  <option value="Engineering">Engineering</option>
+                  <option value="Business Administration">Business Administration</option>
+                  <option value="Nursing">Nursing</option>
+                  <option value="Biology">Biology</option>
                 </select>
                 <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-muted-foreground">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
