@@ -1,15 +1,20 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { StudyPlan } from "@/types";
 
-export default function StudyPlansPage() {
+export default function ClassStudyPlansPage() {
+  const params = useParams();
+  const classId = params.classId as string;
+  const formattedClass = classId?.toUpperCase() || "CLASS";
+
   const [plans, setPlans] = useState<StudyPlan[]>([]);
   const [loading, setLoading] = useState(true);
-  
+
   // Create Plan Form State
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
@@ -18,7 +23,7 @@ export default function StudyPlansPage() {
 
   const loadPlans = async () => {
     try {
-      const res = await fetch("/api/study-plans");
+      const res = await fetch(`/api/study-plans?classId=${classId}`);
       if (res.ok) {
         const data = await res.json();
         setPlans(data.data.plans);
@@ -32,25 +37,23 @@ export default function StudyPlansPage() {
 
   useEffect(() => {
     loadPlans();
-  }, []);
+  }, [classId]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
-    
+
     setIsSubmitting(true);
     try {
       const res = await fetch("/api/study-plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle, description: newDesc, items: [] })
+        body: JSON.stringify({ title: newTitle, description: newDesc, classId, items: [] })
       });
-      
+
       const data = await res.json();
       if (data.success) {
-        // Refresh plans
         await loadPlans();
-        // Reset form
         setNewTitle("");
         setNewDesc("");
         setShowForm(false);
@@ -67,7 +70,7 @@ export default function StudyPlansPage() {
 
   const handleDelete = async (planId: string) => {
     if (!confirm("Are you sure you want to delete this plan?")) return;
-    
+
     try {
       const res = await fetch(`/api/study-plans?id=${planId}`, { method: "DELETE" });
       if (res.ok) {
@@ -80,43 +83,56 @@ export default function StudyPlansPage() {
 
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div>
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">My Study Plans</h1>
-          <p className="text-muted-foreground mt-2 text-lg">Organize your academic journey and track custom degree paths.</p>
+      {/* Header */}
+      <div>
+        <Link href={`/dashboard/classes/${classId}`} className="text-sm font-medium text-muted-foreground hover:text-ecu-purple inline-flex items-center gap-1 mb-4 transition-colors">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+          Back to {formattedClass} Overview
+        </Link>
+
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div>
+            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-purple-600">
+              Study Plans
+            </h1>
+            <p className="text-muted-foreground mt-2 text-lg">
+              Community-driven weekly planners for {formattedClass}. Create or follow structured study schedules.
+            </p>
+          </div>
+
+          {!showForm && (
+            <Button
+              onClick={() => setShowForm(true)}
+              className="bg-ecu-purple hover:bg-ecu-purple/90 text-primary-foreground font-bold rounded-xl shadow-lg px-6 h-12 flex items-center gap-2 shrink-0"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
+              Create New Plan
+            </Button>
+          )}
         </div>
-        
-        {!showForm && (
-          <Button 
-            onClick={() => setShowForm(true)}
-            className="bg-ecu-purple hover:bg-ecu-purple/90 text-primary-foreground font-bold rounded-xl shadow-lg px-6 h-12 flex items-center gap-2"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 4v16m8-8H4"/></svg>
-            Create New Plan
-          </Button>
-        )}
       </div>
 
+      {/* Create Plan Form */}
       {showForm && (
         <form onSubmit={handleCreatePlan} className="bg-background rounded-2xl border border-border p-6 shadow-sm max-w-2xl animate-in slide-in-from-top-4 fade-in duration-300">
-          <h2 className="text-xl font-bold mb-4">Create a Study Plan</h2>
+          <h2 className="text-xl font-bold mb-4">Create a Study Plan for {formattedClass}</h2>
           <div className="space-y-4">
             <div>
               <label className="text-sm font-semibold mb-1 block">Plan Title</label>
-              <Input 
-                value={newTitle} 
-                onChange={e => setNewTitle(e.target.value)} 
-                placeholder="e.g. Fall 2026 Core Requirements" 
-                required 
+              <Input
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder={`e.g. ${formattedClass} Midterm Review Schedule`}
+                required
                 className="bg-muted/50 focus-visible:ring-ecu-purple"
               />
             </div>
             <div>
               <label className="text-sm font-semibold mb-1 block">Description (Optional)</label>
-              <Input 
-                value={newDesc} 
-                onChange={e => setNewDesc(e.target.value)} 
-                placeholder="e.g. Focusing on my major prerequisites" 
+              <Input
+                value={newDesc}
+                onChange={e => setNewDesc(e.target.value)}
+                placeholder="e.g. Covers chapters 1-5 for the midterm exam"
                 className="bg-muted/50 focus-visible:ring-ecu-purple"
               />
             </div>
@@ -132,17 +148,20 @@ export default function StudyPlansPage() {
         </form>
       )}
 
+      {/* Plans List */}
       {loading ? (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ecu-purple"></div>
         </div>
       ) : plans.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 px-4 text-center border-2 border-dashed border-border rounded-2xl bg-muted/10">
-          <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mb-6">
+          <div className="bg-muted w-20 h-20 rounded-full flex items-center justify-center mb-6 border-4 border-background shadow-sm">
             <svg className="w-10 h-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           </div>
-          <h2 className="text-2xl font-bold mb-2">No Study Plans Yet</h2>
-          <p className="text-muted-foreground max-w-sm mb-6">Create a personalized study plan to organize your courses and track graduation requirements.</p>
+          <h2 className="text-2xl font-bold mb-2">No Study Plans for {formattedClass}</h2>
+          <p className="text-muted-foreground max-w-sm mb-6 font-medium">
+            Be the first to create a study plan for this class! Organize topics week by week and share with classmates.
+          </p>
           <Button onClick={() => setShowForm(true)} className="bg-ecu-purple text-white shadow-md font-bold hover:bg-ecu-purple/90">
             Create First Plan
           </Button>
@@ -164,10 +183,10 @@ export default function StudyPlansPage() {
                     </button>
                   </div>
                   <p className="text-sm text-muted-foreground mb-6 line-clamp-2 min-h-[40px]">{plan.description || "No description provided."}</p>
-                  
+
                   <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
                     <span className="text-xs font-semibold bg-muted px-2.5 py-1 rounded-md text-foreground">
-                      {plan.items?.length || 0} classes
+                      {plan.items?.length || 0} items
                     </span>
                     <button className="text-sm font-bold text-ecu-purple hover:underline flex items-center gap-1">
                       View details <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
