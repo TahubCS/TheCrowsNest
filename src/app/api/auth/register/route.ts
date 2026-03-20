@@ -2,7 +2,9 @@
  * POST /api/auth/register
  * 
  * Register a new ECU student.
- * Validates email domain, hashes password, saves to DynamoDB.
+ * Simplified: only name, email, password.
+ * PirateID is auto-extracted from email.
+ * Major/year set later during onboarding.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -14,10 +16,10 @@ import type { RegisterPayload, ApiResponse } from "@/types";
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as RegisterPayload;
-    const { name, email, password, pirateId, major } = body;
+    const { name, email, password } = body;
 
     // --- Validate required fields ---
-    if (!name || !email || !password || !pirateId || !major) {
+    if (!name || !email || !password) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "All fields are required." },
         { status: 400 }
@@ -54,6 +56,9 @@ export async function POST(request: NextRequest) {
     // --- Hash password ---
     const passwordHash = await bcrypt.hash(password, 12);
 
+    // --- Auto-extract pirateId from email ---
+    const pirateId = email.trim().toLowerCase().split("@")[0];
+
     // --- Create user in DynamoDB ---
     const userId = crypto.randomUUID();
     await createUser({
@@ -61,9 +66,10 @@ export async function POST(request: NextRequest) {
       name: name.trim(),
       email: email.trim().toLowerCase(),
       passwordHash,
-      pirateId: pirateId.trim(),
-      major: major.trim(),
-      classes: [],
+      pirateId,
+      enrolledClasses: [],
+      onboardingComplete: false,
+      isAdmin: false,
       createdAt: new Date().toISOString(),
     });
 
