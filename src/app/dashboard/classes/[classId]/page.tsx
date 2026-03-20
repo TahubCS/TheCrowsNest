@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 interface Material {
   materialId: string;
@@ -23,6 +24,9 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+  const router = useRouter();
 
   useEffect(() => {
     Promise.resolve(params).then((p) => {
@@ -42,6 +46,28 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleRemoveClass = async () => {
+    setIsRemoving(true);
+    try {
+      const res = await fetch("/api/classes/enroll", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        router.push("/dashboard");
+      } else {
+        alert(data.message || "Failed to remove class.");
+        setIsRemoving(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to remove class.");
+      setIsRemoving(false);
     }
   };
 
