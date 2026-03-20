@@ -2,10 +2,14 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import React from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const userName = session?.user?.name || 'Student';
+  const userInitial = userName.charAt(0).toUpperCase();
 
   // Basic logic to determine if we are in a specific class
   const classMatch = pathname.match(/\/dashboard\/classes\/([^/]+)/);
@@ -94,11 +98,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
-              <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">Jacob (Student)</span>
+              <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
-                J
+                {userInitial}
               </div>
             </div>
+            <button
+              onClick={() => signOut({ callbackUrl: '/' })}
+              className="text-xs text-muted-foreground hover:text-red-500 font-medium transition-colors"
+            >
+              Log out
+            </button>
           </div>
         </header>
 
