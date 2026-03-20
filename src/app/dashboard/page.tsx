@@ -21,7 +21,7 @@ export default function DashboardPage() {
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground">My Classes</h1>
           <p className="text-muted-foreground mt-2 text-lg">Manage your enrolled courses and access study materials.</p>
         </div>
-        
+
         <div className="shrink-0 flex items-center gap-3 bg-background border border-border p-1.5 rounded-xl shadow-sm">
           <div className="px-3 py-1.5 text-sm font-semibold text-muted-foreground hidden sm:block">Semester:</div>
           <div className="relative">
