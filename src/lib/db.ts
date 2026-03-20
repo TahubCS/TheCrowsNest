@@ -82,12 +82,13 @@ export async function updateUserProfile(
   email: string,
   updates: {
     level?: string;
+    name?: string;
     major?: string;
     yearOfStudy?: string;
     enrolledClasses?: string[];
     onboardingComplete?: boolean;
   }
-): Promise<void> {
+) : Promise<void> {
   const expressionParts: string[] = [];
   const expressionValues: Record<string, unknown> = {};
   const expressionNames: Record<string, string> = {};
@@ -96,6 +97,11 @@ export async function updateUserProfile(
     expressionParts.push("#lvl = :level");
     expressionValues[":level"] = updates.level;
     expressionNames["#lvl"] = "level"; // "level" is a reserved word in DynamoDB
+  }
+  if (updates.name !== undefined) {
+    expressionParts.push("#nameAttr = :name");
+    expressionValues[":name"] = updates.name;
+    expressionNames["#nameAttr"] = "name"; // "name" is also potentially reserved depending on DB version
   }
   if (updates.major !== undefined) {
     expressionParts.push("major = :major");

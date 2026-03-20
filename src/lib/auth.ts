@@ -75,6 +75,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         if (token.email) {
           const freshUser = await getUserByEmail(token.email as string);
           if (freshUser) {
+            token.name = freshUser.name;
             token.onboardingComplete = freshUser.onboardingComplete;
             token.major = freshUser.major;
             token.yearOfStudy = freshUser.yearOfStudy;
@@ -83,6 +84,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
         
         if (session) {
+          if (session.name !== undefined) {
+            token.name = session.name;
+          }
           if (session.onboardingComplete !== undefined) {
             token.onboardingComplete = session.onboardingComplete;
           }
