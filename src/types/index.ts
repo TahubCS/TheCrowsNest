@@ -70,6 +70,7 @@ export interface Material {
   fileName: string;
   fileType: string;
   s3Key: string;
+  materialType: string; // "Syllabus" | "Lecture Slides" | "Study Guide" | "Past Exam" | "Notes" | "Other"
   uploadedBy: string; // user email
   uploadedByName: string;
   status: "PENDING" | "VERIFIED" | "REJECTED";

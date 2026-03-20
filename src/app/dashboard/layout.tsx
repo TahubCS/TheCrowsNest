@@ -55,7 +55,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-muted/40">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border bg-background flex flex-col hidden md:flex shadow-sm">
+      <aside className="w-64 border-r border-border bg-background flex flex-col md:flex shadow-sm">
         <div className="p-6 border-b border-border">
           <Link href="/" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
             <span className="text-ecu-purple drop-shadow-sm">TheCrows</span>
@@ -142,7 +142,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex items-center gap-4">
             <Link href="/dashboard/profile" className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
               <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
+              <div className="w-8 h-8 rounded-full bg-linear-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
                 {userInitial}
               </div>
             </Link>

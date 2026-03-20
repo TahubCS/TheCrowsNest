@@ -250,7 +250,7 @@ export default function DashboardPage() {
             return (
               <Link key={cls.classId} href={`/dashboard/classes/${cls.classId}`} className="block group h-full">
                 <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer h-full flex flex-col">
-                  <div className={`h-2.5 bg-gradient-to-r ${isPurple ? 'from-ecu-purple to-purple-400' : 'from-ecu-gold to-yellow-300'}`}></div>
+                  <div className={`h-2.5 bg-linear-to-r ${isPurple ? 'from-ecu-purple to-purple-400' : 'from-ecu-gold to-yellow-300'}`}></div>
                   <div className="p-6 flex flex-col flex-1">
                     <div className="flex justify-between items-start mb-4">
                       <div>
