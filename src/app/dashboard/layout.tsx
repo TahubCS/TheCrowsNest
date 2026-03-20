@@ -6,7 +6,7 @@ import React from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  
+
   // Basic logic to determine if we are in a specific class
   const classMatch = pathname.match(/\/dashboard\/classes\/([^/]+)/);
   const activeClass = classMatch ? classMatch[1] : null;
@@ -14,26 +14,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen overflow-hidden bg-muted/40">
       {/* Sidebar */}
-      <aside className="w-64 h-full border-r border-border bg-background flex flex-col hidden md:flex shadow-sm shrink-0">
-        <div className="p-6 border-b border-border shrink-0">
-          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
-            <span className="text-ecu-purple drop-shadow-sm">Pirate</span>
-            <span className="text-ecu-gold drop-shadow-sm">Study</span>
+      <aside className="w-64 border-r border-border bg-background flex flex-col hidden md:flex shadow-sm">
+        <div className="p-6 border-b border-border">
+          <Link href="/" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
+            <span className="text-ecu-purple drop-shadow-sm">TheCrows</span>
+            <span className="text-ecu-gold drop-shadow-sm">Nest</span>
           </Link>
         </div>
         <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
-          <Link 
-            href="/dashboard" 
-            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${
-              !activeClass ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-border bg-muted/20 hover:bg-muted/60 hover:border-border/80'
-            }`}
+          <Link
+            href="/dashboard"
+            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${!activeClass ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-border bg-muted/20 hover:bg-muted/60 hover:border-border/80'
+              }`}
           >
             <span className="text-xl">📚</span> My Classes
           </Link>
-          
+
           {/* Enrolled Classes List */}
           <div className="pl-4 mt-2 space-y-2">
-            
+
             {/* Class: CSCI 1010 */}
             <div>
               <Link href="/dashboard/classes/csci1010" className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === 'csci1010' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20 font-bold shadow-sm' : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}>
@@ -73,11 +72,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               )}
             </div>
-            
+
           </div>
         </nav>
-        <div className="p-6 border-t border-border shrink-0 text-xs text-muted-foreground font-medium">
-          PirateStudy © {new Date().getFullYear()}
+        <div className="p-6 border-t border-border text-xs text-muted-foreground font-medium">
+          TheCrowsNest © {new Date().getFullYear()}
         </div>
       </aside>
 
@@ -87,12 +86,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="h-16 shrink-0 border-b border-border bg-background/80 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center md:hidden">
             <span className="font-bold text-lg tracking-tight">
-              <span className="text-ecu-purple">Pirate</span>
-              <span className="text-ecu-gold">Study</span>
+              <span className="text-ecu-purple">TheCrows</span>
+              <span className="text-ecu-gold">Nest</span>
             </span>
           </div>
           <div className="flex-1"></div> {/* Spacer */}
-          
+
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
               <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">Jacob (Student)</span>
@@ -102,7 +101,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </div>
         </header>
-        
+
         {/* Page Content */}
         <main className="flex-1 p-6 md:p-8 lg:p-10">
           {children}
