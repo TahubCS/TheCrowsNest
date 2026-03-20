@@ -1,28 +1,95 @@
-import Link from 'next/link';
+"use client";
 
-// MOCK DATA TOGGLE: 
-// Leave this array empty `[]` to view the Empty State.
-// Uncomment the filled array to view the Populated State.
-//const MOCK_MATERIALS: any[] = [];
+import Link from 'next/link';
+import { useParams, useRouter } from 'next/navigation';
+import { useState } from 'react';
+import { useSession } from 'next-auth/react';
+
 const MOCK_MATERIALS = [
   { id: 1, name: "_Syllabus_Fall.pdf", type: "Syllabus", uploader: { name: "Professor", initial: "P", color: "bg-ecu-gold", text: "text-ecu-purple" }, updated: "2 days ago", icon: "text-red-600 bg-red-100" },
   { id: 2, name: "Chapter_1_Introduction.pptx", type: "Lecture Slides", uploader: { name: "Jacob (Student)", initial: "J", color: "bg-muted", text: "text-foreground" }, updated: "1 week ago", icon: "text-blue-600 bg-blue-100" },
   { id: 3, name: "Midterm_1_Review.docx", type: "Study Guide", uploader: { name: "Alex (Student)", initial: "A", color: "bg-ecu-purple", text: "text-white" }, updated: "3 weeks ago", icon: "text-green-600 bg-green-100" }
 ];
 
-export default async function ClassOverviewPage({ params }: { params: Promise<{ classId: string }> }) {
-  const { classId } = await params;
-  const formattedClass = classId.toUpperCase();
+export default function ClassOverviewPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { update } = useSession();
+  const classId = params.classId as string;
+  const formattedClass = classId?.toUpperCase() || "CLASS";
+
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleRemoveClass = async () => {
+    setIsRemoving(true);
+    try {
+      const res = await fetch("/api/classes/enroll", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        await update();
+        router.push("/dashboard");
+      } else {
+        alert(`Failed to remove class: ${data.message}`);
+        setShowConfirm(false);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Something went wrong.");
+      setShowConfirm(false);
+    } finally {
+      setIsRemoving(false);
+    }
+  };
 
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div>
-        <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-ecu-purple inline-flex items-center gap-1 mb-4">
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          Back to Dashboard
-        </Link>
-        <h1 className="text-4xl font-extrabold tracking-tight text-foreground">{formattedClass}</h1>
-        <p className="text-muted-foreground mt-2 text-lg">Class overview and study materials.</p>
+      <div className="flex items-start justify-between">
+        <div>
+          <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-ecu-purple inline-flex items-center gap-1 mb-4">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            Back to Dashboard
+          </Link>
+          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">{formattedClass}</h1>
+          <p className="text-muted-foreground mt-2 text-lg">Class overview and study materials.</p>
+        </div>
+
+        {/* Remove Class Button */}
+        <div className="relative shrink-0 mt-8">
+          {!showConfirm ? (
+            <button
+              onClick={() => setShowConfirm(true)}
+              className="text-sm font-medium text-muted-foreground hover:text-red-500 border border-border hover:border-red-500/50 px-4 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              Remove Class
+            </button>
+          ) : (
+            <div className="bg-background border border-red-500/30 rounded-2xl p-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 min-w-[260px]">
+              <p className="text-sm font-bold text-foreground mb-1">Remove {formattedClass}?</p>
+              <p className="text-xs text-muted-foreground mb-4">This will unenroll you from the class. You can re-enroll later.</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleRemoveClass}
+                  disabled={isRemoving}
+                  className="flex-1 text-sm font-bold bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  {isRemoving ? "Removing..." : "Yes, Remove"}
+                </button>
+                <button
+                  onClick={() => setShowConfirm(false)}
+                  className="flex-1 text-sm font-bold border border-border py-2 rounded-lg hover:bg-muted transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 mt-8">
@@ -59,84 +126,11 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
         </Link>
       </div>
 
-      {/* Course Timeline & Syllabus tracker */}
-      <div className="mt-12 sm:mt-16 space-y-6">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <h2 className="text-2xl font-bold tracking-tight">Course Timeline</h2>
-          <span className="inline-block text-sm px-4 py-1.5 bg-ecu-gold/10 border border-ecu-gold/30 text-purple-400 rounded-full font-bold shadow-sm whitespace-nowrap text-center">
-            Select topics to focus AI study tools
-          </span>
-        </div>
-
-        <div className="bg-background rounded-2xl border border-border p-6 shadow-sm">
-          <div className="relative border-l-2 border-muted ml-3 space-y-8 py-2">
-
-            {/* Unit 1 */}
-            <div className="relative pl-8">
-              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-purple-500/80 ring-4 ring-background"></div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-bold text-foreground">Unit 1: Introduction & Fundamentals</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Variables, memory allocation, and basic logic loops. Chapters 1-3.</p>
-                </div>
-                <label className="cursor-pointer shrink-0 group/checkbox">
-                  <input type="checkbox" className="peer sr-only" defaultChecked />
-                  <div className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground group-hover/checkbox:bg-muted peer-checked:border-purple-400 peer-checked:text-purple-400 peer-checked:bg-purple-400/10 transition-all flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse hidden peer-checked:block"></div>
-                    <span className="block peer-checked:hidden text-muted-foreground group-hover/checkbox:text-foreground transition-colors">Focus AI on this</span>
-                    <span className="hidden peer-checked:block">Currently Focusing</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Unit 2 */}
-            <div className="relative pl-8">
-              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-muted border-2 border-border ring-4 ring-background transition-colors peer-checked:bg-purple-500/80"></div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">Unit 2: Advanced Data Structures</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Hash maps, linked lists, and tree traversal algorithms.</p>
-                </div>
-                <label className="cursor-pointer shrink-0 group/checkbox">
-                  <input type="checkbox" className="peer sr-only" />
-                  <div className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground group-hover/checkbox:bg-muted peer-checked:border-purple-400 peer-checked:text-purple-400 peer-checked:bg-purple-400/10 transition-all flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse hidden peer-checked:block"></div>
-                    <span className="block peer-checked:hidden text-muted-foreground group-hover/checkbox:text-foreground transition-colors">Focus AI on this</span>
-                    <span className="hidden peer-checked:block">Currently Focusing</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            {/* Unit 3 */}
-            <div className="relative pl-8">
-              <div className="absolute -left-[9px] top-1.5 h-4 w-4 rounded-full bg-muted border-2 border-border ring-4 ring-background transition-colors peer-checked:bg-purple-500/80"></div>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-foreground">Unit 3: Object-Oriented Design</h3>
-                  <p className="text-sm text-muted-foreground mt-1">Polymorphism, inheritance, and clean architectural principles.</p>
-                </div>
-                <label className="cursor-pointer shrink-0 group/checkbox">
-                  <input type="checkbox" className="peer sr-only" />
-                  <div className="text-xs font-semibold px-4 py-2 rounded-lg border border-border text-muted-foreground group-hover/checkbox:bg-muted peer-checked:border-purple-400 peer-checked:text-purple-400 peer-checked:bg-purple-400/10 transition-all flex items-center justify-center gap-2">
-                    <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse hidden peer-checked:block"></div>
-                    <span className="block peer-checked:hidden text-muted-foreground group-hover/checkbox:text-foreground transition-colors">Focus AI on this</span>
-                    <span className="hidden peer-checked:block">Currently Focusing</span>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </div>
-
       {/* Uploaded Course Materials */}
       <div className="mt-16 space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">Course Materials</h2>
-          <button className="text-sm bg-ecu-purple/10 text-ecu-purple hover:bg-ecu-purple/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2">
+          <button className="text-sm bg-ecu-purple/10 text-ecu-purple hover:bg-ecu-purple/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2 cursor-pointer">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
             Upload File
           </button>
@@ -152,7 +146,7 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
                 Be the first to upload the syllabus, study guides, or your lecture notes to help train the AI for this class!
               </p>
-              <button className="text-sm bg-ecu-purple text-primary-foreground hover:bg-ecu-purple/90 px-8 py-3 rounded-xl font-bold shadow-md transition-all hover:-translate-y-0.5">
+              <button className="text-sm bg-ecu-purple text-primary-foreground hover:bg-ecu-purple/90 px-8 py-3 rounded-xl font-bold shadow-md transition-all hover:-translate-y-0.5 cursor-pointer">
                 Upload First File
               </button>
             </div>
@@ -183,7 +177,7 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
                       <span className="truncate">{file.uploader.name}</span>
                     </div>
                     <div className="col-span-2 text-right">
-                      <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
+                      <button className="text-ecu-purple hover:underline text-sm font-medium cursor-pointer">View</button>
                     </div>
                   </div>
                 ))}

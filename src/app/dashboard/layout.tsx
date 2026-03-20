@@ -128,15 +128,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex-1"></div> {/* Spacer */}
 
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
+            <Link href="/dashboard/profile" className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
               <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
                 {userInitial}
               </div>
-            </div>
+            </Link>
             <button
               onClick={() => signOut({ callbackUrl: '/' })}
-              className="text-xs text-muted-foreground hover:text-red-500 font-medium transition-colors"
+              className="text-xs text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer"
             >
               Log out
             </button>
