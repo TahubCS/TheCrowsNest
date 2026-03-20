@@ -20,11 +20,11 @@ export function proxy(request: NextRequest) {
 
   // If accessing dashboard without a token cookie, redirect to landing
   if (pathname.startsWith("/dashboard") && !hasToken) {
-    return NextResponse.redirect(new URL("/", request.url));
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // If logged in and visiting the landing page, redirect to dashboard
-  if (pathname === "/" && hasToken) {
+  // If logged in and visiting login/signup/landing, redirect to dashboard
+  if ((pathname === "/" || pathname === "/login" || pathname === "/signup") && hasToken) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -33,5 +33,5 @@ export function proxy(request: NextRequest) {
 
 // Only run proxy on these paths
 export const config = {
-  matcher: ["/", "/dashboard/:path*"],
+  matcher: ["/", "/login", "/signup", "/dashboard/:path*"],
 };
