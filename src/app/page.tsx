@@ -53,7 +53,7 @@ export default function Home() {
       </main>
 
       <footer className="absolute bottom-6 text-sm text-muted-foreground font-medium z-10">
-        © {new Date().getFullYear()} PirateStudy. Go Pirates!
+        © {new Date().getFullYear()} TheCrowsNest. Go Pirates!
       </footer>
     </div>
   );

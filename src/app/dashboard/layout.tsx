@@ -8,8 +8,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className="w-64 border-r border-border bg-background flex flex-col hidden md:flex shadow-sm">
         <div className="p-6 border-b border-border">
           <Link href="/" className="flex items-center gap-2 font-bold text-2xl tracking-tight">
-            <span className="text-ecu-purple drop-shadow-sm">Pirate</span>
-            <span className="text-ecu-gold drop-shadow-sm">Study</span>
+            <span className="text-ecu-purple drop-shadow-sm">TheCrows</span>
+            <span className="text-ecu-gold drop-shadow-sm">Nest</span>
           </Link>
         </div>
         <nav className="flex-1 p-4 space-y-1.5">
@@ -24,7 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </Link>
         </nav>
         <div className="p-6 border-t border-border text-xs text-muted-foreground font-medium">
-          PirateStudy © {new Date().getFullYear()}
+          TheCrowsNest © {new Date().getFullYear()}
         </div>
       </aside>
 
@@ -34,8 +34,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <header className="h-16 border-b border-border bg-background/80 backdrop-blur-lg flex items-center justify-between px-6 sticky top-0 z-20 shadow-sm">
           <div className="flex items-center md:hidden">
             <span className="font-bold text-lg tracking-tight">
-              <span className="text-ecu-purple">Pirate</span>
-              <span className="text-ecu-gold">Study</span>
+              <span className="text-ecu-purple">TheCrows</span>
+              <span className="text-ecu-gold">Nest</span>
             </span>
           </div>
           <div className="flex-1"></div> {/* Spacer */}
