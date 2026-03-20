@@ -12,42 +12,126 @@ interface EnrolledClass {
   courseName: string;
   creditHours: number;
   enrolledCount: number;
+  department: string;
+  description: string;
 }
 
 export default function DashboardPage() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const [classes, setClasses] = useState<EnrolledClass[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Search State
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState<EnrolledClass[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
+  
+  // Enrollment State
+  const [enrollingMap, setEnrollingMap] = useState<Record<string, boolean>>({});
+
+  const loadClasses = async () => {
+    if (!session?.user?.enrolledClasses) {
+      setLoading(false);
+      return;
+    }
+    
+    try {
+      const res = await fetch("/api/classes");
+      if (res.ok) {
+        const data = await res.json();
+        const myClasses = data.data.classes.filter((c: any) => 
+          session.user.enrolledClasses?.includes(c.classId)
+        );
+        setClasses(myClasses);
+      }
+    } catch (e) {
+      console.error("Failed to load classes", e);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadClasses() {
-      if (!session?.user?.enrolledClasses) {
-        setLoading(false);
-        return;
-      }
-      
-      try {
-        // Fetch full class details for the user's enrolled classes
-        const res = await fetch("/api/classes");
-        if (res.ok) {
-          const data = await res.json();
-          // Filter to only classes the user is enrolled in
-          const myClasses = data.data.classes.filter((c: any) => 
-            session.user.enrolledClasses?.includes(c.classId)
-          );
-          setClasses(myClasses);
-        }
-      } catch (e) {
-        console.error("Failed to load classes", e);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (session?.user) {
       loadClasses();
     }
   }, [session]);
+
+  const handleSearch = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      setHasSearched(false);
+      return;
+    }
+    
+    setIsSearching(true);
+    setHasSearched(true);
+    
+    try {
+      const res = await fetch(`/api/classes?search=${encodeURIComponent(searchQuery)}`);
+      const data = await res.json();
+      if (data.success) {
+        setSearchResults(data.data.classes);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleEnroll = async (classId: string) => {
+    setEnrollingMap(prev => ({ ...prev, [classId]: true }));
+    try {
+      const res = await fetch("/api/classes/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ classId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Trigger NextAuth session update in the background to sync JWT
+        await update();
+        
+        // Fix stale closure: Manually append the class to the UI immediately
+        try {
+          const freshRes = await fetch("/api/classes");
+          if (freshRes.ok) {
+            const allData = await freshRes.json();
+            const newlyEnrolled = allData.data.classes.find((c: any) => c.classId === classId);
+            if (newlyEnrolled) {
+              // Ensure we don't add duplicates
+              setClasses(prev => {
+                if (prev.some(c => c.classId === classId)) return prev;
+                return [...prev, newlyEnrolled];
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Failed to instantly pull class into view", e);
+        }
+
+        // Clear search so they can see their updated dashboard
+        setSearchQuery("");
+        setSearchResults([]);
+        setHasSearched(false);
+      } else {
+        alert(`Failed to enroll: ${data.message}`);
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to enroll in class.");
+    } finally {
+      setEnrollingMap(prev => ({ ...prev, [classId]: false }));
+    }
+  };
+
+  const isEnrolled = (classId: string) => {
+    return session?.user?.enrolledClasses?.includes(classId) ?? classes.some(c => c.classId === classId);
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -55,7 +139,7 @@ export default function DashboardPage() {
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground">My Classes</h1>
           <p className="text-muted-foreground mt-2 text-lg">Manage your enrolled courses and access study materials.</p>
         </div>
-
+        
         <div className="shrink-0 flex items-center gap-3 bg-background border border-border p-1.5 rounded-xl shadow-sm">
           <div className="px-3 py-1.5 text-sm font-semibold text-muted-foreground hidden sm:block">Semester:</div>
           <div className="relative">
@@ -72,7 +156,7 @@ export default function DashboardPage() {
       </div>
 
       {/* Search Section */}
-      <div className="relative max-w-2xl group">
+      <form onSubmit={handleSearch} className="relative max-w-2xl group">
         <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none transition-colors group-focus-within:text-ecu-purple">
           <svg className="w-5 h-5 text-muted-foreground group-focus-within:text-ecu-purple" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -80,18 +164,53 @@ export default function DashboardPage() {
         </div>
         <Input
           type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search for classes... ex: CSCI1010"
           className="pl-12 h-14 text-base bg-background shadow-sm border-border focus-visible:border-ecu-purple focus-visible:ring-ecu-purple/20 rounded-xl transition-all"
         />
         <div className="absolute inset-y-0 right-2 flex items-center">
-          <Button size="sm" className="bg-ecu-purple text-primary-foreground hover:bg-ecu-purple/90 rounded-lg h-10 px-4 font-semibold shadow-md">
-            Search
+          <Button type="submit" disabled={isSearching} size="sm" className="bg-ecu-purple text-primary-foreground hover:bg-ecu-purple/90 rounded-lg h-10 px-4 font-semibold shadow-md disabled:opacity-50">
+            {isSearching ? "Searching..." : "Search"}
           </Button>
         </div>
-      </div>
+      </form>
 
-      {/* Course Grid */}
-      {loading ? (
+      {/* Primary Dashboard View Logic */}
+      {hasSearched ? (
+        <div className="space-y-6 mt-8">
+          <h2 className="text-2xl font-bold">Search Results</h2>
+          {isSearching ? (
+             <div className="flex items-center gap-3 text-muted-foreground"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-ecu-purple"></div> Searching...</div>
+          ) : searchResults.length === 0 ? (
+             <p className="text-muted-foreground">No classes found matching "{searchQuery}".</p>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2">
+              {searchResults.map((cls) => (
+                <div key={cls.classId} className="bg-background rounded-xl border border-border p-5 flex flex-col justify-between shadow-sm">
+                  <div>
+                    <div className="flex justify-between items-start">
+                      <h4 className="font-bold text-lg text-ecu-purple">{cls.courseCode}</h4>
+                      <span className="text-xs font-bold text-muted-foreground bg-muted px-2 py-1 rounded-md">{cls.creditHours} Credits</span>
+                    </div>
+                    <p className="text-sm font-semibold text-foreground mt-1">{cls.courseName}</p>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2">{cls.description}</p>
+                  </div>
+                  <div className="mt-5">
+                    {isEnrolled(cls.classId) ? (
+                      <Button disabled variant="outline" className="w-full font-bold border-dashed border-2">Already Enrolled</Button>
+                    ) : (
+                      <Button onClick={() => handleEnroll(cls.classId)} disabled={enrollingMap[cls.classId]} className="w-full bg-ecu-gold hover:bg-ecu-gold/90 text-secondary-foreground font-bold shadow-sm">
+                         {enrollingMap[cls.classId] ? "Enrolling..." : "+ Enroll in Class"}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      ) : loading ? (
         <div className="flex justify-center items-center py-20">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ecu-purple"></div>
         </div>
@@ -105,7 +224,10 @@ export default function DashboardPage() {
             <p className="text-muted-foreground max-w-sm mx-auto mb-8 font-medium">
               Your schedule is completely empty. Search for your current courses above to start building your AI study hub!
             </p>
-            <Button className="bg-ecu-purple hover:bg-ecu-purple/90 text-primary-foreground font-bold rounded-xl shadow-lg px-8 h-12 flex items-center gap-2">
+            <Button onClick={() => {
+              const input = document.querySelector('input[type="search"]') as HTMLInputElement;
+              if (input) input.focus();
+            }} className="bg-ecu-purple hover:bg-ecu-purple/90 text-primary-foreground font-bold rounded-xl shadow-lg px-8 h-12 flex items-center gap-2">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
               Find a Class
             </Button>
@@ -118,7 +240,7 @@ export default function DashboardPage() {
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
               </div>
               <div>
-                <h3 className="font-bold text-lg text-foreground">Quick Add: Freshman CS Major</h3>
+                <h3 className="font-bold text-lg text-foreground">Quick Add Recommendations</h3>
                 <p className="text-sm text-muted-foreground mt-0.5">Based on your student profile, these are commonly taken in Fall 2026.</p>
               </div>
             </div>
@@ -129,8 +251,8 @@ export default function DashboardPage() {
                   <h4 className="font-bold tracking-tight text-lg text-ecu-purple">CSCI 1010</h4>
                   <p className="text-xs text-muted-foreground mt-1 mb-6 leading-relaxed">Algorithmic Problem Solving. Introduction to program design.</p>
                 </div>
-                <button className="w-full py-2.5 text-xs font-bold rounded-lg border border-border group-hover:bg-ecu-purple group-hover:text-white group-hover:border-ecu-purple transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                  <span>+</span> Quick Add
+                <button disabled={enrollingMap["csci1010"] || isEnrolled("csci1010")} onClick={() => handleEnroll("csci1010")} className="w-full py-2.5 text-xs font-bold rounded-lg border border-border group-hover:bg-ecu-purple group-hover:text-white group-hover:border-ecu-purple transition-colors flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span>{isEnrolled("csci1010") ? "✓" : "+"}</span> {isEnrolled("csci1010") ? "Enrolled" : enrollingMap["csci1010"] ? "Enrolling..." : "Quick Add"}
                 </button>
               </div>
               <div className="border border-border rounded-xl p-5 hover:border-ecu-gold transition-colors group flex flex-col justify-between shadow-sm hover:shadow-md bg-muted/20 hover:bg-background">
@@ -138,8 +260,8 @@ export default function DashboardPage() {
                   <h4 className="font-bold tracking-tight text-lg text-ecu-gold">MATH 1065</h4>
                   <p className="text-xs text-muted-foreground mt-1 mb-6 leading-relaxed">College Algebra. Functions, equations, and inequalities.</p>
                 </div>
-                <button className="w-full py-2.5 text-xs font-bold rounded-lg border border-border group-hover:bg-ecu-gold group-hover:text-black group-hover:border-ecu-gold transition-colors flex items-center justify-center gap-1.5 shadow-sm">
-                  <span>+</span> Quick Add
+                <button disabled={enrollingMap["math1065"] || isEnrolled("math1065")} onClick={() => handleEnroll("math1065")} className="w-full py-2.5 text-xs font-bold rounded-lg border border-border group-hover:bg-ecu-gold group-hover:text-black group-hover:border-ecu-gold transition-colors flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span>{isEnrolled("math1065") ? "✓" : "+"}</span> {isEnrolled("math1065") ? "Enrolled" : enrollingMap["math1065"] ? "Enrolling..." : "Quick Add"}
                 </button>
               </div>
               <div className="border border-border rounded-xl p-5 hover:border-border transition-colors group flex flex-col justify-between shadow-sm hover:shadow-md bg-muted/20 hover:bg-background">
@@ -147,8 +269,8 @@ export default function DashboardPage() {
                   <h4 className="font-bold tracking-tight text-lg text-foreground">ENGL 1100</h4>
                   <p className="text-xs text-muted-foreground mt-1 mb-6 leading-relaxed">Foundations of College Writing. Essay drafting and peer review.</p>
                 </div>
-                <button className="w-full py-2.5 text-xs font-bold rounded-lg border border-border hover:bg-muted transition-colors flex items-center justify-center gap-1.5 shadow-sm text-foreground">
-                  <span>+</span> Quick Add
+                <button disabled={enrollingMap["engl1100"] || isEnrolled("engl1100")} onClick={() => handleEnroll("engl1100")} className="w-full py-2.5 text-xs font-bold rounded-lg border border-border hover:bg-muted transition-colors flex items-center justify-center gap-1.5 shadow-sm text-foreground disabled:opacity-50 disabled:cursor-not-allowed">
+                  <span>{isEnrolled("engl1100") ? "✓" : "+"}</span> {isEnrolled("engl1100") ? "Enrolled" : enrollingMap["engl1100"] ? "Enrolling..." : "Quick Add"}
                 </button>
               </div>
             </div>
@@ -185,7 +307,10 @@ export default function DashboardPage() {
           })}
 
           {/* Add Class Card */}
-          <div className="bg-background/50 rounded-2xl border-2 border-dashed border-border hover:border-ecu-purple hover:bg-ecu-purple/5 flex flex-col items-center justify-center p-8 text-center text-muted-foreground hover:text-ecu-purple transition-all duration-300 cursor-pointer min-h-[240px] group">
+          <div onClick={() => {
+            const input = document.querySelector('input[type="search"]') as HTMLInputElement;
+            if (input) input.focus();
+          }} className="bg-background/50 rounded-2xl border-2 border-dashed border-border hover:border-ecu-purple hover:bg-ecu-purple/5 flex flex-col items-center justify-center p-8 text-center text-muted-foreground hover:text-ecu-purple transition-all duration-300 cursor-pointer min-h-[240px] group">
             <div className="w-14 h-14 rounded-full bg-muted group-hover:bg-ecu-purple/20 flex items-center justify-center mb-4 transition-colors">
               <span className="text-3xl font-light text-foreground group-hover:text-ecu-purple">+</span>
             </div>

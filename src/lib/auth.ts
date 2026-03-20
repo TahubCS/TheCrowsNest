@@ -58,7 +58,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
 
   callbacks: {
-    // Embed custom fields in the JWT token
+      // Embed custom fields in the JWT token
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id as string;
@@ -67,18 +67,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         token.yearOfStudy = user.yearOfStudy as string;
         token.onboardingComplete = user.onboardingComplete as boolean;
         token.isAdmin = user.isAdmin as boolean;
+        token.enrolledClasses = user.enrolledClasses as string[];
       }
 
       // Allow session updates (e.g. after onboarding)
-      if (trigger === "update" && session) {
-        if (session.onboardingComplete !== undefined) {
-          token.onboardingComplete = session.onboardingComplete;
+      if (trigger === "update") {
+        if (token.email) {
+          const freshUser = await getUserByEmail(token.email as string);
+          if (freshUser) {
+            token.onboardingComplete = freshUser.onboardingComplete;
+            token.major = freshUser.major;
+            token.yearOfStudy = freshUser.yearOfStudy;
+            token.enrolledClasses = freshUser.enrolledClasses || [];
+          }
         }
-        if (session.major !== undefined) {
-          token.major = session.major;
-        }
-        if (session.yearOfStudy !== undefined) {
-          token.yearOfStudy = session.yearOfStudy;
+        
+        if (session) {
+          if (session.onboardingComplete !== undefined) {
+            token.onboardingComplete = session.onboardingComplete;
+          }
+          if (session.major !== undefined) {
+            token.major = session.major;
+          }
+          if (session.yearOfStudy !== undefined) {
+            token.yearOfStudy = session.yearOfStudy;
+          }
         }
       }
 
@@ -94,6 +107,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.yearOfStudy = token.yearOfStudy as string;
         session.user.onboardingComplete = token.onboardingComplete as boolean;
         session.user.isAdmin = token.isAdmin as boolean;
+        session.user.enrolledClasses = (token.enrolledClasses as string[]) || [];
       }
       return session;
     },

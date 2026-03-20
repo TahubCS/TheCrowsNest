@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -14,6 +14,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Basic logic to determine if we are in a specific class
   const classMatch = pathname.match(/\/dashboard\/classes\/([^/]+)/);
   const activeClass = classMatch ? classMatch[1] : null;
+
+  // Dynamic Class Fetching
+  const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function loadClasses() {
+      if (!session?.user?.enrolledClasses || session.user.enrolledClasses.length === 0) {
+        setEnrolledClasses([]);
+        return;
+      }
+      try {
+        const res = await fetch("/api/classes");
+        if (res.ok) {
+          const data = await res.json();
+          const myClasses = data.data.classes.filter((c: any) => 
+            (session?.user?.enrolledClasses || []).includes(c.classId)
+          );
+          setEnrolledClasses(myClasses);
+        }
+      } catch (e) {
+        console.error("Failed to load layout classes", e);
+      }
+    }
+    loadClasses();
+  }, [session?.user?.enrolledClasses]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/40">
@@ -28,55 +53,55 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
           <Link
             href="/dashboard"
-            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${!activeClass ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-border bg-muted/20 hover:bg-muted/60 hover:border-border/80'
+            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${!activeClass && pathname === '/dashboard' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
               }`}
           >
             <span className="text-xl">📚</span> My Classes
           </Link>
 
+          <Link
+            href="/dashboard/study-plans"
+            className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${pathname === '/dashboard/study-plans' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
+              }`}
+          >
+            <span className="text-xl">🗺️</span> Study Plans
+          </Link>
+
           {/* Enrolled Classes List */}
           <div className="pl-4 mt-2 space-y-2">
+            {enrolledClasses.map((cls, idx) => {
+              const isGold = idx % 2 !== 0;
+              const activeBg = isGold ? 'bg-ecu-gold/10 text-ecu-gold border-ecu-gold/30' : 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20';
+              const activeLBorder = isGold ? 'border-ecu-gold/30' : 'border-ecu-purple/20';
+              const activeText = isGold ? 'text-ecu-gold' : 'text-ecu-purple';
+              
+              let icon = "📚";
+              if (cls.department.includes("Computer") || cls.courseCode.includes("CSCI")) icon = "💻";
+              else if (cls.department.includes("Math") || cls.courseCode.includes("MATH")) icon = "📐";
+              else if (cls.courseCode.includes("ENGL") || cls.department.includes("English")) icon = "📝";
+              else if (cls.courseCode.includes("BIOL") || cls.courseCode.includes("CHEM") || cls.department.includes("Science")) icon = "🔬";
 
-            {/* Class: CSCI 1010 */}
-            <div>
-              <Link href="/dashboard/classes/csci1010" className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === 'csci1010' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20 font-bold shadow-sm' : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}>
-                <span>💻</span> CSCI 1010
-              </Link>
-              {activeClass === 'csci1010' && (
-                <div className="pl-6 mt-1.5 space-y-1 border-l-2 border-ecu-purple/20 ml-4 mb-2">
-                  <Link href={`/dashboard/classes/csci1010`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname === '/dashboard/classes/csci1010' ? 'text-ecu-purple font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                    Overview
+              return (
+                <div key={cls.classId}>
+                  <Link href={`/dashboard/classes/${cls.classId}`} className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === cls.classId ? `${activeBg} font-bold shadow-sm` : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}>
+                    <span>{icon}</span> {cls.courseCode}
                   </Link>
-                  <Link href={`/dashboard/classes/csci1010/study-plans`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('study-plans') ? 'text-ecu-purple font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                    Study Plans
-                  </Link>
-                  <Link href={`/dashboard/classes/csci1010/practice-exams`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('practice-exams') ? 'text-ecu-purple font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                    Practice Exams
-                  </Link>
+                  {activeClass === cls.classId && (
+                    <div className={`pl-6 mt-1.5 space-y-1 border-l-2 ${activeLBorder} ml-4 mb-2`}>
+                      <Link href={`/dashboard/classes/${cls.classId}`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname === `/dashboard/classes/${cls.classId}` ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                        Overview
+                      </Link>
+                      <Link href={`/dashboard/classes/${cls.classId}/study-plans`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('study-plans') ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                        Study Plans
+                      </Link>
+                      <Link href={`/dashboard/classes/${cls.classId}/practice-exams`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('practice-exams') ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                        Practice Exams
+                      </Link>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-
-            {/* Class: MATH 1065 */}
-            <div>
-              <Link href="/dashboard/classes/math1065" className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === 'math1065' ? 'bg-ecu-gold/10 text-ecu-gold border-ecu-gold/30 font-bold shadow-sm' : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}>
-                <span>📐</span> MATH 1065
-              </Link>
-              {activeClass === 'math1065' && (
-                <div className="pl-6 mt-1.5 space-y-1 border-l-2 border-ecu-gold/30 ml-4 mb-2">
-                  <Link href={`/dashboard/classes/math1065`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname === '/dashboard/classes/math1065' ? 'text-ecu-gold font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                    Overview
-                  </Link>
-                  <Link href={`/dashboard/classes/math1065/study-plans`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('study-plans') ? 'text-ecu-gold font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                    Study Plans
-                  </Link>
-                  <Link href={`/dashboard/classes/math1065/practice-exams`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('practice-exams') ? 'text-ecu-gold font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                    Practice Exams
-                  </Link>
-                </div>
-              )}
-            </div>
-
+              );
+            })}
           </div>
           <div className="mt-8 pt-4 border-t border-border/40">
             <Link

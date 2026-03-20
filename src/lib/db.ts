@@ -15,7 +15,7 @@ import {
   ScanCommand,
   QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
-import type { User, CourseClass } from "@/types";
+import type { User, CourseClass, StudyPlan } from "@/types";
 
 // Create DynamoDB client — reads credentials from env vars
 const client = new DynamoDBClient({
@@ -267,6 +267,55 @@ export async function decrementClassEnrollment(
         ":dec": 1,
         ":zero": 0,
       },
+    })
+  );
+}
+
+// ============================================================
+// Study Plan Operations
+// ============================================================
+
+/**
+ * Get all study plans for a user
+ */
+export async function getStudyPlansByEmail(userEmail: string): Promise<StudyPlan[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: STUDY_PLANS_TABLE,
+      FilterExpression: "userEmail = :email",
+      ExpressionAttributeValues: {
+        ":email": userEmail.toLowerCase(),
+      },
+    })
+  );
+
+  return (result.Items || []) as StudyPlan[];
+}
+
+/**
+ * Create or update a study plan
+ */
+export async function createStudyPlan(plan: StudyPlan): Promise<void> {
+  await docClient.send(
+    new PutCommand({
+      TableName: STUDY_PLANS_TABLE,
+      Item: {
+        ...plan,
+        userEmail: plan.userEmail.toLowerCase(),
+      },
+    })
+  );
+}
+
+/**
+ * Delete a study plan
+ */
+export async function deleteStudyPlan(planId: string): Promise<void> {
+  const { DeleteCommand } = await import("@aws-sdk/lib-dynamodb");
+  await docClient.send(
+    new DeleteCommand({
+      TableName: STUDY_PLANS_TABLE,
+      Key: { planId },
     })
   );
 }
