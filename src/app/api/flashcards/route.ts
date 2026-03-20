@@ -60,7 +60,7 @@ Example format:
         type: "KNOWLEDGE_BASE",
         knowledgeBaseConfiguration: {
           knowledgeBaseId,
-          modelArn: `arn:aws:bedrock:${process.env.AWS_REGION || "us-east-1"}::foundation-model/anthropic.claude-3-haiku-20240307-v1:0`
+          modelArn: `arn:aws:bedrock:${process.env.AWS_REGION || "us-east-1"}::foundation-model/anthropic.claude-3-5-sonnet-20240620-v1:0`
         }
       }
     });
