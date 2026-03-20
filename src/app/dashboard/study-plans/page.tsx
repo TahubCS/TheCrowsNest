@@ -153,7 +153,7 @@ export default function StudyPlansPage() {
             const isPurple = idx % 2 === 0;
             return (
               <div key={plan.planId} className="bg-background rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full overflow-hidden group">
-                <div className={`h-2 w-full bg-gradient-to-r ${isPurple ? 'from-ecu-purple to-purple-400' : 'from-ecu-gold to-yellow-300'}`}></div>
+                <div className={`h-2 w-full bg-linear-to-r ${isPurple ? 'from-ecu-purple to-purple-400' : 'from-ecu-gold to-yellow-300'}`}></div>
                 <div className="p-6 flex flex-col flex-1">
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-bold text-xl group-hover:text-ecu-purple transition-colors line-clamp-1" title={plan.title}>

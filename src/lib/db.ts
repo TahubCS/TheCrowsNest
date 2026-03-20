@@ -322,3 +322,71 @@ export async function deleteStudyPlan(planId: string): Promise<void> {
 
 // Re-export for backwards compatibility
 export { QueryCommand, ScanCommand };
+
+// ============================================================
+// Materials Operations
+// ============================================================
+
+import type { Material } from "@/types";
+
+/**
+ * Save material metadata after successful S3 upload
+ */
+export async function createMaterial(material: Material): Promise<void> {
+  await docClient.send(
+    new PutCommand({
+      TableName: MATERIALS_TABLE,
+      Item: material,
+    })
+  );
+}
+
+/**
+ * Update material processing status
+ */
+export async function updateMaterialStatus(classId: string, materialId: string, status: string): Promise<void> {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: MATERIALS_TABLE,
+      Key: { classId, materialId },
+      UpdateExpression: "SET #st = :status",
+      ExpressionAttributeNames: {
+        "#st": "status",
+      },
+      ExpressionAttributeValues: {
+        ":status": status,
+      },
+    })
+  );
+}
+
+/**
+ * Get all materials for a class
+ */
+export async function getMaterialsByClassId(classId: string): Promise<Material[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: MATERIALS_TABLE,
+      FilterExpression: "classId = :classId",
+      ExpressionAttributeValues: {
+        ":classId": classId,
+      },
+    })
+  );
+  return (result.Items || []) as Material[];
+}
+
+/**
+ * Delete a material record (does not delete from S3)
+ */
+export async function deleteMaterial(classId: string, materialId: string): Promise<void> {
+  const { DeleteCommand } = await import("@aws-sdk/lib-dynamodb");
+  await docClient.send(
+    new DeleteCommand({
+      TableName: MATERIALS_TABLE,
+      Key: { classId, materialId },
+    })
+  );
+}
+
+

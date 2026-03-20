@@ -185,7 +185,7 @@ export default function OnboardingPage() {
               <Button 
                 onClick={completeOnboarding}
                 disabled={loading}
-                className="flex-[2] h-12 bg-ecu-gold text-ecu-purple hover:bg-ecu-gold/90 font-bold rounded-xl shadow-md text-base disabled:opacity-60"
+                className="flex-2 h-12 bg-ecu-gold text-ecu-purple hover:bg-ecu-gold/90 font-bold rounded-xl shadow-md text-base disabled:opacity-60"
               >
                 {loading ? "Saving..." : `Complete Setup (${selectedClasses.length} selected)`}
               </Button>
