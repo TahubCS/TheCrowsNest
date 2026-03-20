@@ -25,14 +25,14 @@ export default function DashboardPage() {
         setLoading(false);
         return;
       }
-      
+
       try {
         // Fetch full class details for the user's enrolled classes
         const res = await fetch("/api/classes");
         if (res.ok) {
           const data = await res.json();
           // Filter to only classes the user is enrolled in
-          const myClasses = data.data.classes.filter((c: any) => 
+          const myClasses = data.data.classes.filter((c: any) =>
             session.user.enrolledClasses?.includes(c.classId)
           );
           setClasses(myClasses);
@@ -54,20 +54,6 @@ export default function DashboardPage() {
         <div>
           <h1 className="text-4xl font-extrabold tracking-tight text-foreground">My Classes</h1>
           <p className="text-muted-foreground mt-2 text-lg">Manage your enrolled courses and access study materials.</p>
-        </div>
-
-        <div className="shrink-0 flex items-center gap-3 bg-background border border-border p-1.5 rounded-xl shadow-sm">
-          <div className="px-3 py-1.5 text-sm font-semibold text-muted-foreground hidden sm:block">Semester:</div>
-          <div className="relative">
-            <select className="appearance-none bg-muted text-foreground text-sm font-bold rounded-lg pl-4 pr-10 py-2 border-none focus:ring-2 focus:ring-ecu-purple cursor-pointer hover:bg-muted/80 transition-colors">
-              <option>Fall 2026</option>
-              <option>Spring 2026</option>
-              <option>Fall 2025</option>
-            </select>
-            <div className="absolute inset-y-0 right-3 flex items-center pointer-events-none text-foreground">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-            </div>
-          </div>
         </div>
       </div>
 
