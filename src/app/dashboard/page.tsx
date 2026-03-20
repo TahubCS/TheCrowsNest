@@ -19,6 +19,7 @@ interface EnrolledClass {
 export default function DashboardPage() {
   const { data: session, update } = useSession();
   const [classes, setClasses] = useState<EnrolledClass[]>([]);
+  const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Search State
@@ -41,9 +42,10 @@ export default function DashboardPage() {
         if (classesRes.ok && enrolledRes.ok) {
           const classesData = await classesRes.json();
           const enrolledData = await enrolledRes.json();
-          const enrolledIds: string[] = enrolledData.data?.enrolledClasses || [];
+          const freshEnrolledIds: string[] = enrolledData.data?.enrolledClasses || [];
+          setEnrolledIds(freshEnrolledIds);
           const myClasses = classesData.data.classes.filter((c: any) =>
-            enrolledIds.includes(c.classId)
+            freshEnrolledIds.includes(c.classId)
           );
           setClasses(myClasses);
         }
@@ -108,7 +110,7 @@ export default function DashboardPage() {
   };
 
   const isEnrolled = (classId: string) => {
-    return session?.user?.enrolledClasses?.includes(classId) ?? classes.some(c => c.classId === classId);
+    return enrolledIds.includes(classId);
   };
 
   return (

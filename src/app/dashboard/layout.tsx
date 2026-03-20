@@ -19,19 +19,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  // Fetch classes from API using a fresh session (bypasses stale useSession cache)
+  // Fetch classes from API using a fresh DB call (bypasses stale useSession cache)
   const loadClasses = useCallback(async () => {
     try {
-      const [classesRes, sessionRes] = await Promise.all([
+      const [classesRes, enrolledRes] = await Promise.all([
         fetch("/api/classes"),
-        fetch("/api/auth/session"),
+        fetch("/api/user/enrolled"),
       ]);
-      if (classesRes.ok) {
+      if (classesRes.ok && enrolledRes.ok) {
         const classesData = await classesRes.json();
-        const sessionData = await sessionRes.json();
-        const enrolled = sessionData?.user?.enrolledClasses || [];
+        const enrolledData = await enrolledRes.json();
+        const enrolledIds = enrolledData.data?.enrolledClasses || [];
         const myClasses = classesData.data.classes.filter((c: any) =>
-          enrolled.includes(c.classId)
+          enrolledIds.includes(c.classId)
         );
         setEnrolledClasses(myClasses);
       }
