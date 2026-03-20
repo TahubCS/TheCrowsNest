@@ -15,13 +15,13 @@ export default async function ProfilePage() {
   const lastName = lastNameParts.join(" ");
 
   return (
-    <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div>
         <h1 className="text-4xl font-extrabold tracking-tight text-foreground">Your Profile</h1>
         <p className="text-muted-foreground mt-2 text-lg">Manage your personal information and academic preferences.</p>
       </div>
 
-      <div className="bg-background rounded-2xl border border-border p-8 shadow-sm">
+      <div className="max-w-3xl bg-background rounded-2xl border border-border p-8 shadow-sm">
         <form className="space-y-6">
           <div className="grid grid-cols-2 gap-6">
             <div className="space-y-2">
