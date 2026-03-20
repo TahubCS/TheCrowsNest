@@ -21,33 +21,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="text-ecu-gold drop-shadow-sm">Study</span>
           </Link>
         </div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
+        <nav className="flex-1 p-4 space-y-3 overflow-y-auto">
           <Link 
             href="/dashboard" 
             className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${
-              !activeClass ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/10' : 'text-foreground border-transparent hover:bg-muted'
+              !activeClass ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-border bg-muted/20 hover:bg-muted/60 hover:border-border/80'
             }`}
           >
             <span className="text-xl">📚</span> My Classes
           </Link>
           
-          {/* Active Class Hierarchy Options */}
-          {activeClass && (
-            <div className="pl-6 mt-2 space-y-1">
-              <div className="px-3 py-1.5 text-sm font-bold text-foreground">
-                {activeClass.toUpperCase()}
-              </div>
-              <Link href={`/dashboard/classes/${activeClass}`} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname === `/dashboard/classes/${activeClass}` ? 'bg-muted text-ecu-purple font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                <span>🏠</span> Overview
+          {/* Enrolled Classes List */}
+          <div className="pl-4 mt-2 space-y-2">
+            
+            {/* Class: CSCI 1010 */}
+            <div>
+              <Link href="/dashboard/classes/csci1010" className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === 'csci1010' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20 font-bold shadow-sm' : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}>
+                <span>💻</span> CSCI 1010
               </Link>
-              <Link href={`/dashboard/classes/${activeClass}/study-plans`} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname.includes('study-plans') ? 'bg-muted text-ecu-purple font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                <span>📝</span> Study Plans
-              </Link>
-              <Link href={`/dashboard/classes/${activeClass}/practice-exams`} className={`flex items-center gap-3 px-3 py-2 text-sm rounded-md transition-colors ${pathname.includes('practice-exams') ? 'bg-muted text-ecu-purple font-semibold' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>
-                <span>🎯</span> Practice Exams
-              </Link>
+              {activeClass === 'csci1010' && (
+                <div className="pl-6 mt-1.5 space-y-1 border-l-2 border-ecu-purple/20 ml-4 mb-2">
+                  <Link href={`/dashboard/classes/csci1010`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname === '/dashboard/classes/csci1010' ? 'text-ecu-purple font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                    Overview
+                  </Link>
+                  <Link href={`/dashboard/classes/csci1010/study-plans`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('study-plans') ? 'text-ecu-purple font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                    Study Plans
+                  </Link>
+                  <Link href={`/dashboard/classes/csci1010/practice-exams`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('practice-exams') ? 'text-ecu-purple font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                    Practice Exams
+                  </Link>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Class: MATH 1065 */}
+            <div>
+              <Link href="/dashboard/classes/math1065" className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === 'math1065' ? 'bg-ecu-gold/10 text-ecu-gold border-ecu-gold/30 font-bold shadow-sm' : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}>
+                <span>📐</span> MATH 1065
+              </Link>
+              {activeClass === 'math1065' && (
+                <div className="pl-6 mt-1.5 space-y-1 border-l-2 border-ecu-gold/30 ml-4 mb-2">
+                  <Link href={`/dashboard/classes/math1065`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname === '/dashboard/classes/math1065' ? 'text-ecu-gold font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                    Overview
+                  </Link>
+                  <Link href={`/dashboard/classes/math1065/study-plans`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('study-plans') ? 'text-ecu-gold font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                    Study Plans
+                  </Link>
+                  <Link href={`/dashboard/classes/math1065/practice-exams`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('practice-exams') ? 'text-ecu-gold font-semibold bg-muted/50' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
+                    Practice Exams
+                  </Link>
+                </div>
+              )}
+            </div>
+            
+          </div>
         </nav>
         <div className="p-6 border-t border-border text-xs text-muted-foreground font-medium">
           PirateStudy © {new Date().getFullYear()}

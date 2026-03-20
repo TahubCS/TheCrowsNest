@@ -32,6 +32,96 @@ export default async function ClassOverviewPage({ params }: { params: Promise<{ 
           <p className="text-muted-foreground max-w-[80%]">Past exams, flashcards, and quizzes submitted by students who previously took {formattedClass}.</p>
         </Link>
       </div>
+
+      {/* Uploaded Course Materials */}
+      <div className="mt-16 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold tracking-tight">Course Materials</h2>
+          <button className="text-sm bg-ecu-purple/10 text-ecu-purple hover:bg-ecu-purple/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            Upload File
+          </button>
+        </div>
+
+        <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
+          <div className="grid grid-cols-12 gap-4 p-4 border-b border-border bg-muted/40 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+            <div className="col-span-6 md:col-span-5">File Name</div>
+            <div className="col-span-3 md:col-span-2 hidden md:block">Type</div>
+            <div className="col-span-4 md:col-span-3">Uploaded By</div>
+            <div className="col-span-2 text-right">Action</div>
+          </div>
+          
+          <div className="divide-y divide-border">
+            {/* Mock Syllabus */}
+            <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
+              <div className="col-span-6 md:col-span-5 flex items-center gap-3">
+                <div className="w-8 h-8 rounded shrink-0 bg-red-100 flex items-center justify-center text-red-600">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-medium text-foreground truncate">{formattedClass}_Syllabus_Fall.pdf</p>
+                  <p className="text-xs text-muted-foreground">Updated 2 days ago</p>
+                </div>
+              </div>
+              <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">Syllabus</div>
+              <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full shrink-0 bg-ecu-gold text-[10px] flex items-center justify-center text-ecu-purple font-bold">P</div>
+                <span className="truncate">Professor</span>
+              </div>
+              <div className="col-span-2 text-right">
+                <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
+              </div>
+            </div>
+
+            {/* Mock Lecture Slides */}
+            <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
+              <div className="col-span-6 md:col-span-5 flex items-center gap-3">
+                <div className="w-8 h-8 rounded shrink-0 bg-blue-100 flex items-center justify-center text-blue-600">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-medium text-foreground truncate">Chapter_1_Introduction.pptx</p>
+                  <p className="text-xs text-muted-foreground">Updated 1 week ago</p>
+                </div>
+              </div>
+              <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">Lecture Slides</div>
+              <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full shrink-0 bg-muted flex items-center justify-center text-[10px] font-bold">J</div>
+                <span className="truncate">Jacob (Student)</span>
+              </div>
+              <div className="col-span-2 text-right">
+                <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
+              </div>
+            </div>
+
+            {/* Mock Study Guide */}
+            <div className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
+              <div className="col-span-6 md:col-span-5 flex items-center gap-3">
+                <div className="w-8 h-8 rounded shrink-0 bg-green-100 flex items-center justify-center text-green-600">
+                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
+                </div>
+                <div className="overflow-hidden">
+                  <p className="font-medium text-foreground truncate">Midterm_1_Comprehensive_Review.docx</p>
+                  <p className="text-xs text-muted-foreground">Updated 3 weeks ago</p>
+                </div>
+              </div>
+              <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">Study Guide</div>
+              <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
+                <div className="w-6 h-6 rounded-full shrink-0 bg-ecu-purple text-white flex items-center justify-center text-[10px] font-bold">A</div>
+                <span className="truncate">Alex (Student)</span>
+              </div>
+              <div className="col-span-2 text-right">
+                <button className="text-ecu-purple hover:underline text-sm font-medium">View</button>
+              </div>
+            </div>
+            
+          </div>
+        </div>
+        
+        <p className="text-xs text-muted-foreground text-center">
+          *These materials are processed by our AI to automatically generate personalized flashcards and exams for you.
+        </p>
+      </div>
     </div>
   );
 }
