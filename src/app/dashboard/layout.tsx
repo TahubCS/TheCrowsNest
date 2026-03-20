@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -17,28 +17,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Dynamic Class Fetching
   const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  useEffect(() => {
-    async function loadClasses() {
-      if (!session?.user?.enrolledClasses || session.user.enrolledClasses.length === 0) {
-        setEnrolledClasses([]);
-        return;
+  // Fetch classes from API using a fresh session (bypasses stale useSession cache)
+  const loadClasses = useCallback(async () => {
+    try {
+      const [classesRes, sessionRes] = await Promise.all([
+        fetch("/api/classes"),
+        fetch("/api/auth/session"),
+      ]);
+      if (classesRes.ok) {
+        const classesData = await classesRes.json();
+        const sessionData = await sessionRes.json();
+        const enrolled = sessionData?.user?.enrolledClasses || [];
+        const myClasses = classesData.data.classes.filter((c: any) =>
+          enrolled.includes(c.classId)
+        );
+        setEnrolledClasses(myClasses);
       }
-      try {
-        const res = await fetch("/api/classes");
-        if (res.ok) {
-          const data = await res.json();
-          const myClasses = data.data.classes.filter((c: any) =>
-            (session?.user?.enrolledClasses || []).includes(c.classId)
-          );
-          setEnrolledClasses(myClasses);
-        }
-      } catch (e) {
-        console.error("Failed to load layout classes", e);
-      }
+    } catch (e) {
+      console.error("Failed to load layout classes", e);
     }
+  }, []);
+
+  // Re-fetch when route changes, session updates, or enrollment event fires
+  useEffect(() => {
     loadClasses();
-  }, [session?.user?.enrolledClasses]);
+  }, [loadClasses, refreshKey, pathname]);
+
+  // Listen for custom enrollment-changed events from enroll/unenroll actions
+  useEffect(() => {
+    const handler = () => setRefreshKey(k => k + 1);
+    window.addEventListener("enrollment-changed", handler);
+    return () => window.removeEventListener("enrollment-changed", handler);
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/40">

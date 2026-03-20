@@ -32,17 +32,18 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function loadClasses() {
-      if (!session?.user?.enrolledClasses) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const res = await fetch("/api/classes");
-        if (res.ok) {
-          const data = await res.json();
-          const myClasses = data.data.classes.filter((c: any) =>
-            session.user.enrolledClasses?.includes(c.classId)
+        // Fetch enrolled class IDs directly from DB (bypasses stale JWT)
+        const [classesRes, enrolledRes] = await Promise.all([
+          fetch("/api/classes"),
+          fetch("/api/user/enrolled"),
+        ]);
+        if (classesRes.ok && enrolledRes.ok) {
+          const classesData = await classesRes.json();
+          const enrolledData = await enrolledRes.json();
+          const enrolledIds: string[] = enrolledData.data?.enrolledClasses || [];
+          const myClasses = classesData.data.classes.filter((c: any) =>
+            enrolledIds.includes(c.classId)
           );
           setClasses(myClasses);
         }
@@ -56,7 +57,7 @@ export default function DashboardPage() {
     if (session?.user) {
       loadClasses();
     }
-  }, [session]);
+  }, [session?.user?.email]);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -93,26 +94,8 @@ export default function DashboardPage() {
       const data = await res.json();
       if (data.success) {
         await update();
-
-        try {
-          const freshRes = await fetch("/api/classes");
-          if (freshRes.ok) {
-            const allData = await freshRes.json();
-            const newlyEnrolled = allData.data.classes.find((c: any) => c.classId === classId);
-            if (newlyEnrolled) {
-              setClasses(prev => {
-                if (prev.some(c => c.classId === classId)) return prev;
-                return [...prev, newlyEnrolled];
-              });
-            }
-          }
-        } catch (e) {
-          console.error("Failed to instantly pull class into view", e);
-        }
-
-        setSearchQuery("");
-        setSearchResults([]);
-        setHasSearched(false);
+        // Full page reload to bypass SSR cache and show updated classes
+        window.location.reload();
       } else {
         alert(`Failed to enroll: ${data.message}`);
       }

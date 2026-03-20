@@ -32,7 +32,8 @@ export default function ClassOverviewPage() {
       const data = await res.json();
       if (data.success) {
         await update();
-        router.push("/dashboard");
+        // Full navigation to bypass SSR cache and show updated classes
+        window.location.href = "/dashboard";
       } else {
         alert(`Failed to remove class: ${data.message}`);
         setShowConfirm(false);
