@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Trigger background processing asynchronously (don't await)
-    processMaterial(classId, materialId).catch((err) =>
+    processMaterial(classId, materialId, s3Key, fileName).catch((err) =>
       console.error("[Background Processing Error]", err)
     );
 
@@ -103,43 +103,22 @@ export async function POST(request: NextRequest) {
   }
 }
 
-async function processMaterial(classId: string, materialId: string) {
-  const { BedrockAgentClient, StartIngestionJobCommand } = await import("@aws-sdk/client-bedrock-agent");
-
-  const knowledgeBaseId = "7PEG1WNUAY";
-  const dataSourceId = process.env.BEDROCK_DATA_SOURCE_ID;
-
-  if (!dataSourceId) {
-    console.warn("[Bedrock Sync Skipped] BEDROCK_DATA_SOURCE_ID environment variable is missing.");
-    await updateMaterialStatus(classId, materialId, "FAILED");
-    return;
-  }
-
-  const client = new BedrockAgentClient({
-    region: process.env.AWS_REGION || "us-east-1",
-    credentials: {
-      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      ...(process.env.AWS_SESSION_TOKEN && {
-        sessionToken: process.env.AWS_SESSION_TOKEN,
-      }),
-    },
-  });
-
+async function processMaterial(classId: string, materialId: string, s3Key: string, fileName: string) {
   try {
-    const command = new StartIngestionJobCommand({
-      knowledgeBaseId,
-      dataSourceId,
-      description: "Triggered from The Crows Nest upload",
+    const res = await fetch("http://localhost:8000/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ classId, materialId, s3Key, fileName }),
     });
 
-    const response = await client.send(command);
-    console.log(`[Bedrock Sync] Started Ingestion Job: ${response.ingestionJob?.ingestionJobId}`);
+    if (!res.ok) {
+      throw new Error(`Python Backend Error: ${res.statusText}`);
+    }
     
     // Mark as PROCESSED in the database so UI updates
     await updateMaterialStatus(classId, materialId, "PROCESSED");
   } catch (err) {
-    console.error("[Bedrock Sync Error] Failed to start ingestion job.", err);
+    console.error("[Python Sync Error] Failed to process material.", err);
     await updateMaterialStatus(classId, materialId, "FAILED");
     throw err;
   }

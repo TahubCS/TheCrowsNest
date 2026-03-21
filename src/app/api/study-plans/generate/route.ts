@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { BedrockAgentRuntimeClient, RetrieveCommand } from "@aws-sdk/client-bedrock-agent-runtime";
-import { BedrockRuntimeClient, ConverseCommand } from "@aws-sdk/client-bedrock-runtime";
 import { createStudyPlan } from "@/lib/db";
 import { v4 as uuidv4 } from 'uuid';
 import type { ApiResponse } from "@/types";
@@ -25,103 +23,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const clientAgent = new BedrockAgentRuntimeClient({
-      region: process.env.AWS_REGION || "us-east-1",
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        ...(process.env.AWS_SESSION_TOKEN && {
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }),
-      },
+    const res = await fetch("http://localhost:8000/generate/study-plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ classId, timeframe: `${title} - ${description || ""}` }),
     });
 
-    const clientRuntime = new BedrockRuntimeClient({
-      region: process.env.AWS_REGION || "us-east-1",
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        ...(process.env.AWS_SESSION_TOKEN && {
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }),
-      },
-    });
-
-    const knowledgeBaseId = "7PEG1WNUAY";
-
-    // Step 1: Retrieve context from Knowledge Base
-    const retrieveCommand = new RetrieveCommand({
-      knowledgeBaseId,
-      retrievalQuery: { text: `Study plan schedule for ${classId}` },
-      retrievalConfiguration: {
-        vectorSearchConfiguration: { numberOfResults: 5 }
-      }
-    });
-
-    const retrieveResponse = await clientAgent.send(retrieveCommand);
-    const contextResults = retrieveResponse.retrievalResults || [];
-    const contextTexts = contextResults.map(r => r.content?.text).filter(Boolean).join("\n\n---\n\n");
-
-    const promptText = `Generate a structured weekly study plan for class ${classId}.
-Title: ${title}
-Description: ${description || "General course synthesis"}
-
-Context from class materials:
-<context>
-${contextTexts}
-</context>
-
-The study plan should have exactly 5 important tasks extracted from the syllabus or course materials.
-CRITICAL INSTRUCTION: Analyze the syllabus context carefully and extract the most important information.
-RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO OTHER TEXT. 
-Format exactly like this strictly:
-[
-  { 
-    "title": "Read Chapter 1", 
-    "type": "Reading", 
-    "status": "PLANNED" 
-  }
-]`;
-
-    const converseCommand = new ConverseCommand({
-      modelId: "us.anthropic.claude-3-5-sonnet-20240620-v1:0",
-      messages: [{ role: "user", content: [{ text: promptText }] }]
-    });
-
-    const response = await clientRuntime.send(converseCommand);
-    let answerText = response.output?.message?.content?.[0]?.text || "[]";
-    const citationsCount = contextResults.length;
-
-    // Strip markdown blocks securely
-    answerText = answerText.trim();
-    if (answerText.startsWith("\`\`\`json")) answerText = answerText.substring(7);
-    if (answerText.startsWith("\`\`\`")) answerText = answerText.substring(3);
-    if (answerText.endsWith("\`\`\`")) answerText = answerText.substring(0, answerText.length - 3);
-    answerText = answerText.trim();
-
-    let items = [];
-    try {
-      items = JSON.parse(answerText);
-      if (!Array.isArray(items)) {
-        throw new Error("Parsed JSON is not an array");
-      }
-
-      // Add secure UUIDs to parsed items to match database schema Let's actually map them
-      items = items.map(item => ({
-        itemId: uuidv4(),
-        classId,
-        semester: "",
-        title: item.title || "Study Milestone",
-        type: item.type || "Other",
-        status: "PLANNED" as const
-      }));
-    } catch (parseErr) {
-      console.error("[Study Plan Gen Parse Error]", parseErr, "Raw Text:", answerText);
-      return NextResponse.json<ApiResponse>(
-        { success: false, message: "Failed to synthesize a valid study plan format from the course materials." },
-        { status: 500 }
-      );
+    if (!res.ok) {
+      throw new Error(`Python Backend Error: ${res.statusText}`);
     }
+
+    const json = await res.json();
+    if (!json.success) {
+      throw new Error(json.message || "Failed to generate study plan.");
+    }
+
+    let items = json.data.studyPlan;
+    if (!Array.isArray(items)) {
+      items = [];
+    }
+
+    items = items.map((item: any) => ({
+      itemId: uuidv4(),
+      classId,
+      semester: "",
+      title: item.title || "Study Milestone",
+      type: item.type || "Other",
+      status: "PLANNED" as const
+    }));
 
     const planId = uuidv4();
     await createStudyPlan({
@@ -142,10 +71,10 @@ Format exactly like this strictly:
         planId
       },
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Study Plan Generation Error]", error);
     return NextResponse.json<ApiResponse>(
-      { success: false, message: "Failed to communicate with AWS Bedrock Knowledge Base." },
+      { success: false, message: error.message?.includes("fetch") ? "Failed to connect to the Python AI server. Please make sure the python backend is running on port 8000." : "Failed to generate study plan." },
       { status: 500 }
     );
   }

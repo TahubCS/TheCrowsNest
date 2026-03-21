@@ -1,0 +1,149 @@
+import json
+from google import genai
+from google.genai import types
+from .config import settings
+from .vector_store import query_documents
+
+# Initialize Gemini Client
+client = genai.Client(api_key=settings.GEMINI_API_KEY)
+
+def get_context_for_class(class_id: str, query: str = "Key concepts") -> str:
+    """Retrieve context from the vector store."""
+    return query_documents(class_id, query, n_results=5)
+
+def generate_flashcards(class_id: str, topic: str, count: int, style: str) -> list[dict]:
+    context = get_context_for_class(class_id, f"Flashcards for {topic}")
+    
+    prompt = f"""Generate precisely {count} flashcards for class {class_id}.
+Context from class materials:
+<context>
+{context}
+</context>
+
+Topic: {topic}
+Style: {style}
+
+CRITICAL INSTRUCTION: Analyze the syllabus context carefully and extract the most important information.
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO OTHER TEXT. 
+Format exactly like this strictly:
+[
+  {{ "front": "question", "back": "answer" }}
+]"""
+
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        )
+    )
+    
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+def generate_study_plan(class_id: str, timeframe: str) -> list[dict]:
+    context = get_context_for_class(class_id, f"Study guide and syllabus schedule for {timeframe}")
+    prompt = f"""Generate a structured weekly study plan for class {class_id}.
+Timeframe: {timeframe}
+
+Context from class materials:
+<context>
+{context}
+</context>
+
+The study plan should have exactly 5 important tasks extracted from the syllabus or course materials.
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO OTHER TEXT. 
+Format exactly like this strictly:
+[
+  {{ 
+    "title": "Read Chapter 1", 
+    "type": "Reading", 
+    "status": "PLANNED" 
+  }}
+]"""
+
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.4
+        )
+    )
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+def generate_practice_exam(class_id: str, topic: str, difficulty: str, count: int) -> dict:
+    context = get_context_for_class(class_id, f"Practice questions for {topic}")
+    prompt = f"""Generate a practice exam with {count} multiple-choice questions.
+Class ID: {class_id}
+Topic: {topic}
+Difficulty: {difficulty}
+
+Context from class materials:
+<context>
+{context}
+</context>
+
+RETURN ONLY A VALID JSON OBJECT. NO MARKDOWN.
+Format exactly like this:
+{{
+  "title": "Practice Exam: {topic}",
+  "questions": [
+    {{
+      "id": "q1",
+      "text": "Question text here?",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": 0,
+      "explanation": "Why this is correct"
+    }}
+  ]
+}}"""
+
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2
+        )
+    )
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        return {"title": "Error generating exam", "questions": []}
+
+def chat_with_tutor(class_id: str, messages: list[dict]) -> str:
+    # Get context based on the user's latest message
+    latest_user_message = next((msg["content"] for msg in reversed(messages) if msg["role"] == "user"), "Explain course concepts")
+    context = get_context_for_class(class_id, latest_user_message)
+    
+    system_instruction = f"""You are an advanced AI Tutor for this specific class ({class_id}).
+Use the following context from the class materials to inform your answers. If the information isn't in the context, use your general knowledge but clarify that it's not explicitly in the course materials.
+
+Context:
+<context>
+{context}
+</context>
+"""
+    
+    # Format messages for Gemini
+    formatted_messages = []
+    for msg in messages:
+        role = "user" if msg["role"] == "user" else "model"
+        formatted_messages.append({"role": role, "parts": [{"text": msg["content"]}]})
+        
+    response = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=formatted_messages,
+        config=types.GenerateContentConfig(
+            system_instruction=system_instruction,
+            temperature=0.7
+        )
+    )
+    return response.text
