@@ -18,6 +18,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Dynamic Class Fetching
   const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/admin/verify")
+      .then(res => res.json())
+      .then(data => setIsAdmin(data.isAdmin))
+      .catch(err => console.error("Admin verify failed", err));
+  }, []);
 
   // Fetch classes from API using a fresh DB call (bypasses stale useSession cache)
   const loadClasses = useCallback(async () => {
@@ -113,7 +121,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               );
             })}
           </div>
-          <div className="mt-8 pt-4 border-t border-border/40">
+          <div className="mt-8 pt-4 border-t border-border/40 space-y-2">
+            {isAdmin && (
+              <Link
+                href="/dashboard/admin"
+                className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${pathname.startsWith('/dashboard/admin') ? 'bg-red-500/10 text-red-500 border-red-500/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'}`}
+              >
+                <span className="text-xl">🛡️</span> Admin Mode
+              </Link>
+            )}
             <Link
               href="/dashboard/profile"
               className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${pathname === '/dashboard/profile' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'

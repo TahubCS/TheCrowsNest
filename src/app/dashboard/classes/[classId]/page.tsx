@@ -71,25 +71,6 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     }
   };
 
-  const handleDelete = async (materialId: string, s3Key: string) => {
-    if (!confirm("Are you sure you want to delete this material? This action cannot be undone.")) return;
-
-    try {
-      const res = await fetch(`/api/materials?materialId=${materialId}&classId=${classId}&s3Key=${encodeURIComponent(s3Key)}`, {
-        method: "DELETE"
-      });
-      const data = await res.json();
-      if (data.success) {
-        setMaterials(materials.filter(m => m.materialId !== materialId));
-      } else {
-        alert(data.message);
-      }
-    } catch (e) {
-      console.error(e);
-      alert("Failed to delete material.");
-    }
-  };
-
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
@@ -317,13 +298,6 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                         <span className={`text-xs px-2 py-1 rounded-md font-semibold ${file.status === "VERIFIED" || file.status === "PROCESSED" ? "bg-green-100 text-green-700" : file.status === "FAILED" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
                           {file.status}
                         </span>
-                        <button
-                          onClick={() => handleDelete(file.materialId, file.s3Key)}
-                          className="text-muted-foreground hover:text-red-500 hover:bg-red-100/50 p-1.5 rounded-md transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
-                          title="Delete material"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
                       </div>
                     </div>
                   );
