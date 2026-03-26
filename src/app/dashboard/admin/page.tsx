@@ -11,12 +11,21 @@ export default function AdminDashboardPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+  
+  // Edit & Delete State
+  const [editingRow, setEditingRow] = useState<any>(null);
+  const [editJsonStr, setEditJsonStr] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
+  const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null);
 
   // Reset search and sort when tab changes
   useEffect(() => {
     setSearchTerm("");
     setSortColumn(null);
     setSortDirection("asc");
+    setEditingRow(null);
+    setConfirmDeleteIndex(null);
   }, [activeTab]);
 
   useEffect(() => {
@@ -39,6 +48,85 @@ export default function AdminDashboardPage() {
     } else {
       setSortColumn(column);
       setSortDirection("asc");
+    }
+  };
+
+  const getRowKeys = (table: string, row: any) => {
+    switch (table) {
+      case "TheCrowsNestUsers": return { email: row.email };
+      case "TheCrowsNestClasses": return { classId: row.classId };
+      case "TheCrowsNestMaterials": return { classId: row.classId, materialId: row.materialId };
+      case "TheCrowsNestStudyPlans": return { planId: row.planId };
+      default: return {};
+    }
+  };
+
+  const startEdit = (row: any) => {
+    setEditingRow(row);
+    setEditJsonStr(JSON.stringify(row, null, 2));
+  };
+
+  const saveEdit = async () => {
+    setIsSaving(true);
+    try {
+      const parsedItem = JSON.parse(editJsonStr);
+      const res = await fetch("/api/admin/databases", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ table: activeTab, item: parsedItem })
+      });
+      const dataRes = await res.json();
+      if (dataRes.success) {
+        // Update local state without re-fetching
+        setData(prev => prev.map(item => {
+           const keys = getRowKeys(activeTab, parsedItem);
+           const isMatch = Object.keys(keys).every(k => item[k] === (keys as Record<string, any>)[k]);
+           return isMatch ? parsedItem : item;
+        }));
+        setEditingRow(null);
+      } else {
+        alert("Failed to save: " + dataRes.message);
+      }
+    } catch (e) {
+      alert("Invalid JSON format or network error");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteClick = async (row: any, index: number) => {
+    if (confirmDeleteIndex === index) {
+      // Execute Delete
+      setDeletingIndex(index);
+      const keys = getRowKeys(activeTab, row);
+      try {
+        const res = await fetch(`/api/admin/databases?table=${activeTab}&keys=${encodeURIComponent(JSON.stringify(keys))}`, {
+          method: "DELETE"
+        });
+        const dataRes = await res.json();
+        if (dataRes.success) {
+          setData(prev => {
+            const copy = [...prev];
+            const matchIdx = copy.findIndex(item => Object.keys(keys).every(k => item[k] === (keys as Record<string, any>)[k]));
+            if (matchIdx !== -1) copy.splice(matchIdx, 1);
+            return copy;
+          });
+        } else {
+          alert("Failed to delete: " + dataRes.message);
+        }
+      } catch (e) {
+        alert("Error executing delete");
+      } finally {
+        setDeletingIndex(null);
+        setConfirmDeleteIndex(null);
+      }
+    } else {
+      // Enter confirm state
+      setConfirmDeleteIndex(index);
+      // Auto-reset confirm state after 3 seconds
+      setTimeout(() => {
+        setConfirmDeleteIndex(prev => prev === index ? null : prev);
+      }, 3000);
     }
   };
 
@@ -139,6 +227,7 @@ export default function AdminDashboardPage() {
                   {hasMoreKeys && (
                     <th className="px-6 py-3 font-semibold text-muted-foreground italic">...</th>
                   )}
+                  <th className="px-6 py-3 font-semibold text-foreground tracking-wide text-right sticky right-0 bg-muted/80 backdrop-blur-md">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
@@ -156,6 +245,27 @@ export default function AdminDashboardPage() {
                     {hasMoreKeys && (
                       <td className="px-6 py-3 text-muted-foreground italic truncate">...</td>
                     )}
+                    <td className="px-6 py-3 text-right sticky right-0 bg-background/95 backdrop-blur-sm border-l border-border/50">
+                      <div className="flex items-center justify-end gap-2">
+                        <button 
+                          onClick={() => startEdit(row)}
+                          className="px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-md transition-colors border border-blue-200"
+                        >
+                          Edit
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteClick(row, i)}
+                          disabled={deletingIndex === i}
+                          className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors border ${
+                            confirmDeleteIndex === i 
+                              ? "bg-red-600 hover:bg-red-700 text-white border-red-700 animate-pulse" 
+                              : "bg-red-50 hover:bg-red-100 text-red-600 border-red-200"
+                          } disabled:opacity-50 min-w[70px] text-center`}
+                        >
+                          {deletingIndex === i ? "..." : confirmDeleteIndex === i ? "Confirm?" : "Delete"}
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -163,6 +273,54 @@ export default function AdminDashboardPage() {
           );
         })()}
       </div>
+
+      {/* JSON Edit Modal */}
+      {editingRow && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-background rounded-xl border border-border shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-4 border-b border-border/50 flex justify-between items-center bg-muted/20">
+              <h3 className="font-bold text-lg flex items-center gap-2">
+                <span>✏️</span> Edit Record
+              </h3>
+              <button 
+                onClick={() => setEditingRow(null)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="p-6 flex-1 overflow-auto">
+              <p className="text-sm text-muted-foreground mb-4">
+                You are directly editing the raw JSON payload for this record. Ensure the schema is correct before saving.
+              </p>
+              <textarea 
+                value={editJsonStr}
+                onChange={(e) => setEditJsonStr(e.target.value)}
+                className="w-full h-[400px] font-mono text-sm p-4 bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ecu-purple/50 resize-y"
+                spellCheck={false}
+              />
+            </div>
+            
+            <div className="p-4 border-t border-border/50 bg-muted/20 flex justify-end gap-3">
+              <button 
+                onClick={() => setEditingRow(null)}
+                disabled={isSaving}
+                className="px-4 py-2 text-sm font-semibold rounded-lg border border-border hover:bg-muted transition-colors disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={saveEdit}
+                disabled={isSaving}
+                className="px-6 py-2 text-sm font-bold rounded-lg bg-ecu-purple text-white hover:bg-ecu-purple/90 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSaving ? "Saving..." : "Save Changes"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
