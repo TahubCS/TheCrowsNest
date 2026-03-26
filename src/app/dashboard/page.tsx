@@ -28,6 +28,12 @@ export default function DashboardPage() {
   const [isSearching, setIsSearching] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
 
+  // Class Request State
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [requestForm, setRequestForm] = useState({ courseCode: "", courseName: "", department: "" });
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
+
   // Enrollment State
   const [enrollingMap, setEnrollingMap] = useState<Record<string, boolean>>({});
 
@@ -35,9 +41,10 @@ export default function DashboardPage() {
     async function loadClasses() {
       try {
         // Fetch enrolled class IDs directly from DB (bypasses stale JWT)
-        const [classesRes, enrolledRes] = await Promise.all([
+        const [classesRes, enrolledRes, requestsRes] = await Promise.all([
           fetch("/api/classes"),
           fetch("/api/user/enrolled"),
+          fetch("/api/requests"),
         ]);
         if (classesRes.ok && enrolledRes.ok) {
           const classesData = await classesRes.json();
@@ -48,6 +55,10 @@ export default function DashboardPage() {
             freshEnrolledIds.includes(c.classId)
           );
           setClasses(myClasses);
+        }
+        if (requestsRes && requestsRes.ok) {
+          const requestsData = await requestsRes.json();
+          setPendingRequestsCount(requestsData.data?.length || 0);
         }
       } catch (e) {
         console.error("Failed to load classes", e);
@@ -113,6 +124,32 @@ export default function DashboardPage() {
     return enrolledIds.includes(classId);
   };
 
+  const handleRequestClass = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsRequesting(true);
+    try {
+      const res = await fetch("/api/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestForm),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setShowRequestModal(false);
+        setRequestForm({ courseCode: "", courseName: "", department: "" });
+        setPendingRequestsCount(prev => prev + 1);
+        alert("Class request submitted successfully! You can track it in the Pending Requests tab.");
+      } else {
+        alert("Failed to submit request: " + data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Error submitting request.");
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
   return (
     <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
@@ -150,10 +187,22 @@ export default function DashboardPage() {
           {isSearching ? (
             <div className="flex items-center gap-3 text-muted-foreground"><div className="animate-spin rounded-full h-5 w-5 border-b-2 border-ecu-purple"></div> Searching...</div>
           ) : searchResults.length === 0 ? (
-            <p className="text-muted-foreground">No classes found matching "{searchQuery}".</p>
+            <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-muted/20 text-center">
+              <span className="text-4xl mb-3">🔍</span>
+              <p className="text-muted-foreground font-medium mb-4">No classes found matching "{searchQuery}".</p>
+              <div className="flex flex-col items-center gap-2">
+                <Button disabled={pendingRequestsCount >= 6} onClick={() => setShowRequestModal(true)} variant="outline" className="border-ecu-purple text-ecu-purple hover:bg-ecu-purple/10">
+                  Can't find your class? Request it to be added
+                </Button>
+                <span className="text-xs font-semibold text-ecu-purple bg-ecu-purple/10 px-2 py-1 rounded-md">
+                  {Math.max(0, 6 - pendingRequestsCount)}/6 Requests Remaining
+                </span>
+              </div>
+            </div>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2">
-              {searchResults.map((cls) => (
+            <div className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                {searchResults.map((cls) => (
                 <div key={cls.classId} className="bg-background rounded-xl border border-border p-5 flex flex-col justify-between shadow-sm">
                   <div>
                     <div className="flex justify-between items-start">
@@ -174,6 +223,23 @@ export default function DashboardPage() {
                   </div>
                 </div>
               ))}
+              </div>
+              
+              {/* Request Class Banner below results */}
+              <div className="bg-ecu-purple/5 border border-ecu-purple/20 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm mt-4">
+                <div>
+                  <h4 className="font-bold text-ecu-purple text-lg">Didn't see what you're looking for?</h4>
+                  <p className="text-sm text-muted-foreground mt-1">Help us expand TheCrowsNest by requesting a new class.</p>
+                </div>
+                <div className="flex flex-col items-center sm:items-end gap-1 shrink-0">
+                  <Button disabled={pendingRequestsCount >= 6} onClick={() => setShowRequestModal(true)} className="bg-ecu-purple text-white hover:bg-ecu-purple/90 w-full sm:w-auto">
+                    Request a Class
+                  </Button>
+                  <span className="text-xs font-semibold text-ecu-purple bg-ecu-purple/10 px-2 py-1 rounded-md">
+                    {Math.max(0, 6 - pendingRequestsCount)}/6 Requests Remaining
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -283,6 +349,58 @@ export default function DashboardPage() {
             </div>
             <span className="font-semibold text-lg text-foreground group-hover:text-ecu-purple">Join New Class</span>
             <p className="text-sm mt-1">Use the search bar above</p>
+          </div>
+        </div>
+      )}
+
+      {/* Class Request Modal */}
+      {showRequestModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-background rounded-2xl border border-border p-6 max-w-md w-full shadow-xl animate-in fade-in slide-in-from-bottom-4 duration-300">
+            <h3 className="text-xl font-bold mb-2">Request New Class</h3>
+            <p className="text-sm text-muted-foreground mb-6">Enter the details of the class you want added to the platform. An admin will review it shortly.</p>
+            
+            <form onSubmit={handleRequestClass} className="space-y-4">
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Course Code</label>
+                <Input 
+                  required 
+                  placeholder="e.g. MATH1065" 
+                  value={requestForm.courseCode}
+                  onChange={e => setRequestForm({...requestForm, courseCode: e.target.value})}
+                  className="bg-muted/30"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Course Name</label>
+                <Input 
+                  required 
+                  placeholder="e.g. College Algebra" 
+                  value={requestForm.courseName}
+                  onChange={e => setRequestForm({...requestForm, courseName: e.target.value})}
+                  className="bg-muted/30"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold mb-1.5">Department</label>
+                <Input 
+                  required 
+                  placeholder="e.g. Mathematics" 
+                  value={requestForm.department}
+                  onChange={e => setRequestForm({...requestForm, department: e.target.value})}
+                  className="bg-muted/30"
+                />
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <Button type="button" variant="outline" onClick={() => setShowRequestModal(false)} disabled={isRequesting} className="flex-1">
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isRequesting} className="flex-1 bg-ecu-purple text-white hover:bg-ecu-purple/90">
+                  {isRequesting ? "Submitting..." : "Submit Request"}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

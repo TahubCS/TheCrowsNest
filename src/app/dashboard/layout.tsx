@@ -118,6 +118,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               );
             })}
           </div>
+
+          <Link
+            href="/dashboard/requests"
+            className={`flex items-center gap-3 px-3 py-2.5 mt-2 font-semibold rounded-lg shadow-sm border ${pathname.startsWith('/dashboard/requests') ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
+              }`}
+          >
+            <span className="text-xl">⏳</span> Pending Requests
+          </Link>
+
           <div className="mt-8 pt-4 border-t border-border/40 space-y-2">
             {isAdmin && (
               <Link
