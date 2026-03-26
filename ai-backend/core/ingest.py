@@ -48,4 +48,4 @@ def process_material(class_id: str, material_id: str, s3_key: str, file_name: st
     texts = download_and_extract_text(s3_key)
     metadatas = [{"source": file_name, "page": i+1} for i in range(len(texts))]
     add_documents(class_id, material_id, texts, metadatas)
-    print("Added material to ChromaDB.")
+    print("Added material to PostgreSQL Database.")

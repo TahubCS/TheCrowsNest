@@ -168,8 +168,14 @@ export async function DELETE(request: NextRequest) {
     // Step 2: Delete from DB
     await deleteMaterial(classId, materialId);
 
-    // Note: Bedrock KB will automatically remove the vectors on its next scan
-    // since the file is gone from S3.
+    // Step 3: Delete Vectors from PostgreSQL
+    try {
+      await fetch(`http://localhost:8000/materials/${materialId}`, {
+        method: "DELETE",
+      });
+    } catch (err) {
+      console.error("[Python Sync Error] Failed to delete vectors from PostgreSQL.", err);
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,

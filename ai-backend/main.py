@@ -68,5 +68,11 @@ async def chat(req: ChatReq):
     reply = chat_with_tutor(req.classId, req.messages)
     return {"success": True, "reply": reply}
 
+@app.delete("/materials/{material_id}")
+async def delete_material_vectors(material_id: str):
+    from core.vector_store import delete_documents
+    delete_documents(material_id)
+    return {"success": True}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
