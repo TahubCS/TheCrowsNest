@@ -75,7 +75,6 @@ export async function POST(request: NextRequest) {
       Bucket: BUCKET,
       Key: s3Key,
       ContentType: fileType,
-      ContentLength: fileSize,
     });
 
     const presignedUrl = await getSignedUrl(s3, command, { expiresIn: 300 }); // 5 min
