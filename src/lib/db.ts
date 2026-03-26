@@ -47,32 +47,42 @@ const STUDY_PLANS_TABLE = "TheCrowsNestStudyPlans";
  * Get a user by email (partition key lookup — fast & cheap)
  */
 export async function getUserByEmail(email: string): Promise<User | null> {
-  const result = await docClient.send(
-    new GetCommand({
-      TableName: USERS_TABLE,
-      Key: { email: email.toLowerCase() },
-    })
-  );
+  try {
+    const result = await docClient.send(
+      new GetCommand({
+        TableName: USERS_TABLE,
+        Key: { email: email.toLowerCase() },
+      })
+    );
 
-  if (!result.Item) return null;
-  return result.Item as User;
+    if (!result.Item) return null;
+    return result.Item as User;
+  } catch (error) {
+    console.error("[DynamoDB Error] getUserByEmail failed:", error);
+    throw error; // Re-throw to be handled by the caller (e.g. NextAuth)
+  }
 }
 
 /**
  * Create a new user in DynamoDB (signup — minimal fields)
  */
 export async function createUser(user: User): Promise<void> {
-  await docClient.send(
-    new PutCommand({
-      TableName: USERS_TABLE,
-      Item: {
-        ...user,
-        email: user.email.toLowerCase(),
-      },
-      // Prevent overwriting existing users
-      ConditionExpression: "attribute_not_exists(email)",
-    })
-  );
+  try {
+    await docClient.send(
+      new PutCommand({
+        TableName: USERS_TABLE,
+        Item: {
+          ...user,
+          email: user.email.toLowerCase(),
+        },
+        // Prevent overwriting existing users
+        ConditionExpression: "attribute_not_exists(email)",
+      })
+    );
+  } catch (error) {
+    console.error("[DynamoDB Error] createUser failed:", error);
+    throw error;
+  }
 }
 
 /**
@@ -122,17 +132,22 @@ export async function updateUserProfile(
 
   if (expressionParts.length === 0) return;
 
-  await docClient.send(
-    new UpdateCommand({
-      TableName: USERS_TABLE,
-      Key: { email: email.toLowerCase() },
-      UpdateExpression: `SET ${expressionParts.join(", ")}`,
-      ExpressionAttributeValues: expressionValues,
-      ...(Object.keys(expressionNames).length > 0 && {
-        ExpressionAttributeNames: expressionNames,
-      }),
-    })
-  );
+  try {
+    await docClient.send(
+      new UpdateCommand({
+        TableName: USERS_TABLE,
+        Key: { email: email.toLowerCase() },
+        UpdateExpression: `SET ${expressionParts.join(", ")}`,
+        ExpressionAttributeValues: expressionValues,
+        ...(Object.keys(expressionNames).length > 0 && {
+          ExpressionAttributeNames: expressionNames,
+        }),
+      })
+    );
+  } catch (error) {
+    console.error("[DynamoDB Error] updateUserProfile failed:", error);
+    throw error;
+  }
 }
 
 /**
