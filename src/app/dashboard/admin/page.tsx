@@ -132,7 +132,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="flex flex-col h-[600px] bg-background">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-border/60 pb-3 mb-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-b border-border/60 pb-3 mb-4">
         <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
           {TABLES.map((table) => (
             <button
