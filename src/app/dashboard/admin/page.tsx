@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const TABLES = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans"];
+const TABLES = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials"];
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState(TABLES[0]);

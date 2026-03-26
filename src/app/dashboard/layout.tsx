@@ -100,9 +100,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Link>
                   {activeClass === cls.classId && (
                     <div className={`pl-6 mt-1.5 space-y-1 border-l-2 ${activeLBorder} ml-4 mb-2`}>
-                      <Link href={`/dashboard/classes/${cls.classId}`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname === `/dashboard/classes/${cls.classId}` ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
-                        Overview
-                      </Link>
                       <Link href={`/dashboard/classes/${cls.classId}/study-plans`} className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors ${pathname.includes('study-plans') ? `${activeText} font-semibold bg-muted/50` : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'}`}>
                         Study Plans
                       </Link>

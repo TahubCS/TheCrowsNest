@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const table = searchParams.get("table") || "TheCrowsNestUsers";
 
     // Validate table to prevent injection
-    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans"];
+    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials"];
     if (!allowedTables.includes(table)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }
