@@ -7,6 +7,22 @@ from .vector_store import query_documents
 # Initialize Gemini Client
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
+def generate_content_with_fallback(contents, config):
+    models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-flash-lite']
+    last_error = None
+    for model_name in models:
+        try:
+            return client.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config=config
+            )
+        except Exception as e:
+            print(f"Warning: Model {model_name} failed with error {e}. Trying fallback...")
+            last_error = e
+    print("CRITICAL: All fallback models failed.")
+    raise last_error
+
 def get_context_for_class(class_id: str, query: str = "Key concepts") -> str:
     """Retrieve context from the vector store."""
     return query_documents(class_id, query, n_results=5)
@@ -30,8 +46,7 @@ Format exactly like this strictly:
   {{ "front": "question", "back": "answer" }}
 ]"""
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
+    response = generate_content_with_fallback(
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -65,8 +80,7 @@ Format exactly like this strictly:
   }}
 ]"""
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
+    response = generate_content_with_fallback(
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -105,8 +119,7 @@ Format exactly like this:
   ]
 }}"""
 
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
+    response = generate_content_with_fallback(
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
@@ -138,8 +151,7 @@ Context:
         role = "user" if msg["role"] == "user" else "model"
         formatted_messages.append({"role": role, "parts": [{"text": msg["content"]}]})
         
-    response = client.models.generate_content(
-        model='gemini-2.5-flash',
+    response = generate_content_with_fallback(
         contents=formatted_messages,
         config=types.GenerateContentConfig(
             system_instruction=system_instruction,
