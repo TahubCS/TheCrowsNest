@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import React, { useState, useEffect, useCallback } from 'react';
+import OnboardingTour from '@/components/ui/OnboardingTour';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,6 +20,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showTourClass, setShowTourClass] = useState(false);
+
+  useEffect(() => {
+    // Check if tour is complete to show/hide the onboarding class
+    const tourDone = localStorage.getItem("thecrowsnest_tour_complete") === "true";
+    setShowTourClass(!tourDone);
+  }, [pathname, refreshKey]);
 
   useEffect(() => {
     fetch("/api/admin/verify")
@@ -72,6 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
         <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           <Link
+            id="tour-my-classes"
             href="/dashboard"
             className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${!activeClass && pathname === '/dashboard' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
               }`}
@@ -81,6 +90,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Enrolled Classes List — directly under My Classes */}
           <div className="pl-4 space-y-1">
+            {showTourClass && (
+              <div key="onboarding101">
+                <Link 
+                  id="tour-onboarding-class"
+                  href="/dashboard/classes/onboarding101" 
+                  className={`flex items-center gap-2 px-3 py-2 text-sm rounded-md transition-colors border ${activeClass === 'onboarding101' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20 font-bold shadow-sm' : 'text-muted-foreground border-border/40 hover:bg-muted hover:border-border/80 font-medium'}`}
+                >
+                  <span>🎓</span> Onboarding 101
+                </Link>
+                {activeClass === 'onboarding101' && (
+                  <div className={`pl-6 mt-1.5 space-y-1 border-l-2 border-ecu-purple/20 ml-4 mb-2`}>
+                    <Link href="/dashboard/classes/onboarding101/study-plans" className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/30">Study Plans</Link>
+                    <Link href="/dashboard/classes/onboarding101/practice-exams" className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/30">Practice Exams</Link>
+                    <Link href="/dashboard/classes/onboarding101/flashcards" className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/30">Flashcards</Link>
+                    <Link href="/dashboard/classes/onboarding101/ai-tutor" className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-md transition-colors text-muted-foreground hover:text-foreground hover:bg-muted/30">AI Study Tutor</Link>
+                  </div>
+                )}
+              </div>
+            )}
             {enrolledClasses.map((cls, idx) => {
               const isGold = idx % 2 !== 0;
               const activeBg = isGold ? 'bg-ecu-gold/10 text-ecu-gold border-ecu-gold/30' : 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20';
@@ -120,6 +148,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
 
           <Link
+            id="tour-requests"
             href="/dashboard/requests"
             className={`flex items-center gap-3 px-3 py-2.5 mt-2 font-semibold rounded-lg shadow-sm border ${pathname.startsWith('/dashboard/requests') ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
               }`}
@@ -137,6 +166,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )}
             <Link
+              id="tour-profile"
               href="/dashboard/profile"
               className={`flex items-center gap-3 px-3 py-2.5 font-semibold rounded-lg shadow-sm border ${pathname === '/dashboard/profile' ? 'bg-ecu-purple/10 text-ecu-purple border-ecu-purple/20' : 'text-foreground border-transparent hover:border-border hover:bg-muted/30'
                 }`}
@@ -162,7 +192,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex-1"></div> {/* Spacer */}
 
           <div className="flex items-center gap-4">
-            <Link href="/dashboard/profile" className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
+            <Link id="tour-topbar-avatar" href="/dashboard/profile" className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
               <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
               <div className="w-8 h-8 rounded-full bg-linear-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
                 {userInitial}
@@ -182,6 +212,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {children}
         </main>
       </div>
+
+      {/* Onboarding Tour — rendered at layout level so it spans the full viewport */}
+      <OnboardingTour enrolledCount={enrolledClasses.length} />
     </div>
   );
 }

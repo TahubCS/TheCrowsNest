@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { resetTour } from "@/components/ui/OnboardingTour";
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
@@ -17,6 +19,14 @@ export default function ProfilePage() {
   // UI State
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+  const router = useRouter();
+
+  const handleRestartTour = () => {
+    resetTour();
+    router.push("/dashboard");
+    // Dispatch event to re-trigger the tour component in the layout
+    window.dispatchEvent(new Event("restart-tour"));
+  };
 
   // Initialize form from session
   useEffect(() => {
@@ -196,6 +206,26 @@ export default function ProfilePage() {
             </Button>
           </div>
         </form>
+      </div>
+
+      {/* Restart Tour Card */}
+      <div className="max-w-3xl bg-background rounded-2xl border border-border p-8 shadow-sm">
+        <div className="flex items-center justify-between gap-6">
+          <div>
+            <h2 className="text-lg font-bold text-foreground">Platform Tour</h2>
+            <p className="text-sm text-muted-foreground mt-1">Forgotten how something works? Replay the guided intro tour at any time.</p>
+          </div>
+          <Button
+            onClick={handleRestartTour}
+            variant="outline"
+            className="shrink-0 border-ecu-purple text-ecu-purple hover:bg-ecu-purple/10 font-semibold"
+          >
+            <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Restart Tour
+          </Button>
+        </div>
       </div>
     </div>
   );

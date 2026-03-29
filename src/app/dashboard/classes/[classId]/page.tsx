@@ -16,6 +16,15 @@ interface Material {
   s3Key: string;
 }
 
+// Mock materials for the Onboarding 101 demo class
+const MOCK_MATERIALS: Material[] = [
+  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "VERIFIED", s3Key: "" },
+  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING", s3Key: "" },
+];
+
 export default function ClassOverviewPage({ params }: { params: { classId: string } }) {
   const { data: session } = useSession();
   const [classId, setClassId] = useState<string>("");
@@ -36,6 +45,12 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   }, [params]);
 
   const loadMaterials = async (cid: string) => {
+    // Demo class: load static mock data instead of hitting the API
+    if (cid === "onboarding101") {
+      setMaterials(MOCK_MATERIALS);
+      setLoading(false);
+      return;
+    }
     try {
       const res = await fetch(`/api/materials?classId=${cid}`);
       const data = await res.json();
@@ -201,45 +216,46 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         </div>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 mt-8">
-        <Link href={`/dashboard/classes/${classId}/study-plans`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="text-6xl sm:text-8xl">📝</span>
-          </div>
-          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-purple-400 transition-colors mb-2">Study Plans</h3>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Community-driven weekly planners for {formattedClass}.</p>
-        </Link>
-
-        <Link href={`/dashboard/classes/${classId}/practice-exams`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="text-6xl sm:text-8xl">🎯</span>
-          </div>
-          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-ecu-gold transition-colors mb-2">Practice Exams</h3>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Past exams and quizzes submitted by old students.</p>
-        </Link>
-
-        <Link href={`/dashboard/classes/${classId}/flashcards`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="text-6xl sm:text-8xl">🗂️</span>
-          </div>
-          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-green-400 transition-colors mb-2">Flashcards</h3>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Quick memorization decks tailored to your focus units.</p>
-        </Link>
-
-        <Link href={`/dashboard/classes/${classId}/ai-tutor`} className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]">
-          <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-            <span className="text-6xl sm:text-8xl">🤖</span>
-          </div>
-          <h3 className="font-bold text-xl sm:text-2xl group-hover:text-blue-400 transition-colors mb-2">AI Study Tutor</h3>
-          <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">Get instant, step-by-step guidance on {formattedClass} topics.</p>
-        </Link>
+      <div id="tour-study-tools" className="grid gap-6 md:grid-cols-2 mt-8">
+        <StudyToolCard
+          title="Study Plans"
+          desc={`Community-driven weekly planners for ${formattedClass}.`}
+          icon="📝"
+          hoverColor="group-hover:text-purple-400"
+          href={`/dashboard/classes/${classId}/study-plans`}
+          classId={classId}
+        />
+        <StudyToolCard
+          title="Practice Exams"
+          desc="Past exams and quizzes submitted by old students."
+          icon="🎯"
+          hoverColor="group-hover:text-ecu-gold"
+          href={`/dashboard/classes/${classId}/practice-exams`}
+          classId={classId}
+        />
+        <StudyToolCard
+          title="Flashcards"
+          desc="Quick memorization decks tailored to your focus units."
+          icon="🗂️"
+          hoverColor="group-hover:text-green-400"
+          href={`/dashboard/classes/${classId}/flashcards`}
+          classId={classId}
+        />
+        <StudyToolCard
+          title="AI Study Tutor"
+          desc={`Get instant, step-by-step guidance on ${formattedClass} topics.`}
+          icon="🤖"
+          hoverColor="group-hover:text-blue-400"
+          href={`/dashboard/classes/${classId}/ai-tutor`}
+          classId={classId}
+        />
       </div>
 
       {/* Course Materials */}
       <div className="mt-16 space-y-6">
         <div className="flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">Course Materials</h2>
-          <button onClick={() => setShowUploadModal(true)} className="text-sm bg-ecu-purple/10 text-ecu-purple hover:bg-ecu-purple/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2">
+          <button id="tour-upload-btn" onClick={() => setShowUploadModal(true)} className="text-sm bg-ecu-purple/10 text-ecu-purple hover:bg-ecu-purple/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
             Upload File
           </button>
@@ -273,13 +289,13 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
               </div>
 
               <div className="divide-y divide-border">
-                {materials.map((file) => {
+                {materials.map((file, idx) => {
                   const icon = file.fileType.includes("pdf") ? "text-red-600 bg-red-100" : file.fileType.includes("presentation") ? "text-blue-600 bg-blue-100" : "text-green-600 bg-green-100";
                   const initial = file.uploadedByName.charAt(0).toUpperCase();
                   const timeAgo = new Date(file.uploadedAt).toLocaleDateString();
 
                   return (
-                    <div key={file.materialId} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
+                    <div key={file.materialId} id={idx === 0 ? "tour-material-row" : undefined} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
                       <div className="col-span-6 md:col-span-5 flex items-center gap-3">
                         <div className={`w-8 h-8 rounded shrink-0 flex items-center justify-center ${icon}`}>
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
@@ -351,5 +367,28 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         </div>
       )}
     </div>
+  );
+}
+
+function StudyToolCard({ title, desc, icon, hoverColor, href, classId }: { title: string, desc: string, icon: string, hoverColor: string, href: string, classId: string }) {
+  const handleClick = (e: React.MouseEvent) => {
+    if (classId === 'onboarding101') {
+      e.preventDefault();
+      alert("This is a demo class. These tools are available in real classes once you upload materials!");
+    }
+  };
+
+  return (
+    <Link 
+      href={href} 
+      onClick={handleClick}
+      className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]"
+    >
+      <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl sm:text-8xl">
+        {icon}
+      </div>
+      <h3 className={`font-bold text-xl sm:text-2xl ${hoverColor} transition-colors mb-2`}>{title}</h3>
+      <p className="text-sm sm:text-base text-muted-foreground max-w-[80%]">{desc}</p>
+    </Link>
   );
 }
