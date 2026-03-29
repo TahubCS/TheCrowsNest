@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -5,8 +6,16 @@ import uvicorn
 
 from core.ingest import process_material
 from core.ai import generate_flashcards, generate_study_plan, generate_practice_exam, chat_with_tutor
+from core.vector_store import pool
 
-app = FastAPI(title="The Crows Nest AI Backend")
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Server is starting up
+    yield
+    # Server is shutting down — close the DB connection pool gracefully
+    pool.close()
+
+app = FastAPI(title="The Crows Nest AI Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
