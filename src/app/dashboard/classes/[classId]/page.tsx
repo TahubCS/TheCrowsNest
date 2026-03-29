@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -35,7 +35,20 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
+  const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setOpenUserMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     Promise.resolve(params).then((p) => {
@@ -306,14 +319,49 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                         </div>
                       </div>
                       <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">{file.materialType}</div>
-                      <div className="col-span-4 md:col-span-3 text-sm flex items-center gap-2">
-                        <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold bg-muted text-foreground">{initial}</div>
-                        <span className="truncate">{file.uploadedByName}</span>
+                      {/* Uploader — click for context menu */}
+                      <div className="col-span-4 md:col-span-3 text-sm relative" ref={openUserMenu === file.materialId ? userMenuRef : null}>
+                        <button
+                          onClick={() => setOpenUserMenu(openUserMenu === file.materialId ? null : file.materialId)}
+                          className="flex items-center gap-2 hover:text-ecu-purple transition-colors cursor-pointer rounded-lg px-1 py-0.5 hover:bg-muted/60"
+                        >
+                          <div className="w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold bg-muted text-foreground">{initial}</div>
+                          <span className="truncate">{file.uploadedByName}</span>
+                          <svg className="w-3 h-3 text-muted-foreground shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+
+                        {openUserMenu === file.materialId && (
+                          <div className="absolute left-0 top-full mt-1 z-20 bg-background border border-border rounded-xl shadow-xl overflow-hidden w-44 animate-in fade-in slide-in-from-top-2 duration-150">
+                            <button
+                              onClick={() => { setOpenUserMenu(null); alert(`View profile for ${file.uploadedByName} — coming soon!`); }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-muted/60 transition-colors text-left cursor-pointer"
+                            >
+                              <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                              View Profile
+                            </button>
+                            <button
+                              onClick={() => { setOpenUserMenu(null); alert(`Report user ${file.uploadedByName} — coming soon!`); }}
+                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-red-50 text-red-500 transition-colors text-left cursor-pointer"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                              Report User
+                            </button>
+                          </div>
+                        )}
                       </div>
+
+                      {/* Status + Report document button */}
                       <div className="col-span-2 text-right flex items-center justify-end gap-2">
                         <span className={`text-xs px-2 py-1 rounded-md font-semibold ${file.status === "VERIFIED" || file.status === "PROCESSED" ? "bg-green-100 text-green-700" : file.status === "FAILED" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
                           {file.status}
                         </span>
+                        <button
+                          title="Report this document"
+                          onClick={() => alert(`Report document "${file.fileName}" — coming soon!`)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 cursor-pointer"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H12.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>
+                        </button>
                       </div>
                     </div>
                   );
