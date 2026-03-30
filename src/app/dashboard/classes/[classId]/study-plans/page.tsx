@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { StudyPlan } from "@/types";
 
-export default function ClassStudyPlansPage() {
+export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ classId: string }> }) {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";

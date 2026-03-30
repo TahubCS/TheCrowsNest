@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
-export default function PracticeExamsPage() {
+export default function PracticeExamsPage({ params: _ }: { params: Promise<{ classId: string }> }) {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";

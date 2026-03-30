@@ -1,0 +1,116 @@
+﻿Folder PATH listing for volume OS
+Volume serial number is BADD-4CC7
+C:\USERS\MUHAMMAD TAHUB\DOWNLOADS\PROJECTS\THECROWSNEST\SRC\APP
+|   favicon.ico
+|   globals.css
+|   layout.tsx
+|   page.tsx
+|   
++---api
+|   +---admin
+|   |   +---databases
+|   |   |       route.ts
+|   |   |       
+|   |   \---verify
+|   |           route.ts
+|   |           
+|   +---ai-tutor
+|   |       route.ts
+|   |       
+|   +---auth
+|   |   +---register
+|   |   |       route.ts
+|   |   |       
+|   |   \---[...nextauth]
+|   |           route.ts
+|   |           
+|   +---classes
+|   |   |   route.ts
+|   |   |   
+|   |   \---enroll
+|   |           route.ts
+|   |           
+|   +---courses
+|   +---data
+|   |   \---onboarding-options
+|   |           route.ts
+|   |           
+|   +---flashcards
+|   |       route.ts
+|   |       
+|   +---materials
+|   |   |   route.ts
+|   |   |   
+|   |   +---presign
+|   |   |       route.ts
+|   |   |       
+|   |   \---process
+|   +---onboarding
+|   |       route.ts
+|   |       
+|   +---practice-exams
+|   |       route.ts
+|   |       
+|   +---requests
+|   |       route.ts
+|   |       
+|   +---study-plan
+|   +---study-plans
+|   |   |   route.ts
+|   |   |   
+|   |   \---generate
+|   |           route.ts
+|   |           
+|   \---user
+|       +---enrolled
+|       |       route.ts
+|       |       
+|       \---profile
+|               route.ts
+|               
++---dashboard
+|   |   layout.tsx
+|   |   page.tsx
+|   |   
+|   +---admin
+|   |   |   AdminNav.tsx
+|   |   |   layout.tsx
+|   |   |   page.tsx
+|   |   |   
+|   |   +---reports
+|   |   |       page.tsx
+|   |   |       
+|   |   \---requests
+|   |           page.tsx
+|   |           
+|   +---classes
+|   |   \---[classId]
+|   |       |   page.tsx
+|   |       |   
+|   |       +---ai-tutor
+|   |       |       page.tsx
+|   |       |       
+|   |       +---flashcards
+|   |       |       page.tsx
+|   |       |       
+|   |       +---practice-exams
+|   |       |       page.tsx
+|   |       |       
+|   |       \---study-plans
+|   |               page.tsx
+|   |               
+|   +---profile
+|   |       page.tsx
+|   |       
+|   \---requests
+|           page.tsx
+|           
++---login
+|       page.tsx
+|       
++---onboarding
+|       page.tsx
+|       
+\---signup
+        page.tsx
+        
