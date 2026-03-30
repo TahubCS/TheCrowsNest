@@ -75,6 +75,7 @@ export interface Material {
   uploadedByName: string;
   status: "PENDING_REVIEW" | "APPROVED" | "PROCESSING" | "PROCESSED" | "REJECTED" | "FAILED";
   rejectionReason?: string;
+  expiresAt?: number; // Unix timestamp for TTL deletion of rejected files
   uploadedAt: string;
 }
 

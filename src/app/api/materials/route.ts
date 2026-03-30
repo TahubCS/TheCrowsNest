@@ -28,7 +28,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const materials = await getMaterialsByClassId(classId);
+    const allMaterials = await getMaterialsByClassId(classId);
+    
+    // Filter out materials that have passed their TTL expiration manually
+    // (fallback in case DynamoDB TTL background thread hasn't cleaned it up yet)
+    const now = Math.floor(Date.now() / 1000);
+    const materials = allMaterials.filter(m => !m.expiresAt || m.expiresAt > now);
+
     // Sort newest first
     materials.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
 
@@ -138,6 +144,26 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Missing required parameters." },
         { status: 400 }
+      );
+    }
+
+    const { getMaterial } = await import("@/lib/db");
+    const material = await getMaterial(classId, materialId);
+
+    if (!material) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "Material not found." },
+        { status: 404 }
+      );
+    }
+
+    const adminEmails = process.env.ADMIN_EMAILS || "";
+    const isAdmin = adminEmails.split(",").map(e => e.trim().toLowerCase()).includes(session.user.email.toLowerCase());
+
+    if (material.uploadedBy !== session.user.email && !isAdmin) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "You are not authorized to delete this material." },
+        { status: 403 }
       );
     }
 

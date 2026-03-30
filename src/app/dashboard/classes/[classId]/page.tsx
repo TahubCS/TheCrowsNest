@@ -213,6 +213,23 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     }
   };
 
+  const handleDismissRejected = async (materialId: string, s3Key: string) => {
+    try {
+      const res = await fetch(`/api/materials?classId=${classId}&materialId=${materialId}&s3Key=${encodeURIComponent(s3Key)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMaterials((prev) => prev.filter((m) => m.materialId !== materialId));
+      } else {
+        alert(data.message || "Failed to dismiss.");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Failed to dismiss.");
+    }
+  };
+
   const formattedClass = classId.toUpperCase();
 
   return (
@@ -399,6 +416,15 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                            file.status === "PROCESSING" ? "Processing..." :
                            file.status}
                         </span>
+                        {file.status === "REJECTED" && (
+                          <button
+                            title="Dismiss & Remove from View"
+                            onClick={() => handleDismissRejected(file.materialId, file.s3Key)}
+                            className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:text-red-700 rounded-md px-2 py-1 text-xs font-bold transition-colors shadow-sm ml-1"
+                          >
+                            Dismiss
+                          </button>
+                        )}
                         <button
                           title="Report this document"
                           onClick={() => submitReport("DOCUMENT", file.materialId, file.fileName)}

@@ -89,13 +89,14 @@ export async function PATCH(request: NextRequest) {
         }
       }
 
-      // Remove the material record from DynamoDB
-      const { deleteMaterial } = await import("@/lib/db");
-      await deleteMaterial(classId, materialId);
+      // Update the material record in DynamoDB to REJECTED with a 7-day TTL
+      const { updateMaterialWithRejection } = await import("@/lib/db");
+      const sevenDaysFromNow = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
+      await updateMaterialWithRejection(classId, materialId, "REJECTED", rejectionReason || "No reason provided", sevenDaysFromNow);
 
       return NextResponse.json<ApiResponse>({
         success: true,
-        message: "Material rejected and removed",
+        message: "File deleted and material marked as rejected",
       });
     }
 

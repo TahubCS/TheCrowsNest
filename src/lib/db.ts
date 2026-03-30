@@ -386,6 +386,20 @@ export async function updateMaterialStatus(classId: string, materialId: string, 
 }
 
 /**
+ * Get a single material
+ */
+export async function getMaterial(classId: string, materialId: string): Promise<Material | null> {
+  const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: MATERIALS_TABLE,
+      Key: { classId, materialId },
+    })
+  );
+  return (result.Item as Material) || null;
+}
+
+/**
  * Get all materials for a class
  */
 export async function getMaterialsByClassId(classId: string): Promise<Material[]> {
@@ -440,7 +454,8 @@ export async function updateMaterialWithRejection(
   classId: string,
   materialId: string,
   status: string,
-  rejectionReason?: string
+  rejectionReason?: string,
+  expiresAt?: number
 ): Promise<void> {
   const expressionParts = ["#st = :status"];
   const expressionValues: Record<string, unknown> = { ":status": status };
@@ -448,6 +463,11 @@ export async function updateMaterialWithRejection(
   if (rejectionReason) {
     expressionParts.push("rejectionReason = :reason");
     expressionValues[":reason"] = rejectionReason;
+  }
+
+  if (expiresAt) {
+    expressionParts.push("expiresAt = :expiresAt");
+    expressionValues[":expiresAt"] = expiresAt;
   }
 
   await docClient.send(
