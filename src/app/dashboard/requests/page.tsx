@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 
 interface ClassRequest {
-  id: string;
+  requestId: string;
   courseCode: string;
   courseName: string;
   department: string;
@@ -64,19 +64,25 @@ export default function PendingRequestsPage() {
             ) : (
               <div className="space-y-4">
                 {classRequests.map((req) => (
-                  <div key={req.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-border rounded-xl hover:bg-muted/30 transition-colors gap-4">
+                  <div key={req.requestId} className="flex flex-col sm:flex-row sm:items-center justify-between p-4 border border-border rounded-xl hover:bg-muted/30 transition-colors gap-4">
                     <div>
                       <h4 className="font-bold text-foreground text-lg">{req.courseCode}</h4>
                       <p className="text-sm font-medium">{req.courseName}</p>
                       <p className="text-xs text-muted-foreground mt-1">Requested {new Date(req.createdAt).toLocaleDateString()}</p>
                     </div>
                     <div className="shrink-0 flex items-center gap-4">
-                      <span className="px-3 py-1.5 bg-yellow-500/10 text-yellow-600 border border-yellow-500/20 rounded-lg text-xs font-bold flex items-center gap-2">
-                        <span className="relative flex h-2 w-2">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
-                        </span>
-                        IN REVIEW
+                      <span className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2 border ${
+                        req.status === "APPROVED" ? "bg-green-500/10 text-green-600 border-green-500/20" :
+                        req.status === "REJECTED" ? "bg-red-500/10 text-red-600 border-red-500/20" :
+                        "bg-yellow-500/10 text-yellow-600 border-yellow-500/20"
+                      }`}>
+                        {req.status === "PENDING" && (
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
+                          </span>
+                        )}
+                        {req.status === "PENDING" ? "IN REVIEW" : req.status}
                       </span>
                     </div>
                   </div>
@@ -98,9 +104,9 @@ export default function PendingRequestsPage() {
           
           <div className="p-6">
             <div className="text-center py-12 px-4 border border-dashed border-border rounded-xl bg-muted/5">
-              <span className="text-4xl hover:-translate-y-1 transition-transform inline-block mb-2">📭</span>
-              <h3 className="text-lg font-bold mt-2">All documents processed</h3>
-              <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">Any study materials you've uploaded have either been fully approved or you have none waiting for review.</p>
+              <span className="text-4xl hover:-translate-y-1 transition-transform inline-block mb-2">📄</span>
+              <h3 className="text-lg font-bold mt-2">No pending documents</h3>
+              <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">All your uploaded documents have been processed.</p>
             </div>
           </div>
         </section>
