@@ -52,10 +52,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // If search query, filter static classes
+    // Default: return all classes (try DB then static)
+    let allClasses = await getAllClasses();
+    if (allClasses.length === 0) {
+      allClasses = ECU_CLASSES;
+    }
+
+    // If search query, filter the loaded classes
     if (search) {
       const query = search.toLowerCase();
-      const filtered = ECU_CLASSES.filter(
+      const filtered = allClasses.filter(
         (c) =>
           c.courseCode.toLowerCase().includes(query) ||
           c.courseName.toLowerCase().includes(query) ||
@@ -67,12 +73,6 @@ export async function GET(request: NextRequest) {
         message: `Found ${filtered.length} classes`,
         data: { classes: filtered, source: "search" },
       });
-    }
-
-    // Default: return all classes (try DB then static)
-    let allClasses = await getAllClasses();
-    if (allClasses.length === 0) {
-      allClasses = ECU_CLASSES;
     }
 
     return NextResponse.json<ApiResponse>({
