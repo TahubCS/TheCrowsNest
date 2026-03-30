@@ -21,6 +21,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showTourClass, setShowTourClass] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const profileMenuRef = React.useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(e.target as Node)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   useEffect(() => {
     // Check if tour is complete to show/hide the onboarding class
@@ -204,18 +216,60 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span className="text-foreground">12 / 20</span>
               </div>
             </div>
-            <Link id="tour-topbar-avatar" href="/dashboard/profile" className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
-              <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
-              <div className="w-8 h-8 rounded-full bg-linear-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
-                {userInitial}
-              </div>
-            </Link>
-            <button
-              onClick={() => signOut({ callbackUrl: '/' })}
-              className="text-xs text-muted-foreground hover:text-red-500 font-medium transition-colors cursor-pointer"
-            >
-              Log out
-            </button>
+            <div className="relative" ref={profileMenuRef}>
+              <button 
+                id="tour-topbar-avatar" 
+                onClick={() => setShowProfileMenu(!showProfileMenu)}
+                className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-xs rounded-full cursor-pointer hover:bg-muted/50 transition-all active:scale-95"
+              >
+                <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
+                <div className="w-8 h-8 rounded-full bg-linear-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">
+                  {userInitial}
+                </div>
+              </button>
+
+              {showProfileMenu && (
+                <div className="absolute right-0 top-full mt-2 w-64 bg-background/95 backdrop-blur-xl border border-border rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 z-50">
+                  <div className="p-4 border-b border-border bg-muted/30">
+                    <p className="text-sm font-bold text-foreground">{userName}</p>
+                    <p className="text-xs text-muted-foreground truncate">{session?.user?.email}</p>
+                  </div>
+                  <div className="p-2">
+                    <Link 
+                      href="/dashboard/profile" 
+                      onClick={() => setShowProfileMenu(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-ecu-purple/10 hover:text-ecu-purple transition-colors group"
+                    >
+                      <span className="text-lg opacity-70 group-hover:opacity-100">⚙️</span>
+                      Profile Settings
+                    </Link>
+                    <button 
+                      onClick={() => { setShowProfileMenu(false); alert("Billing — coming soon!"); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-ecu-gold/10 hover:text-ecu-gold transition-colors group cursor-pointer"
+                    >
+                      <span className="text-lg opacity-70 group-hover:opacity-100">💎</span>
+                      Subscription
+                    </button>
+                    <button 
+                      onClick={() => { setShowProfileMenu(false); alert("Help Center — coming soon!"); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-muted/60 transition-colors group cursor-pointer"
+                    >
+                      <span className="text-lg opacity-70 group-hover:opacity-100">❓</span>
+                      Help Center
+                    </button>
+                  </div>
+                  <div className="p-2 bg-muted/20 border-t border-border">
+                    <button
+                      onClick={() => signOut({ callbackUrl: '/' })}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-bold text-red-500 rounded-xl hover:bg-red-500/10 transition-colors cursor-pointer"
+                    >
+                      <span className="text-lg">🚪</span>
+                      Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
