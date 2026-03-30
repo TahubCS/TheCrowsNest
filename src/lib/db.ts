@@ -8,6 +8,7 @@
  * - TheCrowsNestStudyPlans (PK: planId)
  * - TheCrowsNestRequests (PK: requestId)
  * - TheCrowsNestReports (PK: reportId)
+ * - TheCrowsNestPendingVerifications (PK: email)
  */
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -645,6 +646,59 @@ export async function updateReportStatus(
         ":status": status,
         ":updatedAt": new Date().toISOString(),
       },
+    })
+  );
+}
+
+// ============================================================
+// Pending Email Verification Operations
+// ============================================================
+
+const PENDING_VERIFICATIONS_TABLE = "TheCrowsNestPendingVerifications";
+
+export interface PendingVerification {
+  email: string;
+  name: string;
+  passwordHash: string;
+  verificationCode: string;
+  expiresAt: number; // Unix timestamp for DynamoDB TTL
+}
+
+/**
+ * Save a pending verification record (overwrites any existing one for same email)
+ */
+export async function savePendingVerification(record: PendingVerification): Promise<void> {
+  await docClient.send(
+    new PutCommand({
+      TableName: PENDING_VERIFICATIONS_TABLE,
+      Item: record,
+    })
+  );
+}
+
+/**
+ * Get a pending verification record by email
+ */
+export async function getPendingVerification(email: string): Promise<PendingVerification | null> {
+  const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: PENDING_VERIFICATIONS_TABLE,
+      Key: { email: email.toLowerCase() },
+    })
+  );
+  return (result.Item as PendingVerification) || null;
+}
+
+/**
+ * Delete a pending verification record after successful verification
+ */
+export async function deletePendingVerification(email: string): Promise<void> {
+  const { DeleteCommand } = await import("@aws-sdk/lib-dynamodb");
+  await docClient.send(
+    new DeleteCommand({
+      TableName: PENDING_VERIFICATIONS_TABLE,
+      Key: { email: email.toLowerCase() },
     })
   );
 }

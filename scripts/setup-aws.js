@@ -72,6 +72,12 @@ const tables = [
     AttributeDefinitions: [{ AttributeName: "reportId", AttributeType: "S" }],
     KeySchema: [{ AttributeName: "reportId", KeyType: "HASH" }],
     BillingMode: "PAY_PER_REQUEST",
+  },
+  {
+    TableName: "TheCrowsNestPendingVerifications",
+    AttributeDefinitions: [{ AttributeName: "email", AttributeType: "S" }],
+    KeySchema: [{ AttributeName: "email", KeyType: "HASH" }],
+    BillingMode: "PAY_PER_REQUEST",
   }
 ];
 
@@ -116,6 +122,24 @@ async function setup() {
   } catch (err) {
     if (err.name === "ValidationException" && err.message.includes("TimeToLive is already enabled")) {
         console.log(`ℹ️  TTL already enabled for TheCrowsNestMaterials.`);
+    } else {
+        console.error(`❌ Error configuring TTL:`, err.name, err.message);
+    }
+  }
+
+  console.log("\nConfiguring DynamoDB TTL for PendingVerifications Table...");
+  try {
+    await dynamodb.send(new UpdateTimeToLiveCommand({
+      TableName: "TheCrowsNestPendingVerifications",
+      TimeToLiveSpecification: {
+        AttributeName: "expiresAt",
+        Enabled: true
+      }
+    }));
+    console.log(`✅ TTL configured for TheCrowsNestPendingVerifications on attribute 'expiresAt'.`);
+  } catch (err) {
+    if (err.name === "ValidationException" && err.message.includes("TimeToLive is already enabled")) {
+        console.log(`ℹ️  TTL already enabled for TheCrowsNestPendingVerifications.`);
     } else {
         console.error(`❌ Error configuring TTL:`, err.name, err.message);
     }
