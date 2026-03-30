@@ -192,6 +192,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="flex-1"></div> {/* Spacer */}
 
           <div className="flex items-center gap-4">
+            <div className="hidden lg:flex items-center gap-2 mr-2">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 border border-border/50 rounded-full text-[11px] font-bold text-muted-foreground group hover:border-ecu-purple/30 hover:bg-ecu-purple/5 transition-all duration-300">
+                <span className="text-sm group-hover:scale-110 transition-transform">☁️</span>
+                <span className="opacity-70">Storage:</span>
+                <span className="text-foreground">750MB / 1GB</span>
+              </div>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 border border-border/50 rounded-full text-[11px] font-bold text-muted-foreground group hover:border-ecu-gold/30 hover:bg-ecu-gold/5 transition-all duration-300">
+                <span className="text-sm group-hover:scale-110 transition-transform">⚡</span>
+                <span className="opacity-70">AI:</span>
+                <span className="text-foreground">12 / 20</span>
+              </div>
+            </div>
             <Link id="tour-topbar-avatar" href="/dashboard/profile" className="flex items-center gap-3 px-1.5 py-1.5 bg-background border border-border shadow-sm rounded-full cursor-pointer hover:bg-muted/50 transition-colors">
               <span className="text-sm font-semibold text-foreground pl-3 hidden sm:inline-block">{userName}</span>
               <div className="w-8 h-8 rounded-full bg-linear-to-br from-ecu-gold to-ecu-gold/80 flex items-center justify-center text-sm font-bold text-ecu-purple shadow-inner border border-ecu-gold">

@@ -191,7 +191,19 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Back to Dashboard
           </Link>
-          <h1 className="text-4xl font-extrabold tracking-tight text-foreground">{formattedClass}</h1>
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+            <h1 className="text-4xl font-extrabold tracking-tight text-foreground">{formattedClass}</h1>
+            <div className="flex gap-2">
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-muted/50 text-muted-foreground border border-border shadow-xs group cursor-default">
+                <span className="mr-1.5 opacity-70 group-hover:scale-110 transition-transform">📊</span>
+                <span>{materials.length} Community Files</span>
+              </div>
+              <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-linear-to-r from-ecu-gold/20 to-ecu-gold/10 text-ecu-gold border border-ecu-gold/30 shadow-xs group cursor-default">
+                <span className="mr-1.5 group-hover:animate-pulse">✨</span>
+                <span>9.2 Context Rating</span>
+              </div>
+            </div>
+          </div>
           <p className="text-muted-foreground mt-2 text-lg">Class overview and study materials.</p>
         </div>
 
