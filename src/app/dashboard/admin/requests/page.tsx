@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface ClassRequest {
   requestId: string;
@@ -16,6 +17,7 @@ interface ClassRequest {
 }
 
 export default function AdminRequestsPage() {
+  const router = useRouter();
   const [requests, setRequests] = useState<ClassRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -51,6 +53,19 @@ export default function AdminRequestsPage() {
         setRequests(prev =>
           prev.map(r => r.requestId === requestId ? { ...r, status: action, updatedAt: new Date().toISOString() } : r)
         );
+
+        // If approved, redirect to Manage Classes with pre-filled form data
+        if (action === "APPROVED") {
+          const req = requests.find(r => r.requestId === requestId);
+          if (req) {
+            const params = new URLSearchParams({
+              courseCode: req.courseCode,
+              courseName: req.courseName,
+              department: req.department,
+            });
+            router.push(`/dashboard/admin/classes?${params.toString()}`);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to update request:", error);

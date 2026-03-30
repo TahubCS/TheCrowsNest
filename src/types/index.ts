@@ -54,6 +54,7 @@ export interface CourseClass {
   description: string;
   relatedMajors: string[]; // which majors typically take this
   enrolledCount: number; // social proof
+  syllabus?: string; // Free-text context about the class structure, purpose, and topics
 }
 
 export interface EnrollPayload {

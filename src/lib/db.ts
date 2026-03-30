@@ -522,6 +522,20 @@ export async function createClassRequest(request: ClassRequest): Promise<void> {
 }
 
 /**
+ * Get a specific class request by ID
+ */
+export async function getRequestById(requestId: string): Promise<ClassRequest | null> {
+  const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: REQUESTS_TABLE,
+      Key: { requestId },
+    })
+  );
+  return (result.Item as ClassRequest) || null;
+}
+
+/**
  * Get all class requests for a specific user
  */
 export async function getRequestsByEmail(userEmail: string): Promise<ClassRequest[]> {
