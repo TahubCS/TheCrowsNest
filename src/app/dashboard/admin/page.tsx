@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 
-const TABLES = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials"];
+const TABLES = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans", "TheCrowsNestRequests", "TheCrowsNestReports"];
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState(TABLES[0]);
@@ -57,6 +57,8 @@ export default function AdminDashboardPage() {
       case "TheCrowsNestClasses": return { classId: row.classId };
       case "TheCrowsNestMaterials": return { classId: row.classId, materialId: row.materialId };
       case "TheCrowsNestStudyPlans": return { planId: row.planId };
+      case "TheCrowsNestRequests": return { requestId: row.requestId };
+      case "TheCrowsNestReports": return { reportId: row.reportId };
       default: return {};
     }
   };

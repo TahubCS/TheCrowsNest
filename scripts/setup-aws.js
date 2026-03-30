@@ -60,6 +60,18 @@ const tables = [
     AttributeDefinitions: [{ AttributeName: "planId", AttributeType: "S" }],
     KeySchema: [{ AttributeName: "planId", KeyType: "HASH" }],
     BillingMode: "PAY_PER_REQUEST",
+  },
+  {
+    TableName: "TheCrowsNestRequests",
+    AttributeDefinitions: [{ AttributeName: "requestId", AttributeType: "S" }],
+    KeySchema: [{ AttributeName: "requestId", KeyType: "HASH" }],
+    BillingMode: "PAY_PER_REQUEST",
+  },
+  {
+    TableName: "TheCrowsNestReports",
+    AttributeDefinitions: [{ AttributeName: "reportId", AttributeType: "S" }],
+    KeySchema: [{ AttributeName: "reportId", KeyType: "HASH" }],
+    BillingMode: "PAY_PER_REQUEST",
   }
 ];
 

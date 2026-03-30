@@ -36,8 +36,32 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const submitReport = async (type: "USER" | "DOCUMENT", targetId: string, targetName: string) => {
+    const reason = prompt(`Why are you reporting this ${type === "USER" ? "user" : "document"}?`);
+    if (!reason || reason.trim() === "") return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, targetId, targetName, classId, reason }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Report submitted. An admin will review it shortly.");
+      } else {
+        alert("Failed to submit report: " + data.message);
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -340,7 +364,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                               View Profile
                             </button>
                             <button
-                              onClick={() => { setOpenUserMenu(null); alert(`Report user ${file.uploadedByName} — coming soon!`); }}
+                              onClick={() => { setOpenUserMenu(null); submitReport("USER", file.uploadedByName, file.uploadedByName); }}
                               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-red-50 text-red-500 transition-colors text-left cursor-pointer"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
@@ -357,7 +381,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                         </span>
                         <button
                           title="Report this document"
-                          onClick={() => alert(`Report document "${file.fileName}" — coming soon!`)}
+                          onClick={() => submitReport("DOCUMENT", file.materialId, file.fileName)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 cursor-pointer"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H12.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>

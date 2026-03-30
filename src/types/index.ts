@@ -103,6 +103,42 @@ export interface StudyPlan {
 }
 
 // ============================================================
+// Class Requests
+// ============================================================
+
+export interface ClassRequest {
+  requestId: string;
+  courseCode: string;
+  courseName: string;
+  department: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  adminNote?: string;
+  userEmail: string;
+  userName?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ============================================================
+// Reports (flagging users or documents)
+// ============================================================
+
+export interface Report {
+  reportId: string;
+  type: "USER" | "DOCUMENT";
+  targetId: string;        // email (user) or materialId (document)
+  targetName: string;      // display name of target
+  classId?: string;        // relevant class (for document reports)
+  reason: string;
+  details?: string;
+  status: "OPEN" | "REVIEWED" | "DISMISSED";
+  reportedBy: string;      // reporter email
+  reportedByName?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+// ============================================================
 // API Response
 // ============================================================
 
