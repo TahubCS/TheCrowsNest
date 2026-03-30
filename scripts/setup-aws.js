@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { DynamoDBClient, CreateTableCommand } = require("@aws-sdk/client-dynamodb");
+const { DynamoDBClient, CreateTableCommand, UpdateTimeToLiveCommand } = require("@aws-sdk/client-dynamodb");
 const { S3Client, CreateBucketCommand } = require("@aws-sdk/client-s3");
 
 // Manually parse .env.local
@@ -100,6 +100,24 @@ async function setup() {
       console.log(`ℹ️  Bucket thecrowsnest already exists or owned by you.`);
     } else {
       console.error(`❌ Error creating bucket:`, err.name, err.message);
+    }
+  }
+
+  console.log("\nConfiguring DynamoDB TTL for Materials Table...");
+  try {
+    await dynamodb.send(new UpdateTimeToLiveCommand({
+      TableName: "TheCrowsNestMaterials",
+      TimeToLiveSpecification: {
+        AttributeName: "expiresAt",
+        Enabled: true
+      }
+    }));
+    console.log(`✅ TTL configured for TheCrowsNestMaterials on attribute 'expiresAt'.`);
+  } catch (err) {
+    if (err.name === "ValidationException" && err.message.includes("TimeToLive is already enabled")) {
+        console.log(`ℹ️  TTL already enabled for TheCrowsNestMaterials.`);
+    } else {
+        console.error(`❌ Error configuring TTL:`, err.name, err.message);
     }
   }
 }

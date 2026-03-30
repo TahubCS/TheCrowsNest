@@ -8,6 +8,7 @@ export default function AdminNav() {
 
   const navItems = [
     { name: "Databases", path: "/dashboard/admin", icon: "🗄️" },
+    { name: "Manage Classes", path: "/dashboard/admin/classes", icon: "🏫" },
     { name: "Pending Uploads", path: "/dashboard/admin/materials", icon: "📄" },
     { name: "Pending Requests", path: "/dashboard/admin/requests", icon: "⏳" },
     { name: "Reports", path: "/dashboard/admin/reports", icon: "🚩" },

@@ -54,6 +54,7 @@ export interface CourseClass {
   description: string;
   relatedMajors: string[]; // which majors typically take this
   enrolledCount: number; // social proof
+  syllabus?: string; // Free-text context about the class structure, purpose, and topics
 }
 
 export interface EnrollPayload {
@@ -75,6 +76,7 @@ export interface Material {
   uploadedByName: string;
   status: "PENDING_REVIEW" | "APPROVED" | "PROCESSING" | "PROCESSED" | "REJECTED" | "FAILED";
   rejectionReason?: string;
+  expiresAt?: number; // Unix timestamp for TTL deletion of rejected files
   uploadedAt: string;
 }
 

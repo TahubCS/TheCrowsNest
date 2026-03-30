@@ -386,6 +386,20 @@ export async function updateMaterialStatus(classId: string, materialId: string, 
 }
 
 /**
+ * Get a single material
+ */
+export async function getMaterial(classId: string, materialId: string): Promise<Material | null> {
+  const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: MATERIALS_TABLE,
+      Key: { classId, materialId },
+    })
+  );
+  return (result.Item as Material) || null;
+}
+
+/**
  * Get all materials for a class
  */
 export async function getMaterialsByClassId(classId: string): Promise<Material[]> {
@@ -395,6 +409,22 @@ export async function getMaterialsByClassId(classId: string): Promise<Material[]
       FilterExpression: "classId = :classId",
       ExpressionAttributeValues: {
         ":classId": classId,
+      },
+    })
+  );
+  return (result.Items || []) as Material[];
+}
+
+/**
+ * Get all materials uploaded by a specific user across all classes
+ */
+export async function getMaterialsByUserEmail(userEmail: string): Promise<Material[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: MATERIALS_TABLE,
+      FilterExpression: "uploadedBy = :email",
+      ExpressionAttributeValues: {
+        ":email": userEmail.toLowerCase(),
       },
     })
   );
@@ -440,7 +470,8 @@ export async function updateMaterialWithRejection(
   classId: string,
   materialId: string,
   status: string,
-  rejectionReason?: string
+  rejectionReason?: string,
+  expiresAt?: number
 ): Promise<void> {
   const expressionParts = ["#st = :status"];
   const expressionValues: Record<string, unknown> = { ":status": status };
@@ -448,6 +479,11 @@ export async function updateMaterialWithRejection(
   if (rejectionReason) {
     expressionParts.push("rejectionReason = :reason");
     expressionValues[":reason"] = rejectionReason;
+  }
+
+  if (expiresAt) {
+    expressionParts.push("expiresAt = :expiresAt");
+    expressionValues[":expiresAt"] = expiresAt;
   }
 
   await docClient.send(
@@ -483,6 +519,20 @@ export async function createClassRequest(request: ClassRequest): Promise<void> {
       },
     })
   );
+}
+
+/**
+ * Get a specific class request by ID
+ */
+export async function getRequestById(requestId: string): Promise<ClassRequest | null> {
+  const { GetCommand } = await import("@aws-sdk/lib-dynamodb");
+  const result = await docClient.send(
+    new GetCommand({
+      TableName: REQUESTS_TABLE,
+      Key: { requestId },
+    })
+  );
+  return (result.Item as ClassRequest) || null;
 }
 
 /**
