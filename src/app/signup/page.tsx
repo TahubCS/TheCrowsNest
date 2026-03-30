@@ -90,14 +90,14 @@ export default function SignupPage() {
 
       const data = await res.json();
 
+      // Check for success
       if (!res.ok) {
         setError(data.message || "Registration failed. Please try again.");
         return;
       }
 
-      // Success — transition to Step 2
-      setStep(2);
-      setError("");
+      // Success — bypassed 2FA, immediately route to login
+      router.push("/login?registered=true");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -292,7 +292,7 @@ export default function SignupPage() {
               disabled={loading}
               className="w-full h-11 bg-ecu-gold text-ecu-purple hover:bg-ecu-gold/90 text-sm font-bold shadow-md rounded-lg mt-2 disabled:opacity-60"
             >
-              {loading ? "Verifying..." : "Continue"}
+              {loading ? "Creating account..." : "Create Account"}
             </Button>
             
             <div className="mt-6 text-center text-sm text-muted-foreground border-t border-border pt-6">

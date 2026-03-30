@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { getUserByEmail, savePendingVerification } from "@/lib/db";
+import { getUserByEmail, savePendingVerification, createUser } from "@/lib/db";
 import { sendVerificationEmail } from "@/lib/email";
 import { validateEcuEmail, validatePassword } from "@/lib/validators";
 import type { RegisterPayload, ApiResponse } from "@/types";
@@ -59,10 +59,11 @@ export async function POST(request: NextRequest) {
     // --- Hash password ---
     const passwordHash = await bcrypt.hash(password, 12);
 
+    /** 
+     * SIDELINED 2FA LOGIC
+     * 
     // --- Generate cryptographically secure 6-digit code ---
     const verificationCode = crypto.randomInt(100000, 999999).toString();
-
-    // --- Store in pending verifications table (15 min TTL) ---
     const expiresAt = Math.floor(Date.now() / 1000) + 15 * 60; // 15 minutes from now
 
     await savePendingVerification({
@@ -72,20 +73,39 @@ export async function POST(request: NextRequest) {
       verificationCode,
       expiresAt,
     });
-
+    
     // --- Send the verification email ---
     await sendVerificationEmail(
       email.trim().toLowerCase(),
       verificationCode,
       name.trim().split(" ")[0] // First name only for the greeting
     );
+    */
+
+    // --- Create the real user IMMEDIATELY (Bypass 2FA) ---
+    const normalizedEmail = email.trim().toLowerCase();
+    const pirateId = normalizedEmail.split("@")[0];
+    const userId = crypto.randomUUID();
+
+    await createUser({
+      id: userId,
+      name: name.trim(),
+      email: normalizedEmail,
+      passwordHash: passwordHash,
+      pirateId,
+      enrolledClasses: [],
+      onboardingComplete: false,
+      isAdmin: false,
+      createdAt: new Date().toISOString(),
+    });
 
     return NextResponse.json<ApiResponse>(
       {
         success: true,
-        message: "Verification code sent to your email. Please check your inbox.",
+        message: "Account created successfully! You can now log in.",
+        data: { userId },
       },
-      { status: 200 }
+      { status: 201 }
     );
   } catch (error: unknown) {
     console.error("[Register Send Code Error]", error);
