@@ -1,5 +1,3 @@
-import asyncio
-import os
 from core.ingest import s3_client, process_material
 
 def sync_all():
