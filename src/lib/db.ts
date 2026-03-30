@@ -414,6 +414,53 @@ export async function deleteMaterial(classId: string, materialId: string): Promi
   );
 }
 
+/**
+ * Get all materials with PENDING_REVIEW status (admin use — cross-class scan)
+ */
+export async function getAllPendingMaterials(): Promise<Material[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: MATERIALS_TABLE,
+      FilterExpression: "#st = :status",
+      ExpressionAttributeNames: {
+        "#st": "status",
+      },
+      ExpressionAttributeValues: {
+        ":status": "PENDING_REVIEW",
+      },
+    })
+  );
+  return (result.Items || []) as Material[];
+}
+
+/**
+ * Update material status with optional rejection reason
+ */
+export async function updateMaterialWithRejection(
+  classId: string,
+  materialId: string,
+  status: string,
+  rejectionReason?: string
+): Promise<void> {
+  const expressionParts = ["#st = :status"];
+  const expressionValues: Record<string, unknown> = { ":status": status };
+
+  if (rejectionReason) {
+    expressionParts.push("rejectionReason = :reason");
+    expressionValues[":reason"] = rejectionReason;
+  }
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: MATERIALS_TABLE,
+      Key: { classId, materialId },
+      UpdateExpression: `SET ${expressionParts.join(", ")}`,
+      ExpressionAttributeNames: { "#st": "status" },
+      ExpressionAttributeValues: expressionValues,
+    })
+  );
+}
+
 // ============================================================
 // Class Request Operations
 // ============================================================

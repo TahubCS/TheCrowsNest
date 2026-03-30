@@ -61,7 +61,7 @@ export interface EnrollPayload {
 }
 
 // ============================================================
-// Materials (future)
+// Materials
 // ============================================================
 
 export interface Material {
@@ -73,7 +73,7 @@ export interface Material {
   materialType: string; // "Syllabus" | "Lecture Slides" | "Study Guide" | "Past Exam" | "Notes" | "Other"
   uploadedBy: string; // user email
   uploadedByName: string;
-  status: "PENDING" | "VERIFIED" | "REJECTED";
+  status: "PENDING_REVIEW" | "APPROVED" | "PROCESSING" | "PROCESSED" | "REJECTED" | "FAILED";
   rejectionReason?: string;
   uploadedAt: string;
 }

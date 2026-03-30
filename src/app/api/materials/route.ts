@@ -81,17 +81,13 @@ export async function POST(request: NextRequest) {
       materialType,
       uploadedBy: session.user.email,
       uploadedByName: session.user.name,
-      status: "PENDING",
+      status: "PENDING_REVIEW",
       uploadedAt: new Date().toISOString(),
     });
 
-    // Trigger background processing asynchronously (don't await)
-    processMaterial(classId, materialId, s3Key, fileName).catch((err) =>
-      console.error("[Background Processing Error]", err)
-    );
-
+    // File sits in S3 waiting for admin review — no auto-processing
     return NextResponse.json<ApiResponse>(
-      { success: true, message: "Material saved. Processing in background.", data: { materialId } },
+      { success: true, message: "Material uploaded. Awaiting admin review.", data: { materialId } },
       { status: 201 }
     );
   } catch (error) {

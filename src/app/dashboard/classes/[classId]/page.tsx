@@ -10,19 +10,21 @@ interface Material {
   fileName: string;
   fileType: string;
   materialType: string;
+  uploadedBy: string;
   uploadedByName: string;
   uploadedAt: string;
   status: string;
   s3Key: string;
+  rejectionReason?: string;
 }
 
 // Mock materials for the Onboarding 101 demo class
 const MOCK_MATERIALS: Material[] = [
-  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "VERIFIED", s3Key: "" },
-  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING", s3Key: "" },
+  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedBy: "alex@students.ecu.edu", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedBy: "jordan@students.ecu.edu", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedBy: "riley@students.ecu.edu", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedBy: "sam@students.ecu.edu", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedBy: "morgan@students.ecu.edu", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING_REVIEW", s3Key: "" },
 ];
 
 export default function ClassOverviewPage({ params }: { params: { classId: string } }) {
@@ -92,7 +94,13 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       const res = await fetch(`/api/materials?classId=${cid}`);
       const data = await res.json();
       if (data.success) {
-        setMaterials(data.data.materials);
+        const allMats = data.data.materials || [];
+        // Show only PROCESSED materials + user's own uploads (any status)
+        const userEmail = session?.user?.email;
+        const filtered = allMats.filter((m: Material) =>
+          m.status === "PROCESSED" || m.uploadedBy === userEmail
+        );
+        setMaterials(filtered);
       }
     } catch (e) {
       console.error(e);
@@ -376,8 +384,20 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
 
                       {/* Status + Report document button */}
                       <div className="col-span-2 text-right flex items-center justify-end gap-2">
-                        <span className={`text-xs px-2 py-1 rounded-md font-semibold ${file.status === "VERIFIED" || file.status === "PROCESSED" ? "bg-green-100 text-green-700" : file.status === "FAILED" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                          {file.status}
+                        <span
+                          className={`text-xs px-2 py-1 rounded-md font-semibold ${
+                            file.status === "PROCESSED" ? "bg-green-100 text-green-700" :
+                            file.status === "PROCESSING" ? "bg-blue-100 text-blue-700 animate-pulse" :
+                            file.status === "REJECTED" ? "bg-red-100 text-red-700" :
+                            file.status === "FAILED" ? "bg-red-100 text-red-700" :
+                            file.status === "APPROVED" ? "bg-green-50 text-green-600" :
+                            "bg-yellow-100 text-yellow-700"
+                          }`}
+                          title={file.status === "REJECTED" && file.rejectionReason ? `Reason: ${file.rejectionReason}` : undefined}
+                        >
+                          {file.status === "PENDING_REVIEW" ? "Awaiting Review" :
+                           file.status === "PROCESSING" ? "Processing..." :
+                           file.status}
                         </span>
                         <button
                           title="Report this document"
