@@ -19,6 +19,7 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
+  const [isReviewing, setIsReviewing] = useState(false);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -46,7 +47,7 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
   };
 
   const handleSelectOption = (opt: string) => {
-    if (showResults) return;
+    if (showResults || isReviewing) return;
     setSelectedAnswers(prev => ({ ...prev, [currentIndex]: opt }));
   };
 
@@ -158,14 +159,16 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
           </p>
           <div className="flex gap-4 justify-center">
             <button onClick={() => setQuestions([])} className="px-6 py-3 bg-muted hover:bg-muted/80 font-bold rounded-xl transition-colors">Start New Exam</button>
-            <button onClick={() => setShowResults(false)} className="px-6 py-3 bg-ecu-purple text-white hover:bg-purple-800 font-bold rounded-xl transition-colors shadow-lg">Review Answers</button>
+            <button onClick={() => { setShowResults(false); setIsReviewing(true); setCurrentIndex(0); }} className="px-6 py-3 bg-ecu-purple text-white hover:bg-purple-800 font-bold rounded-xl transition-colors shadow-lg">Review Answers</button>
           </div>
         </div>
       ) : (
         <div className="bg-background border border-border rounded-3xl p-8 shadow-xl">
           <div className="flex justify-between items-center mb-6">
-            <span className="text-sm font-bold text-muted-foreground">QUESTION {currentIndex + 1} OF {questions.length}</span>
-            <button onClick={() => setQuestions([])} className="text-sm text-red-500 font-bold hover:underline">Quit</button>
+            <span className="text-sm font-bold text-muted-foreground">
+              {isReviewing ? "REVIEWING" : "QUESTION"} {currentIndex + 1} OF {questions.length}
+            </span>
+            <button onClick={() => { setQuestions([]); setIsReviewing(false); }} className="text-sm text-red-500 font-bold hover:underline">{isReviewing ? "Done" : "Quit"}</button>
           </div>
           
           <h3 className="text-2xl font-semibold mb-8 text-foreground leading-relaxed">{questions[currentIndex].question}</h3>
@@ -176,23 +179,31 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
               const isCorrect = questions[currentIndex].correctAnswer === opt;
               
               let styleClass = "bg-muted/30 border-border hover:border-ecu-purple hover:bg-purple-500/5";
-              if (isSelected) styleClass = "border-ecu-purple bg-purple-500/10 ring-1 ring-ecu-purple";
-              
-              if (showResults) { // Wait, I check showResults earlier in ternary, but if user clicks Review Answers, showResults is false again? 
-                // Ah, let's just make Review Answers set another state or use showResults. 
-                // Wait, if showResults=false, it's just normal answering. If they Review, let's rely on a 'reviewed' flag or just score logic. 
-                // Simple logic: if checking results, I want to show correct options. Let's make an explicitly 'isReviewing' state or something.
+              if (isReviewing) {
+                // Review mode: green for correct, red for incorrect selections
+                if (isCorrect) {
+                  styleClass = "border-green-500 bg-green-500/10 ring-1 ring-green-500";
+                } else if (isSelected && !isCorrect) {
+                  styleClass = "border-red-500 bg-red-500/10 ring-1 ring-red-500";
+                } else {
+                  styleClass = "bg-muted/20 border-border/50 opacity-60";
+                }
+              } else if (isSelected) {
+                styleClass = "border-ecu-purple bg-purple-500/10 ring-1 ring-ecu-purple";
               }
-              // To fix the review logic simply: Let's use `Object.keys(selectedAnswers).length === questions.length` to show 'Submit Exam' button.
-              // Actually, I'll just leave the simple select UI here.
 
               return (
                 <button 
                   key={i} 
                   onClick={() => handleSelectOption(opt)}
-                  className={`w-full text-left p-4 rounded-xl border-2 transition-all font-medium text-foreground ${styleClass}`}
+                  disabled={isReviewing}
+                  className={`w-full text-left p-4 rounded-xl border-2 transition-all font-medium text-foreground ${styleClass} ${isReviewing ? "cursor-default" : "cursor-pointer"}`}
                 >
-                  {opt}
+                  <div className="flex items-center justify-between">
+                    <span>{opt}</span>
+                    {isReviewing && isCorrect && <span className="text-green-600 font-bold text-sm">✓ Correct</span>}
+                    {isReviewing && isSelected && !isCorrect && <span className="text-red-500 font-bold text-sm">✕ Wrong</span>}
+                  </div>
                 </button>
               );
             })}

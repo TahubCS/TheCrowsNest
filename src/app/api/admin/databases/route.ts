@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const table = searchParams.get("table") || "TheCrowsNestUsers";
 
     // Validate table to prevent injection
-    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials"];
+    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans", "TheCrowsNestRequests", "TheCrowsNestReports"];
     if (!allowedTables.includes(table)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }
@@ -67,7 +67,7 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { table, item } = body;
 
-    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans"];
+    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans", "TheCrowsNestRequests", "TheCrowsNestReports"];
     if (!allowedTables.includes(table)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }
@@ -103,7 +103,7 @@ export async function DELETE(request: NextRequest) {
        return NextResponse.json({ success: false, message: "Missing params" }, { status: 400 });
     }
 
-    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans"];
+    const allowedTables = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans", "TheCrowsNestRequests", "TheCrowsNestReports"];
     if (!allowedTables.includes(table)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }

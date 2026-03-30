@@ -10,19 +10,21 @@ interface Material {
   fileName: string;
   fileType: string;
   materialType: string;
+  uploadedBy: string;
   uploadedByName: string;
   uploadedAt: string;
   status: string;
   s3Key: string;
+  rejectionReason?: string;
 }
 
 // Mock materials for the Onboarding 101 demo class
 const MOCK_MATERIALS: Material[] = [
-  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "VERIFIED", s3Key: "" },
-  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING", s3Key: "" },
+  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedBy: "alex@students.ecu.edu", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedBy: "jordan@students.ecu.edu", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedBy: "riley@students.ecu.edu", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedBy: "sam@students.ecu.edu", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "PROCESSED", s3Key: "" },
+  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedBy: "morgan@students.ecu.edu", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING_REVIEW", s3Key: "" },
 ];
 
 export default function ClassOverviewPage({ params }: { params: { classId: string } }) {
@@ -36,8 +38,32 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
+  const [reportSubmitting, setReportSubmitting] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
+
+  const submitReport = async (type: "USER" | "DOCUMENT", targetId: string, targetName: string) => {
+    const reason = prompt(`Why are you reporting this ${type === "USER" ? "user" : "document"}?`);
+    if (!reason || reason.trim() === "") return;
+    setReportSubmitting(true);
+    try {
+      const res = await fetch("/api/reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, targetId, targetName, classId, reason }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert("✅ Report submitted. An admin will review it shortly.");
+      } else {
+        alert("Failed to submit report: " + data.message);
+      }
+    } catch {
+      alert("Network error. Please try again.");
+    } finally {
+      setReportSubmitting(false);
+    }
+  };
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -68,7 +94,13 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       const res = await fetch(`/api/materials?classId=${cid}`);
       const data = await res.json();
       if (data.success) {
-        setMaterials(data.data.materials);
+        const allMats = data.data.materials || [];
+        // Show only PROCESSED materials + user's own uploads (any status)
+        const userEmail = session?.user?.email;
+        const filtered = allMats.filter((m: Material) =>
+          m.status === "PROCESSED" || m.uploadedBy === userEmail
+        );
+        setMaterials(filtered);
       }
     } catch (e) {
       console.error(e);
@@ -352,7 +384,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                               View Profile
                             </button>
                             <button
-                              onClick={() => { setOpenUserMenu(null); alert(`Report user ${file.uploadedByName} — coming soon!`); }}
+                              onClick={() => { setOpenUserMenu(null); submitReport("USER", file.uploadedByName, file.uploadedByName); }}
                               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-red-50 text-red-500 transition-colors text-left cursor-pointer"
                             >
                               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
@@ -364,12 +396,24 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
 
                       {/* Status + Report document button */}
                       <div className="col-span-2 text-right flex items-center justify-end gap-2">
-                        <span className={`text-xs px-2 py-1 rounded-md font-semibold ${file.status === "VERIFIED" || file.status === "PROCESSED" ? "bg-green-100 text-green-700" : file.status === "FAILED" ? "bg-red-100 text-red-700" : "bg-yellow-100 text-yellow-700"}`}>
-                          {file.status}
+                        <span
+                          className={`text-xs px-2 py-1 rounded-md font-semibold ${
+                            file.status === "PROCESSED" ? "bg-green-100 text-green-700" :
+                            file.status === "PROCESSING" ? "bg-blue-100 text-blue-700 animate-pulse" :
+                            file.status === "REJECTED" ? "bg-red-100 text-red-700" :
+                            file.status === "FAILED" ? "bg-red-100 text-red-700" :
+                            file.status === "APPROVED" ? "bg-green-50 text-green-600" :
+                            "bg-yellow-100 text-yellow-700"
+                          }`}
+                          title={file.status === "REJECTED" && file.rejectionReason ? `Reason: ${file.rejectionReason}` : undefined}
+                        >
+                          {file.status === "PENDING_REVIEW" ? "Awaiting Review" :
+                           file.status === "PROCESSING" ? "Processing..." :
+                           file.status}
                         </span>
                         <button
                           title="Report this document"
-                          onClick={() => alert(`Report document "${file.fileName}" — coming soon!`)}
+                          onClick={() => submitReport("DOCUMENT", file.materialId, file.fileName)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 cursor-pointer"
                         >
                           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H12.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>

@@ -4,6 +4,10 @@
  * Tables:
  * - TheCrowsNestUsers (PK: email)
  * - TheCrowsNestClasses (PK: classId)
+ * - TheCrowsNestMaterials (PK: classId, SK: materialId)
+ * - TheCrowsNestStudyPlans (PK: planId)
+ * - TheCrowsNestRequests (PK: requestId)
+ * - TheCrowsNestReports (PK: reportId)
  */
 
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
@@ -410,4 +414,187 @@ export async function deleteMaterial(classId: string, materialId: string): Promi
   );
 }
 
+/**
+ * Get all materials with PENDING_REVIEW status (admin use — cross-class scan)
+ */
+export async function getAllPendingMaterials(): Promise<Material[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: MATERIALS_TABLE,
+      FilterExpression: "#st = :status",
+      ExpressionAttributeNames: {
+        "#st": "status",
+      },
+      ExpressionAttributeValues: {
+        ":status": "PENDING_REVIEW",
+      },
+    })
+  );
+  return (result.Items || []) as Material[];
+}
 
+/**
+ * Update material status with optional rejection reason
+ */
+export async function updateMaterialWithRejection(
+  classId: string,
+  materialId: string,
+  status: string,
+  rejectionReason?: string
+): Promise<void> {
+  const expressionParts = ["#st = :status"];
+  const expressionValues: Record<string, unknown> = { ":status": status };
+
+  if (rejectionReason) {
+    expressionParts.push("rejectionReason = :reason");
+    expressionValues[":reason"] = rejectionReason;
+  }
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: MATERIALS_TABLE,
+      Key: { classId, materialId },
+      UpdateExpression: `SET ${expressionParts.join(", ")}`,
+      ExpressionAttributeNames: { "#st": "status" },
+      ExpressionAttributeValues: expressionValues,
+    })
+  );
+}
+
+// ============================================================
+// Class Request Operations
+// ============================================================
+
+import type { ClassRequest, Report } from "@/types";
+
+const REQUESTS_TABLE = "TheCrowsNestRequests";
+const REPORTS_TABLE = "TheCrowsNestReports";
+
+/**
+ * Create a new class request
+ */
+export async function createClassRequest(request: ClassRequest): Promise<void> {
+  await docClient.send(
+    new PutCommand({
+      TableName: REQUESTS_TABLE,
+      Item: {
+        ...request,
+        userEmail: request.userEmail.toLowerCase(),
+      },
+    })
+  );
+}
+
+/**
+ * Get all class requests for a specific user
+ */
+export async function getRequestsByEmail(userEmail: string): Promise<ClassRequest[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: REQUESTS_TABLE,
+      FilterExpression: "userEmail = :email",
+      ExpressionAttributeValues: {
+        ":email": userEmail.toLowerCase(),
+      },
+    })
+  );
+  return (result.Items || []) as ClassRequest[];
+}
+
+/**
+ * Get ALL class requests (admin use)
+ */
+export async function getAllRequests(): Promise<ClassRequest[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: REQUESTS_TABLE,
+    })
+  );
+  return (result.Items || []) as ClassRequest[];
+}
+
+/**
+ * Update a class request's status (admin approve/reject)
+ */
+export async function updateRequestStatus(
+  requestId: string,
+  status: "APPROVED" | "REJECTED",
+  adminNote?: string
+): Promise<void> {
+  const expressionParts: string[] = ["#st = :status", "updatedAt = :updatedAt"];
+  const expressionValues: Record<string, unknown> = {
+    ":status": status,
+    ":updatedAt": new Date().toISOString(),
+  };
+
+  if (adminNote) {
+    expressionParts.push("adminNote = :adminNote");
+    expressionValues[":adminNote"] = adminNote;
+  }
+
+  await docClient.send(
+    new UpdateCommand({
+      TableName: REQUESTS_TABLE,
+      Key: { requestId },
+      UpdateExpression: `SET ${expressionParts.join(", ")}`,
+      ExpressionAttributeNames: {
+        "#st": "status",
+      },
+      ExpressionAttributeValues: expressionValues,
+    })
+  );
+}
+
+// ============================================================
+// Report Operations
+// ============================================================
+
+/**
+ * Create a new report
+ */
+export async function createReport(report: Report): Promise<void> {
+  await docClient.send(
+    new PutCommand({
+      TableName: REPORTS_TABLE,
+      Item: {
+        ...report,
+        reportedBy: report.reportedBy.toLowerCase(),
+      },
+    })
+  );
+}
+
+/**
+ * Get ALL reports (admin use)
+ */
+export async function getAllReports(): Promise<Report[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: REPORTS_TABLE,
+    })
+  );
+  return (result.Items || []) as Report[];
+}
+
+/**
+ * Update a report's status (admin review/dismiss)
+ */
+export async function updateReportStatus(
+  reportId: string,
+  status: "REVIEWED" | "DISMISSED"
+): Promise<void> {
+  await docClient.send(
+    new UpdateCommand({
+      TableName: REPORTS_TABLE,
+      Key: { reportId },
+      UpdateExpression: "SET #st = :status, updatedAt = :updatedAt",
+      ExpressionAttributeNames: {
+        "#st": "status",
+      },
+      ExpressionAttributeValues: {
+        ":status": status,
+        ":updatedAt": new Date().toISOString(),
+      },
+    })
+  );
+}

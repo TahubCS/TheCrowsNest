@@ -6,14 +6,15 @@ import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
 import majorClassData from "@/lib/data/major-class-map.json";
+import { ECU_MAJORS, STUDY_LEVELS, YEARS_OF_STUDY } from "@/lib/data/ecu-majors";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { update: updateSession } = useSession();
   const [step, setStep] = useState(1);
-  const [level, setLevel] = useState("Undergraduate");
-  const [major, setMajor] = useState("Computer Science (BS)");
-  const [year, setYear] = useState("Freshman");
+  const [level, setLevel] = useState<string>("Undergraduate");
+  const [major, setMajor] = useState<string>(ECU_MAJORS[0]?.name || "Computer Science");
+  const [year, setYear] = useState<string>("Freshman");
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -88,12 +89,17 @@ export default function OnboardingPage() {
                 <label className="text-sm font-semibold">Level of Study</label>
                 <select
                   value={level}
-                  onChange={(e) => setLevel(e.target.value)}
+                  onChange={(e) => {
+                    setLevel(e.target.value);
+                    // Reset year when level changes
+                    const newYears = YEARS_OF_STUDY[e.target.value as keyof typeof YEARS_OF_STUDY] || [];
+                    setYear(newYears[0] || "");
+                  }}
                   className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:ring-2 focus:ring-ecu-purple cursor-pointer shadow-sm"
                 >
-                  <option>Undergraduate</option>
-                  <option>Masters</option>
-                  <option>Doctoral</option>
+                  {STUDY_LEVELS.map((l) => (
+                    <option key={l} value={l}>{l}</option>
+                  ))}
                 </select>
               </div>
 
@@ -104,9 +110,9 @@ export default function OnboardingPage() {
                   onChange={(e) => setMajor(e.target.value)}
                   className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:ring-2 focus:ring-ecu-purple cursor-pointer shadow-sm"
                 >
-                  <option value="Computer Science (BS)">Computer Science (BS)</option>
-                  <option value="Nursing (BSN)">Nursing (BSN)</option>
-                  <option value="Business Administration (BSBA)">Business Administration (BSBA)</option>
+                  {ECU_MAJORS.map((m) => (
+                    <option key={m.name} value={m.name}>{m.name}</option>
+                  ))}
                 </select>
               </div>
 
@@ -117,10 +123,9 @@ export default function OnboardingPage() {
                   onChange={(e) => setYear(e.target.value)}
                   className="w-full h-11 px-3 appearance-none rounded-lg border border-border bg-background text-sm font-medium focus:ring-2 focus:ring-ecu-gold cursor-pointer shadow-sm"
                 >
-                  <option value="Freshman">Freshman</option>
-                  <option value="Sophomore">Sophomore</option>
-                  <option value="Junior">Junior</option>
-                  <option value="Senior">Senior</option>
+                  {(YEARS_OF_STUDY[level as keyof typeof YEARS_OF_STUDY] || []).map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
                 </select>
               </div>
             </div>

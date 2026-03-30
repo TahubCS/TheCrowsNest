@@ -106,9 +106,13 @@ export default function LoginPage() {
                 <label className="text-sm font-medium" htmlFor="password">
                   Password
                 </label>
-                <Link href="#" className="text-xs hover:underline font-medium text-primary">
+                <button 
+                  type="button"
+                  onClick={() => alert("Password reset is not yet available. Please contact your ECU IT support or re-register with a new password.")}
+                  className="text-xs hover:underline font-medium text-primary cursor-pointer"
+                >
                   Forgot password?
-                </Link>
+                </button>
               </div>
               <Input
                 id="password"
