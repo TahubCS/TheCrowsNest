@@ -5,8 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createMaterial, getMaterialsByClassId, updateMaterialStatus, deleteMaterial } from "@/lib/db";
-import type { ApiResponse } from "@/types";
+import { createMaterial, getMaterialsByClassId, getMaterialsByUserEmail, updateMaterialStatus, deleteMaterial } from "@/lib/db";
+import type { ApiResponse, Material } from "@/types";
 
 const MATERIAL_TYPES = ["Syllabus", "Lecture Slides", "Study Guide", "Past Exam", "Notes", "Other"];
 
@@ -21,14 +21,13 @@ export async function GET(request: NextRequest) {
     }
 
     const classId = request.nextUrl.searchParams.get("classId");
-    if (!classId) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, message: "classId is required." },
-        { status: 400 }
-      );
-    }
+    let allMaterials: Material[] = [];
 
-    const allMaterials = await getMaterialsByClassId(classId);
+    if (classId) {
+      allMaterials = await getMaterialsByClassId(classId);
+    } else {
+      allMaterials = await getMaterialsByUserEmail(session.user.email);
+    }
     
     // Filter out materials that have passed their TTL expiration manually
     // (fallback in case DynamoDB TTL background thread hasn't cleaned it up yet)

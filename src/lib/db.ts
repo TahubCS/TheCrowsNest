@@ -416,6 +416,22 @@ export async function getMaterialsByClassId(classId: string): Promise<Material[]
 }
 
 /**
+ * Get all materials uploaded by a specific user across all classes
+ */
+export async function getMaterialsByUserEmail(userEmail: string): Promise<Material[]> {
+  const result = await docClient.send(
+    new ScanCommand({
+      TableName: MATERIALS_TABLE,
+      FilterExpression: "uploadedBy = :email",
+      ExpressionAttributeValues: {
+        ":email": userEmail.toLowerCase(),
+      },
+    })
+  );
+  return (result.Items || []) as Material[];
+}
+
+/**
  * Delete a material record (does not delete from S3)
  */
 export async function deleteMaterial(classId: string, materialId: string): Promise<void> {
