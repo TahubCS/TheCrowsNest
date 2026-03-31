@@ -2,6 +2,7 @@ from google import genai
 from google.genai import types
 from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
+import time
 from .config import settings
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -25,6 +26,17 @@ def get_embedding(text: str) -> list[float]:
     )
     return response.embeddings[0].values
 
+def get_embedding_with_retry(text: str, max_retries: int = 5) -> list[float]:
+    for attempt in range(max_retries):
+        try:
+            return get_embedding(text)
+        except Exception as e:
+            if attempt == max_retries - 1:
+                raise e
+            sleep_time = 2 ** attempt
+            print(f"Embedding API limit reached or 503 Unavailable. Retrying in {sleep_time} seconds...")
+            time.sleep(sleep_time)
+
 def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: list[dict]):
     """
     Add chunked texts to pgvector in PostgreSQL.
@@ -47,11 +59,17 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
                 page_num = metadata.get('page', '?')
                 
                 enriched_content = f"[Class: {class_id}] [File: {source_file}, Page: {page_num}]\n{text}"
-                embedding = get_embedding(enriched_content)
-                conn.execute(
-                    "INSERT INTO embeddings (document_id, content, embedding) VALUES (%s, %s, %s)",
-                    (material_id, enriched_content, embedding)
-                )
+                try:
+                    embedding = get_embedding_with_retry(enriched_content)
+                    conn.execute(
+                        "INSERT INTO embeddings (document_id, content, embedding) VALUES (%s, %s, %s)",
+                        (material_id, enriched_content, embedding)
+                    )
+                    # Pace limit internally to avoid triggering aggressive 503s on giant textbooks
+                    time.sleep(0.5)
+                except Exception as chunk_err:
+                    print(f"Skipping chunk {i} due to unrecoverable embedding error: {chunk_err}")
+                    continue
         except Exception as e:
             print(f"Database Insert Error: {e}")
 
