@@ -200,3 +200,26 @@ RETURN ONLY A VALID JSON OBJECT. Format exactly like this:
         return json.loads(response.text)
     except json.JSONDecodeError:
         return {"confidence": 50, "reason": "Failed to parse AI evaluation JSON."}
+
+def extract_text_from_image(image_path: str) -> str:
+    """Uses Gemini to perform OCR and extract text from student-uploaded images."""
+    try:
+        from PIL import Image
+        img = Image.open(image_path)
+    except Exception as e:
+        print(f"Failed to open image {image_path}: {e}")
+        return ""
+        
+    prompt = "Extract all text from this image exactly as it appears. Do not add any conversational text, descriptions, or markdown blocks. If there is absolutely no text in the image, return an empty string."
+    
+    try:
+        response = generate_content_with_fallback(
+            contents=[prompt, img],
+            config=types.GenerateContentConfig(
+                temperature=0.0
+            )
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini OCR Failed: {e}")
+        return ""

@@ -45,6 +45,11 @@ def download_and_extract_text(s3_key: str) -> list[str]:
         doc = Document(local_path)
         content = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
         texts = [content[i:i+2000] for i in range(0, len(content), 2000)]
+    elif local_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
+        from .ai import extract_text_from_image
+        content = extract_text_from_image(local_path)
+        if content:
+            texts = [content[i:i+2000] for i in range(0, len(content), 2000)]
     else:
         # text file fallback
         with open(local_path, "r", encoding="utf-8", errors="ignore") as f:

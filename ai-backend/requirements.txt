@@ -9,4 +9,5 @@ python-dotenv
 python-multipart
 pydantic
 python-pptx
-python-docx
+python-docx
+Pillow
