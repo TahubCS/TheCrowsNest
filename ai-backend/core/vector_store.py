@@ -46,6 +46,8 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
 
     with pool.connection() as conn:
         try:
+            print(f"Starting background embedding for {len(texts)} chunks of material {material_id}...")
+            
             # Ensure document exists to satisfy foreign key constraints
             conn.execute(
                 "INSERT INTO documents (id, domain, status) VALUES (%s, 'general', 'PROCESSED') ON CONFLICT DO NOTHING",
@@ -53,6 +55,9 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
             )
 
             for i, text in enumerate(texts):
+                if i % 10 == 0 and i > 0:
+                    print(f"Embedded {i}/{len(texts)} chunks...")
+                    
                 # Enrich content with class_id and metadata to aid retrieval and LLM context
                 metadata = metadatas[i] if metadatas and i < len(metadatas) else {}
                 source_file = metadata.get('source', 'Unknown Document')
@@ -70,6 +75,9 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
                 except Exception as chunk_err:
                     print(f"Skipping chunk {i} due to unrecoverable embedding error: {chunk_err}")
                     continue
+            
+            print(f"✅ Successfully finished embedding {len(texts)} chunks for material {material_id} into pgvector!")
+            
         except Exception as e:
             print(f"Database Insert Error: {e}")
 
