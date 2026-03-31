@@ -90,7 +90,93 @@ export async function POST(request: NextRequest) {
       uploadedAt: new Date().toISOString(),
     });
 
-    // File sits in S3 waiting for admin review — no auto-processing
+    // -------------------------------------------------------------
+    // AI EVALUATION LOGIC
+    // -------------------------------------------------------------
+    try {
+      const { getClassesByIds, updateMaterialWithRejection } = await import("@/lib/db");
+      const classes = await getClassesByIds([classId]);
+      const classData = classes.length > 0 ? classes[0] : null;
+
+      // Only attempt evaluation if we have class data
+      if (classData) {
+        // Construct a holistic context string for the AI even if syllabus is missing
+        const classContext = `
+Course Code: ${classData.courseCode}
+Course Name: ${classData.courseName}
+Department: ${classData.department || 'Unknown'}
+Description: ${classData.description || 'No description available.'}
+
+Syllabus / Official Course Details:
+${classData.syllabus || 'No syllabus provided.'}
+`.trim();
+
+        const res = await fetch("http://localhost:8000/evaluate-and-ingest", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ 
+            classId, 
+            materialId, 
+            s3Key, 
+            fileName,
+            classContext: classContext
+          }),
+        });
+
+        if (res.ok) {
+          const pyData = await res.json();
+          const evaluation = pyData.data?.evaluation;
+          const reason = pyData.data?.reason || "Unknown";
+
+          if (evaluation === "APPROVED") {
+            // AI confidently approved and ingested the document
+            await updateMaterialStatus(classId, materialId, "PROCESSED");
+            return NextResponse.json<ApiResponse>(
+              { success: true, message: "Material autonomously processed and approved by AI! 🥳", data: { materialId } },
+              { status: 201 }
+            );
+
+          } else if (evaluation === "REJECTED") {
+            // Spam/Junk file (< 50% confidence). Delete from S3 and mark REJECTED.
+            const { S3Client, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
+            const s3 = new S3Client({
+              region: process.env.AWS_REGION || "us-east-1",
+              credentials: {
+                accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+                ...(process.env.AWS_SESSION_TOKEN && {
+                  sessionToken: process.env.AWS_SESSION_TOKEN,
+                }),
+              },
+            });
+            await s3.send(new DeleteObjectCommand({ Bucket: "thecrowsnest", Key: s3Key }));
+
+            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
+            await updateMaterialWithRejection(classId, materialId, "REJECTED", `AI Auto-Rejection: ${reason}`, sevenDaysFromNow);
+
+            return NextResponse.json<ApiResponse>(
+              { success: false, message: `Material rejected by AI (Mismatch with syllabus). Reason: ${reason}` },
+              { status: 406 } // 406 Not Acceptable
+            );
+          } else if (evaluation === "PENDING") {
+            const confidence = pyData.data?.confidence;
+            return NextResponse.json<ApiResponse>(
+              { success: true, message: `Material uploaded securely. AI confidence was ${confidence}%, so it was marked for Admin Review to be safe.`, data: { materialId } },
+              { status: 201 }
+            );
+          }
+          // If fallback/error, fall through to the default response below
+        } else {
+          console.error("Python AI Evaluation returned non-ok status:", res.statusText);
+        }
+      }
+    } catch (evalError) {
+      console.error("[AI Evaluation Error]", evalError);
+      // Failsafe: If evaluation crashes, allow the material to remain in PENDING_REVIEW
+    }
+    // -------------------------------------------------------------
+
+    // File awaits human admin review (or AI deferred to PENDING)
     return NextResponse.json<ApiResponse>(
       { success: true, message: "Material uploaded. Awaiting admin review.", data: { materialId } },
       { status: 201 }
@@ -101,27 +187,6 @@ export async function POST(request: NextRequest) {
       { success: false, message: "Something went wrong." },
       { status: 500 }
     );
-  }
-}
-
-async function processMaterial(classId: string, materialId: string, s3Key: string, fileName: string) {
-  try {
-    const res = await fetch("http://localhost:8000/ingest", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ classId, materialId, s3Key, fileName }),
-    });
-
-    if (!res.ok) {
-      throw new Error(`Python Backend Error: ${res.statusText}`);
-    }
-    
-    // Mark as PROCESSED in the database so UI updates
-    await updateMaterialStatus(classId, materialId, "PROCESSED");
-  } catch (err) {
-    console.error("[Python Sync Error] Failed to process material.", err);
-    await updateMaterialStatus(classId, materialId, "FAILED");
-    throw err;
   }
 }
 

@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
@@ -36,6 +36,30 @@ class IngestReq(BaseModel):
 async def ingest_material(req: IngestReq):
     process_material(req.classId, req.materialId, req.s3Key, req.fileName)
     return {"success": True}
+
+class EvalIngestReq(BaseModel):
+    classId: str
+    materialId: str
+    s3Key: str
+    fileName: str
+    classContext: str
+
+@app.post("/evaluate-and-ingest")
+async def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
+    from core.ingest import download_extract_and_evaluate
+    from core.vector_store import add_documents
+    
+    result = download_extract_and_evaluate(
+        req.classId, req.materialId, req.s3Key, req.fileName, req.classContext
+    )
+    
+    if result.get("evaluation") == "APPROVED":
+        texts = result.pop("texts", [])
+        metadatas = result.pop("metadatas", [])
+        # Decouple the embedding generation so Next.js doesn't time out waiting 60s for a giant PDF 
+        background_tasks.add_task(add_documents, req.classId, req.materialId, texts, metadatas)
+        
+    return {"success": True, "data": result}
 
 class FlashcardsReq(BaseModel):
     classId: str
