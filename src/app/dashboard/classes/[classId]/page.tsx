@@ -466,7 +466,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
             <form onSubmit={handleUpload} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-2">File</label>
-                <input type="file" name="file" accept=".pdf,.pptx,.docx,.doc,.png,.jpg,.jpeg" required className="w-full text-sm border border-border rounded-lg p-2" />
+                <input type="file" name="file" accept=".pdf,.pptx,.docx,.doc,.txt,.png,.jpg,.jpeg,.webp" required className="w-full text-sm border border-border rounded-lg p-2 bg-background" />
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">Material Type</label>
