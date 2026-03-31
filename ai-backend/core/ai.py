@@ -159,3 +159,67 @@ Context:
         )
     )
     return response.text
+
+def evaluate_material_against_syllabus(class_context: str, document_snippet: str) -> dict:
+    prompt = f"""You are a university professor evaluating a document a student just uploaded for your class.
+Your job is to determine if the uploaded document is a genuine, relevant study material (like a lecture slide, reading, past exam, or study guide) for this exact class, or if it is completely irrelevant spam.
+
+Here is the official class information (Code, Name, Description, and optionally Syllabus):
+<class_context>
+{class_context}
+</class_context>
+
+Here is the first portion of the uploaded document (it may be cut off):
+<document>
+{document_snippet}
+</document>
+
+Provide your assessment as a strict JSON object.
+- 'confidence': An integer from 0 to 100. 
+  - 95-100: It is unmistakably relevant to the syllabus topics.
+  - 50-94: It might be related, but it lacks specific context or seems generic.
+  - 0-49: It is completely irrelevant, spam, a random recipe, profanity, or junk.
+- 'reason': A short 1-sentence explanation of why you gave this score.
+
+RETURN ONLY A VALID JSON OBJECT. Format exactly like this:
+{{
+  "confidence": 98,
+  "reason": "The document extensively covers the algorithms mentioned in week 3 of the syllabus."
+}}
+"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.1,
+        )
+    )
+    
+    try:
+        return json.loads(response.text)
+    except json.JSONDecodeError:
+        return {"confidence": 50, "reason": "Failed to parse AI evaluation JSON."}
+
+def extract_text_from_image(image_path: str) -> str:
+    """Uses Gemini to perform OCR and extract text from student-uploaded images."""
+    try:
+        from PIL import Image
+        img = Image.open(image_path)
+    except Exception as e:
+        print(f"Failed to open image {image_path}: {e}")
+        return ""
+        
+    prompt = "Extract all text from this image exactly as it appears. Do not add any conversational text, descriptions, or markdown blocks. If there is absolutely no text in the image, return an empty string."
+    
+    try:
+        response = generate_content_with_fallback(
+            contents=[prompt, img],
+            config=types.GenerateContentConfig(
+                temperature=0.0
+            )
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini OCR Failed: {e}")
+        return ""

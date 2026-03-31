@@ -7,4 +7,7 @@ boto3
 pymupdf
 python-dotenv
 python-multipart
-pydantic
+pydantic
+python-pptx
+python-docx
+Pillow
