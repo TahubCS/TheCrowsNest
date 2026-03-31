@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function FlashcardsPage({ params: _ }: { params: Promise<{ classId: string }> }) {
   const params = useParams();
@@ -33,11 +34,11 @@ export default function FlashcardsPage({ params: _ }: { params: Promise<{ classI
         setCurrentIndex(0);
         setIsFlipped(false);
       } else {
-        alert(data.message || "Failed to generate flashcards.");
+        toast.error(data.message || "Failed to generate flashcards.");
       }
     } catch (e) {
       console.error(e);
-      alert("Network error.");
+      toast.error("Network error.");
     } finally {
       setIsGenerating(false);
     }

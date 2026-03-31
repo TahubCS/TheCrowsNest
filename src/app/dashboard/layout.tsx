@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import React, { useState, useEffect, useCallback } from 'react';
+import { toast } from "sonner";
 import OnboardingTour from '@/components/ui/OnboardingTour';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -244,14 +245,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       Profile Settings
                     </Link>
                     <button 
-                      onClick={() => { setShowProfileMenu(false); alert("Billing — coming soon!"); }}
+                      onClick={() => { setShowProfileMenu(false); toast.info("Billing — coming soon!"); }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-ecu-gold/10 hover:text-ecu-gold transition-colors group cursor-pointer"
                     >
                       <span className="text-lg opacity-70 group-hover:opacity-100">💎</span>
                       Subscription
                     </button>
                     <button 
-                      onClick={() => { setShowProfileMenu(false); alert("Help Center — coming soon!"); }}
+                      onClick={() => { setShowProfileMenu(false); toast.info("Help Center — coming soon!"); }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-muted/60 transition-colors group cursor-pointer"
                     >
                       <span className="text-lg opacity-70 group-hover:opacity-100">❓</span>

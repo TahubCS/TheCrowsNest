@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 interface Material {
   materialId: string;
@@ -54,12 +55,12 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       });
       const data = await res.json();
       if (data.success) {
-        alert("✅ Report submitted. An admin will review it shortly.");
+        toast.success("✅ Report submitted. An admin will review it shortly.");
       } else {
-        alert("Failed to submit report: " + data.message);
+        toast.error("Failed to submit report: " + data.message);
       }
     } catch {
-      alert("Network error. Please try again.");
+      toast.error("Network error. Please try again.");
     } finally {
       setReportSubmitting(false);
     }
@@ -121,12 +122,12 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       if (data.success) {
         router.push("/dashboard");
       } else {
-        alert(data.message || "Failed to remove class.");
+        toast.error(data.message || "Failed to remove class.");
         setIsRemoving(false);
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to remove class.");
+      toast.error("Failed to remove class.");
       setIsRemoving(false);
     }
   };
@@ -158,7 +159,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
 
       const presignData = await presignRes.json();
       if (!presignData.success) {
-        alert(presignData.message);
+        toast.error(presignData.message);
         setUploading(false);
         return;
       }
@@ -174,7 +175,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       });
 
       if (!uploadRes.ok) {
-        alert("Upload to S3 failed.");
+        toast.error("Upload to S3 failed.");
         setUploading(false);
         return;
       }
@@ -202,11 +203,11 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         loadMaterials(classId);
         form.reset();
       } else {
-        alert(metaData.message);
+        toast.error(metaData.message);
       }
     } catch (error) {
       console.error(error);
-      alert("Upload failed.");
+      toast.error("Upload failed.");
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -222,11 +223,11 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       if (data.success) {
         setMaterials((prev) => prev.filter((m) => m.materialId !== materialId));
       } else {
-        alert(data.message || "Failed to dismiss.");
+        toast.error(data.message || "Failed to dismiss.");
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to dismiss.");
+      toast.error("Failed to dismiss.");
     }
   };
 
@@ -394,7 +395,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                         {openUserMenu === file.materialId && (
                           <div className="absolute left-0 top-full mt-1 z-20 bg-background border border-border rounded-xl shadow-xl overflow-hidden w-44 animate-in fade-in slide-in-from-top-2 duration-150">
                             <button
-                              onClick={() => { setOpenUserMenu(null); alert(`View profile for ${file.uploadedByName} — coming soon!`); }}
+                              onClick={() => { setOpenUserMenu(null); toast.info(`View profile for ${file.uploadedByName} — coming soon!`); }}
                               className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-muted/60 transition-colors text-left cursor-pointer"
                             >
                               <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
@@ -504,7 +505,7 @@ function StudyToolCard({ title, desc, icon, hoverColor, href, classId }: { title
   const handleClick = (e: React.MouseEvent) => {
     if (classId === 'onboarding101') {
       e.preventDefault();
-      alert("This is a demo class. These tools are available in real classes once you upload materials!");
+      toast.info("This is a demo class. These tools are available in real classes once you upload materials!");
     }
   };
 

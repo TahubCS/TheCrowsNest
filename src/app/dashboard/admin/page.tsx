@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 const TABLES = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans", "TheCrowsNestRequests", "TheCrowsNestReports"];
 
@@ -87,10 +88,10 @@ export default function AdminDashboardPage() {
         }));
         setEditingRow(null);
       } else {
-        alert("Failed to save: " + dataRes.message);
+        toast.error("Failed to save: " + dataRes.message);
       }
     } catch (e) {
-      alert("Invalid JSON format or network error");
+      toast.error("Invalid JSON format or network error");
     } finally {
       setIsSaving(false);
     }
@@ -114,10 +115,10 @@ export default function AdminDashboardPage() {
             return copy;
           });
         } else {
-          alert("Failed to delete: " + dataRes.message);
+          toast.error("Failed to delete: " + dataRes.message);
         }
       } catch (e) {
-        alert("Error executing delete");
+        toast.error("Error executing delete");
       } finally {
         setDeletingIndex(null);
         setConfirmDeleteIndex(null);

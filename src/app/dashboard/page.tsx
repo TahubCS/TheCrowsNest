@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -110,11 +111,11 @@ export default function DashboardPage() {
         // Full page reload to bypass SSR cache and show updated classes
         window.location.reload();
       } else {
-        alert(`Failed to enroll: ${data.message}`);
+        toast.error(`Failed to enroll: ${data.message}`);
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to enroll in class.");
+      toast.error("Failed to enroll in class.");
     } finally {
       setEnrollingMap(prev => ({ ...prev, [classId]: false }));
     }
@@ -138,13 +139,13 @@ export default function DashboardPage() {
         setShowRequestModal(false);
         setRequestForm({ courseCode: "", courseName: "", department: "" });
         setPendingRequestsCount(prev => prev + 1);
-        alert("Class request submitted successfully! You can track it in the Pending Requests tab.");
+        toast.success("Class request submitted successfully! You can track it in the Pending Requests tab.");
       } else {
-        alert("Failed to submit request: " + data.message);
+        toast.error("Failed to submit request: " + data.message);
       }
     } catch (error) {
       console.error(error);
-      alert("Error submitting request.");
+      toast.error("Error submitting request.");
     } finally {
       setIsRequesting(false);
     }

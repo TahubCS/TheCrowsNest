@@ -4,6 +4,7 @@ import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { validateEcuEmail } from "@/lib/validators";
@@ -108,7 +109,7 @@ export default function LoginPage() {
                 </label>
                 <button 
                   type="button"
-                  onClick={() => alert("Password reset is not yet available. Please contact your ECU IT support or re-register with a new password.")}
+                  onClick={() => toast.info("Password reset is not yet available. Please contact your ECU IT support or re-register with a new password.")}
                   className="text-xs hover:underline font-medium text-primary cursor-pointer"
                 >
                   Forgot password?

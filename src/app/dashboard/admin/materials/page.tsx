@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface Material {
   materialId: string;
@@ -48,11 +49,11 @@ export default function AdminMaterialsPage() {
       if (json.success && json.data?.previewUrl) {
         window.open(json.data.previewUrl, "_blank");
       } else {
-        alert("Failed to generate preview: " + json.message);
+        toast.error("Failed to generate preview: " + json.message);
       }
     } catch (error) {
       console.error("Preview error:", error);
-      alert("Failed to generate preview URL.");
+      toast.error("Failed to generate preview URL.");
     } finally {
       setPreviewLoading(null);
     }
@@ -77,11 +78,11 @@ export default function AdminMaterialsPage() {
       if (json.success) {
         setMaterials(prev => prev.filter(m => m.materialId !== material.materialId));
       } else {
-        alert("Approval failed: " + json.message);
+        toast.error("Approval failed: " + json.message);
       }
     } catch (error) {
       console.error("Approve error:", error);
-      alert("Failed to approve material.");
+      toast.error("Failed to approve material.");
     } finally {
       setActionLoading(null);
     }
@@ -107,11 +108,11 @@ export default function AdminMaterialsPage() {
       if (json.success) {
         setMaterials(prev => prev.filter(m => m.materialId !== material.materialId));
       } else {
-        alert("Rejection failed: " + json.message);
+        toast.error("Rejection failed: " + json.message);
       }
     } catch (error) {
       console.error("Reject error:", error);
-      alert("Failed to reject material.");
+      toast.error("Failed to reject material.");
     } finally {
       setActionLoading(null);
     }

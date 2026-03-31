@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { StudyPlan } from "@/types";
@@ -60,11 +61,11 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
         setNewDesc("");
         setShowForm(false);
       } else {
-        alert(data.message);
+        toast.error(data.message);
       }
     } catch (e) {
       console.error(e);
-      alert("Failed to create plan");
+      toast.error("Failed to create plan");
     } finally {
       setIsSubmitting(false);
     }
@@ -72,7 +73,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
 
   const handleGenerateAIPlan = async () => {
     if (!newTitle.trim()) {
-      alert("Please enter a title for your generated plan.");
+      toast.warning("Please enter a title for your generated plan.");
       return;
     }
     
@@ -91,11 +92,11 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
         setNewDesc("");
         setShowForm(false);
       } else {
-        alert(data.message || "Failed to generate AI plan.");
+        toast.error(data.message || "Failed to generate AI plan.");
       }
     } catch (e) {
       console.error(e);
-      alert("Network error.");
+      toast.error("Network error.");
     } finally {
       setIsGenerating(false);
     }

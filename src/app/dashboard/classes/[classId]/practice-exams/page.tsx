@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { toast } from "sonner";
 
 export default function PracticeExamsPage({ params: _ }: { params: Promise<{ classId: string }> }) {
   const params = useParams();
@@ -36,11 +37,11 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
         setSelectedAnswers({});
         setShowResults(false);
       } else {
-        alert(data.message || "Failed to generate exam.");
+        toast.error(data.message || "Failed to generate exam.");
       }
     } catch (e) {
       console.error(e);
-      alert("Network error.");
+      toast.error("Network error.");
     } finally {
       setIsGenerating(false);
     }
