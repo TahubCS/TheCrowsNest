@@ -110,6 +110,27 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     }
   };
 
+  const calculateMetrics = () => {
+    const processedMaterials = materials.filter(m => m.status === "PROCESSED");
+    const count = processedMaterials.length;
+    
+    let rating = 0;
+    processedMaterials.forEach(m => {
+      if (m.materialType === "Syllabus") rating += 3.5;
+      else if (m.materialType === "Study Guide") rating += 1.5;
+      else if (m.materialType === "Lecture Slides") rating += 0.7;
+      else if (m.materialType === "Past Exam" || m.materialType === "Notes") rating += 0.5;
+      else rating += 0.2;
+    });
+
+    return {
+      communityFilesCount: count,
+      contextRating: Math.min(10, rating).toFixed(1)
+    };
+  };
+
+  const { communityFilesCount, contextRating } = calculateMetrics();
+
   const handleRemoveClass = async () => {
     setIsRemoving(true);
     try {
@@ -246,11 +267,11 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
             <div className="flex gap-2">
               <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-muted/50 text-muted-foreground border border-border shadow-xs group cursor-default">
                 <span className="mr-1.5 opacity-70 group-hover:scale-110 transition-transform">📊</span>
-                <span>{materials.length} Community Files</span>
+                <span>{communityFilesCount} Community Files</span>
               </div>
               <div className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-linear-to-r from-ecu-gold/20 to-ecu-gold/10 text-ecu-gold border border-ecu-gold/30 shadow-xs group cursor-default">
                 <span className="mr-1.5 group-hover:animate-pulse">✨</span>
-                <span>9.2 Context Rating</span>
+                <span>{contextRating} Context Rating</span>
               </div>
             </div>
           </div>
@@ -401,13 +422,15 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                               <svg className="w-4 h-4 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                               View Profile
                             </button>
-                            <button
-                              onClick={() => { setOpenUserMenu(null); submitReport("USER", file.uploadedByName, file.uploadedByName); }}
-                              className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-red-50 text-red-500 transition-colors text-left cursor-pointer"
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
-                              Report User
-                            </button>
+                             {file.uploadedBy !== session?.user?.email && (
+                              <button
+                                onClick={() => { setOpenUserMenu(null); submitReport("USER", file.uploadedByName, file.uploadedByName); }}
+                                className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-medium hover:bg-red-50 text-red-500 transition-colors text-left cursor-pointer"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /></svg>
+                                Report User
+                              </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -438,13 +461,15 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                             Dismiss
                           </button>
                         )}
-                        <button
-                          title="Report this document"
-                          onClick={() => submitReport("DOCUMENT", file.materialId, file.fileName)}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 cursor-pointer"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H12.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>
-                        </button>
+                        {file.uploadedBy !== session?.user?.email && (
+                          <button
+                            title="Report this document"
+                            onClick={() => submitReport("DOCUMENT", file.materialId, file.fileName)}
+                            className="opacity-40 hover:opacity-100 transition-opacity p-1.5 rounded-lg hover:bg-red-50 text-muted-foreground hover:text-red-500 cursor-pointer"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 21v-4m0 0V5a2 2 0 012-2h6.5l1 1H21l-3 6 3 6H12.5l-1-1H5a2 2 0 00-2 2zm9-13.5V9" /></svg>
+                          </button>
+                        )}
                       </div>
                     </div>
                   );

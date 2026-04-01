@@ -22,10 +22,11 @@ export async function GET() {
 
     const user = await getUserByEmail(session.user.email);
     if (!user) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, message: "User not found." },
-        { status: 404 }
-      );
+      return NextResponse.json<ApiResponse>({
+        success: true,
+        message: "User not found, returning empty enrollment.",
+        data: { enrolledClasses: [] },
+      });
     }
 
     return NextResponse.json<ApiResponse>({
