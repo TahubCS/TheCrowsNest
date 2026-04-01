@@ -10,4 +10,5 @@ python-multipart
 pydantic
 python-pptx
 python-docx
-Pillow
+Pillow
+pdfplumber
