@@ -8,7 +8,7 @@ interface Material {
   classId: string;
   fileName: string;
   fileType: string;
-  s3Key: string;
+  storageKey: string;
   materialType: string;
   uploadedBy: string;
   uploadedByName: string;
@@ -44,7 +44,7 @@ export default function AdminMaterialsPage() {
   const handlePreview = async (material: Material) => {
     setPreviewLoading(material.materialId);
     try {
-      const res = await fetch(`/api/admin/materials/preview?s3Key=${encodeURIComponent(material.s3Key)}`);
+      const res = await fetch(`/api/admin/materials/preview?storageKey=${encodeURIComponent(material.storageKey)}`);
       const json = await res.json();
       if (json.success && json.data?.previewUrl) {
         window.open(json.data.previewUrl, "_blank");
@@ -69,7 +69,7 @@ export default function AdminMaterialsPage() {
         body: JSON.stringify({
           classId: material.classId,
           materialId: material.materialId,
-          s3Key: material.s3Key,
+          storageKey: material.storageKey,
           fileName: material.fileName,
           action: "APPROVE",
         }),
@@ -99,7 +99,7 @@ export default function AdminMaterialsPage() {
         body: JSON.stringify({
           classId: material.classId,
           materialId: material.materialId,
-          s3Key: material.s3Key,
+          storageKey: material.storageKey,
           action: "REJECT",
           rejectionReason: reason || "No reason provided",
         }),

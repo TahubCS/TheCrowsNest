@@ -56,11 +56,11 @@ export async function POST(request: NextRequest) {
 
     const ext = ALLOWED_TYPES[fileType];
     const materialId = crypto.randomUUID();
-    const s3Key = `materials/${classId}/${materialId}.${ext}`;
+    const storageKey = `materials/${classId}/${materialId}.${ext}`;
 
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUploadUrl(s3Key);
+      .createSignedUploadUrl(storageKey);
 
     if (error || !data) {
       console.error("[Presign Error] Supabase Storage:", error);
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Presigned URL generated.",
-      data: { presignedUrl: data.signedUrl, s3Key, materialId },
+      data: { presignedUrl: data.signedUrl, storageKey, materialId },
     });
   } catch (error) {
     console.error("[Presign Error]", error);

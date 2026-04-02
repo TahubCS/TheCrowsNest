@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
-const TABLES = ["TheCrowsNestUsers", "TheCrowsNestClasses", "TheCrowsNestMaterials", "TheCrowsNestStudyPlans", "TheCrowsNestRequests", "TheCrowsNestReports"];
+const TABLES = ["users", "classes", "materials", "study_plans", "requests", "reports"];
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState(TABLES[0]);
@@ -54,12 +54,12 @@ export default function AdminDashboardPage() {
 
   const getRowKeys = (table: string, row: any) => {
     switch (table) {
-      case "TheCrowsNestUsers": return { email: row.email };
-      case "TheCrowsNestClasses": return { classId: row.classId };
-      case "TheCrowsNestMaterials": return { classId: row.classId, materialId: row.materialId };
-      case "TheCrowsNestStudyPlans": return { planId: row.planId };
-      case "TheCrowsNestRequests": return { requestId: row.requestId };
-      case "TheCrowsNestReports": return { reportId: row.reportId };
+      case "users": return { email: row.email };
+      case "classes": return { classId: row.classId };
+      case "materials": return { classId: row.classId, materialId: row.materialId };
+      case "study_plans": return { planId: row.planId };
+      case "requests": return { requestId: row.requestId };
+      case "reports": return { reportId: row.reportId };
       default: return {};
     }
   };
@@ -147,7 +147,7 @@ export default function AdminDashboardPage() {
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >
-              {table.replace("TheCrowsNest", "")}
+              {table.charAt(0).toUpperCase() + table.slice(1).replace("_", " ")}
             </button>
           ))}
         </div>
@@ -168,16 +168,16 @@ export default function AdminDashboardPage() {
       <div className="flex-1 overflow-auto border border-border/50 rounded-lg shadow-sm bg-muted/10 relative">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground font-medium animate-pulse">
-            Loading {activeTab.replace("TheCrowsNest", "")}...
+            Loading {activeTab}...
           </div>
         ) : data.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground font-medium">
-            No records found in {activeTab.replace("TheCrowsNest", "")}.
+            No records found in {activeTab}.
           </div>
         ) : (() => {
           const allKeys = Array.from(new Set(data.flatMap(row => Object.keys(row))));
-          const displayedKeys = allKeys.slice(0, 7);
-          const hasMoreKeys = allKeys.length > 7;
+          const displayedKeys = allKeys.slice(0, 12);
+          const hasMoreKeys = allKeys.length > 12;
 
           // 1. Filter
           let processedData = data;

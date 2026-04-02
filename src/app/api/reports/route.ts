@@ -1,7 +1,7 @@
 /**
  * POST /api/reports — Submit a new report (user or document)
  * 
- * Persisted to DynamoDB (TheCrowsNestReports table).
+ * Persisted to the reports table.
  */
 
 import { NextRequest, NextResponse } from "next/server";

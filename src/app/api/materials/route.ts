@@ -61,9 +61,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { materialId, classId, fileName, fileType, s3Key, materialType } = await request.json();
+    const { materialId, classId, fileName, fileType, storageKey, materialType } = await request.json();
 
-    if (!materialId || !classId || !fileName || !fileType || !s3Key || !materialType) {
+    if (!materialId || !classId || !fileName || !fileType || !storageKey || !materialType) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Missing required fields." },
         { status: 400 }
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       classId,
       fileName,
       fileType,
-      s3Key,
+      storageKey,
       materialType,
       uploadedBy: session.user.email,
       uploadedByName: session.user.name,
@@ -112,7 +112,7 @@ ${classData.syllabus || 'No syllabus provided.'}
         const res = await fetch("http://localhost:8000/evaluate-and-ingest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId, materialId, s3Key, fileName, classContext }),
+          body: JSON.stringify({ classId, materialId, storageKey, fileName, classContext }),
         });
 
         if (res.ok) {
@@ -128,7 +128,7 @@ ${classData.syllabus || 'No syllabus provided.'}
             );
           } else if (evaluation === "REJECTED") {
             // Delete from Supabase Storage and mark rejected with 7-day TTL
-            await supabase.storage.from(STORAGE_BUCKET).remove([s3Key]);
+            await supabase.storage.from(STORAGE_BUCKET).remove([storageKey]);
 
             const sevenDaysFromNow = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
             await updateMaterialWithRejection(classId, materialId, "REJECTED", `AI Auto-Rejection: ${reason}`, sevenDaysFromNow);
@@ -179,9 +179,9 @@ export async function DELETE(request: NextRequest) {
 
     const materialId = request.nextUrl.searchParams.get("materialId");
     const classId = request.nextUrl.searchParams.get("classId");
-    const s3Key = request.nextUrl.searchParams.get("s3Key");
+    const storageKey = request.nextUrl.searchParams.get("storageKey");
 
-    if (!materialId || !classId || !s3Key) {
+    if (!materialId || !classId || !storageKey) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Missing required parameters." },
         { status: 400 }
@@ -209,7 +209,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Step 1: Delete from Supabase Storage
-    const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([s3Key]);
+    const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([storageKey as string]);
     if (storageError) {
       console.error("[Storage Delete Error]", storageError);
     }

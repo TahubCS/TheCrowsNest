@@ -8,15 +8,8 @@ const sql = postgres(process.env.DATABASE_URL!, {
   max: 5,
 });
 
-// Mapping from legacy DynamoDB table names (used by the admin UI) to Postgres table names
-const TABLE_MAP: Record<string, string> = {
-  TheCrowsNestUsers: "users",
-  TheCrowsNestClasses: "classes",
-  TheCrowsNestMaterials: "materials",
-  TheCrowsNestStudyPlans: "study_plans",
-  TheCrowsNestRequests: "requests",
-  TheCrowsNestReports: "reports",
-};
+// Valid Postgres table names (allowlist)
+const VALID_TABLES = new Set(["users", "classes", "materials", "study_plans", "requests", "reports"]);
 
 // Primary key column per table (used for DELETE)
 const TABLE_PK: Record<string, string> = {
@@ -41,16 +34,14 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const tableParam = searchParams.get("table") || "TheCrowsNestUsers";
+    const tableParam = searchParams.get("table") || "users";
 
-    if (!TABLE_MAP[tableParam]) {
+    if (!VALID_TABLES.has(tableParam)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }
 
-    const pgTable = TABLE_MAP[tableParam];
-
-    // sql.unsafe is safe here: pgTable is from a hardcoded allowlist, never user input
-    const items = await sql.unsafe(`SELECT * FROM ${pgTable} LIMIT 50`);
+    // sql.unsafe is safe here: tableParam is from a hardcoded allowlist, never user input
+    const items = await sql.unsafe(`SELECT * FROM ${tableParam} LIMIT 50`);
 
     return NextResponse.json({ success: true, items });
   } catch (error) {
@@ -69,12 +60,11 @@ export async function PUT(request: NextRequest) {
     const body = await request.json();
     const { table, item } = body;
 
-    if (!TABLE_MAP[table]) {
+    if (!VALID_TABLES.has(table)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }
 
-    const pgTable = TABLE_MAP[table];
-    const pkCol = TABLE_PK[pgTable];
+    const pkCol = TABLE_PK[table];
 
     // Build snake_case column map from camelCase item keys
     const colMap: Record<string, unknown> = {};
@@ -85,7 +75,7 @@ export async function PUT(request: NextRequest) {
 
     // Upsert using ON CONFLICT on the PK column
     await sql.unsafe(
-      `INSERT INTO ${pgTable} (${Object.keys(colMap).join(", ")})
+      `INSERT INTO ${table} (${Object.keys(colMap).join(", ")})
        VALUES (${Object.keys(colMap).map((_, i) => `$${i + 1}`).join(", ")})
        ON CONFLICT (${pkCol}) DO UPDATE SET
        ${Object.keys(colMap).map((col, i) => `${col} = $${i + 1}`).join(", ")}`,
@@ -114,12 +104,11 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Missing params" }, { status: 400 });
     }
 
-    if (!TABLE_MAP[tableParam]) {
+    if (!VALID_TABLES.has(tableParam)) {
       return NextResponse.json({ success: false, message: "Invalid table" }, { status: 400 });
     }
 
-    const pgTable = TABLE_MAP[tableParam];
-    const pkCol = TABLE_PK[pgTable];
+    const pkCol = TABLE_PK[tableParam];
 
     let keys: Record<string, unknown>;
     try {
@@ -134,7 +123,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Primary key value not found in keys" }, { status: 400 });
     }
 
-    await sql.unsafe(`DELETE FROM ${pgTable} WHERE ${pkCol} = $1`, [pkValue as string]);
+    await sql.unsafe(`DELETE FROM ${tableParam} WHERE ${pkCol} = $1`, [pkValue as string]);
 
     return NextResponse.json({ success: true });
   } catch (error) {

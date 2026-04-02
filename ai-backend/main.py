@@ -29,18 +29,18 @@ app.add_middleware(
 class IngestReq(BaseModel):
     classId: str
     materialId: str
-    s3Key: str
+    storageKey: str
     fileName: str
 
 @app.post("/ingest")
 async def ingest_material(req: IngestReq):
-    process_material(req.classId, req.materialId, req.s3Key, req.fileName)
+    process_material(req.classId, req.materialId, req.storageKey, req.fileName)
     return {"success": True}
 
 class EvalIngestReq(BaseModel):
     classId: str
     materialId: str
-    s3Key: str
+    storageKey: str
     fileName: str
     classContext: str
 
@@ -50,7 +50,7 @@ async def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTa
     from core.vector_store import add_documents
     
     result = download_extract_and_evaluate(
-        req.classId, req.materialId, req.s3Key, req.fileName, req.classContext
+        req.classId, req.materialId, req.storageKey, req.fileName, req.classContext
     )
     
     if result.get("evaluation") == "APPROVED":

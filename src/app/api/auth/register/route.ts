@@ -2,7 +2,7 @@
  * POST /api/auth/register
  * 
  * Step 1 of 2FA: Validate inputs, generate a 6-digit verification code,
- * store the pending registration in DynamoDB, and email the code.
+ * store the pending registration in the database, and email the code.
  * 
  * The user's real account is NOT created here — it's only created
  * after successful verification via /api/auth/register/verify.

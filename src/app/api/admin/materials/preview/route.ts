@@ -1,5 +1,5 @@
 /**
- * GET /api/admin/materials/preview?s3Key=...
+ * GET /api/admin/materials/preview?storageKey=...
  *
  * Returns a Supabase Storage signed URL so the admin can preview/download
  * the uploaded file directly in the browser.
@@ -26,10 +26,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const s3Key = request.nextUrl.searchParams.get("s3Key");
-    if (!s3Key) {
+    const storageKey = request.nextUrl.searchParams.get("storageKey");
+    if (!storageKey) {
       return NextResponse.json<ApiResponse>(
-        { success: false, message: "s3Key query parameter is required" },
+        { success: false, message: "storageKey query parameter is required" },
         { status: 400 }
       );
     }
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     // 15-minute expiry for preview
     const { data, error } = await supabase.storage
       .from(STORAGE_BUCKET)
-      .createSignedUrl(s3Key, 900);
+      .createSignedUrl(storageKey, 900);
 
     if (error || !data) {
       console.error("[Admin Preview Error] Supabase Storage:", error);

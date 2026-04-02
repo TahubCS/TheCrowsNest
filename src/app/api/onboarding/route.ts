@@ -2,7 +2,7 @@
  * POST /api/onboarding
  * 
  * Save the user's onboarding profile (level, major, year, classes).
- * Marks onboardingComplete = true in DynamoDB.
+ * Marks onboardingComplete = true in the database.
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // --- Save to DynamoDB ---
+    // --- Save to database ---
     await updateUserProfile(session.user.email, {
       level,
       major,

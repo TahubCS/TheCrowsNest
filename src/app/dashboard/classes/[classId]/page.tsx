@@ -15,17 +15,17 @@ interface Material {
   uploadedByName: string;
   uploadedAt: string;
   status: string;
-  s3Key: string;
+  storageKey: string;
   rejectionReason?: string;
 }
 
 // Mock materials for the Onboarding 101 demo class
 const MOCK_MATERIALS: Material[] = [
-  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedBy: "alex@students.ecu.edu", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedBy: "jordan@students.ecu.edu", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedBy: "riley@students.ecu.edu", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedBy: "sam@students.ecu.edu", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "PROCESSED", s3Key: "" },
-  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedBy: "morgan@students.ecu.edu", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING_REVIEW", s3Key: "" },
+  { materialId: "m1", fileName: "ONBD101_Syllabus_Fall2026.pdf", fileType: "application/pdf", materialType: "Syllabus", uploadedBy: "alex@students.ecu.edu", uploadedByName: "Alex M.", uploadedAt: new Date(Date.now() - 86400000 * 5).toISOString(), status: "PROCESSED", storageKey: "" },
+  { materialId: "m2", fileName: "Week1_Lecture_Slides.pptx", fileType: "application/vnd.ms-powerpoint", materialType: "Lecture Slides", uploadedBy: "jordan@students.ecu.edu", uploadedByName: "Jordan T.", uploadedAt: new Date(Date.now() - 86400000 * 3).toISOString(), status: "PROCESSED", storageKey: "" },
+  { materialId: "m3", fileName: "Study_Guide_Chapter1-3.pdf", fileType: "application/pdf", materialType: "Study Guide", uploadedBy: "riley@students.ecu.edu", uploadedByName: "Riley C.", uploadedAt: new Date(Date.now() - 86400000 * 2).toISOString(), status: "PROCESSED", storageKey: "" },
+  { materialId: "m4", fileName: "Midterm_Exam_2025.pdf", fileType: "application/pdf", materialType: "Past Exam", uploadedBy: "sam@students.ecu.edu", uploadedByName: "Sam W.", uploadedAt: new Date(Date.now() - 86400000 * 1).toISOString(), status: "PROCESSED", storageKey: "" },
+  { materialId: "m5", fileName: "My_Lecture_Notes_Week2.pdf", fileType: "application/pdf", materialType: "Notes", uploadedBy: "morgan@students.ecu.edu", uploadedByName: "Morgan L.", uploadedAt: new Date().toISOString(), status: "PENDING_REVIEW", storageKey: "" },
 ];
 
 export default function ClassOverviewPage({ params }: { params: { classId: string } }) {
@@ -185,9 +185,9 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         return;
       }
 
-      const { presignedUrl, s3Key, materialId } = presignData.data;
+      const { presignedUrl, storageKey, materialId } = presignData.data;
 
-      // Step 2: Upload to S3
+      // Step 2: Upload to Supabase Storage
       setUploadProgress(50);
       const uploadRes = await fetch(presignedUrl, {
         method: "PUT",
@@ -196,7 +196,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       });
 
       if (!uploadRes.ok) {
-        toast.error("Upload to S3 failed.");
+        toast.error("Upload failed.");
         setUploading(false);
         return;
       }
@@ -212,7 +212,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
           classId,
           fileName: file.name,
           fileType: file.type,
-          s3Key,
+          storageKey,
           materialType: typeInput.value,
         }),
       });
@@ -235,9 +235,9 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     }
   };
 
-  const handleDismissRejected = async (materialId: string, s3Key: string) => {
+  const handleDismissRejected = async (materialId: string, storageKey: string) => {
     try {
-      const res = await fetch(`/api/materials?classId=${classId}&materialId=${materialId}&s3Key=${encodeURIComponent(s3Key)}`, {
+      const res = await fetch(`/api/materials?classId=${classId}&materialId=${materialId}&storageKey=${encodeURIComponent(storageKey)}`, {
         method: "DELETE",
       });
       const data = await res.json();
@@ -455,7 +455,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                         {file.status === "REJECTED" && (
                           <button
                             title="Dismiss & Remove from View"
-                            onClick={() => handleDismissRejected(file.materialId, file.s3Key)}
+                            onClick={() => handleDismissRejected(file.materialId, file.storageKey)}
                             className="bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 hover:text-red-700 rounded-md px-2 py-1 text-xs font-bold transition-colors shadow-sm ml-1"
                           >
                             Dismiss

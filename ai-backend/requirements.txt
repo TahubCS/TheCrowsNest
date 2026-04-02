@@ -3,7 +3,6 @@ uvicorn
 google-genai
 psycopg[binary]
 psycopg_pool
-boto3
 pymupdf
 python-dotenv
 python-multipart
@@ -11,4 +10,5 @@ pydantic
 python-pptx
 python-docx
 Pillow
-pdfplumber
+pdfplumber
+supabase

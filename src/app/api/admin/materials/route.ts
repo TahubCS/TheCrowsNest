@@ -59,7 +59,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    const { classId, materialId, s3Key, fileName, action, rejectionReason } = await request.json();
+    const { classId, materialId, storageKey, fileName, action, rejectionReason } = await request.json();
 
     if (!classId || !materialId || !action || !["APPROVE", "REJECT"].includes(action)) {
       return NextResponse.json<ApiResponse>(
@@ -70,8 +70,8 @@ export async function PATCH(request: NextRequest) {
 
     if (action === "REJECT") {
       // Delete file from Supabase Storage
-      if (s3Key) {
-        const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([s3Key]);
+      if (storageKey) {
+        const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([storageKey]);
         if (storageError) {
           console.error("[Storage Delete Error on Reject]", storageError);
           // Continue with DB cleanup even if storage delete fails
@@ -88,9 +88,9 @@ export async function PATCH(request: NextRequest) {
     }
 
     // APPROVE flow: mark as PROCESSING, trigger Python backend, then PROCESSED
-    if (!s3Key || !fileName) {
+    if (!storageKey || !fileName) {
       return NextResponse.json<ApiResponse>(
-        { success: false, message: "s3Key and fileName are required for approval" },
+        { success: false, message: "storageKey and fileName are required for approval" },
         { status: 400 }
       );
     }
@@ -101,7 +101,7 @@ export async function PATCH(request: NextRequest) {
       const res = await fetch("http://localhost:8000/ingest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, materialId, s3Key, fileName }),
+        body: JSON.stringify({ classId, materialId, storageKey, fileName }),
       });
 
       if (!res.ok) {

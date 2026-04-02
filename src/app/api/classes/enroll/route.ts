@@ -17,18 +17,15 @@ import {
   incrementClassEnrollment,
   decrementClassEnrollment,
 } from "@/lib/db";
-import { ECU_CLASSES } from "@/lib/data/major-class-map";
 import type { EnrollPayload, ApiResponse } from "@/types";
 
 const MAX_CREDIT_HOURS = 18;
 
 /**
- * Helper: get class from DB or fall back to static data
+ * Helper: get class from DB
  */
 async function resolveClass(classId: string) {
-  const dbClass = await getClassById(classId);
-  if (dbClass) return dbClass;
-  return ECU_CLASSES.find((c) => c.classId === classId) || null;
+  return await getClassById(classId);
 }
 
 /**
@@ -82,15 +79,7 @@ export async function POST(request: NextRequest) {
 
     // Calculate current credit hours
     const currentClasses = await getClassesByIds(user.enrolledClasses || []);
-    let currentCredits = currentClasses.reduce((sum, c) => sum + c.creditHours, 0);
-
-    // If DB didn't have the classes, check static data
-    if (currentClasses.length === 0 && (user.enrolledClasses || []).length > 0) {
-      const staticClasses = ECU_CLASSES.filter((c) =>
-        user.enrolledClasses.includes(c.classId)
-      );
-      currentCredits = staticClasses.reduce((sum, c) => sum + c.creditHours, 0);
-    }
+    const currentCredits = currentClasses.reduce((sum, c) => sum + c.creditHours, 0);
 
     const newTotal = currentCredits + classToEnroll.creditHours;
     if (newTotal > MAX_CREDIT_HOURS) {

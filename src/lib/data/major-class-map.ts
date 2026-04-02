@@ -8,7 +8,7 @@
 
 import type { CourseClass } from "@/types";
 
-// Predefined classes with full metadata (used to seed DynamoDB)
+// Predefined classes with full metadata (used to seed Postgres)
 export const ECU_CLASSES: CourseClass[] = [
   // Computer Science
   {

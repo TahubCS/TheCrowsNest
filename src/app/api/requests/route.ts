@@ -2,7 +2,7 @@
  * GET /api/requests - Get current user's class requests
  * POST /api/requests - Submit a new class request
  * 
- * Persisted to DynamoDB (TheCrowsNestRequests table).
+ * Persisted to the requests table.
  */
 
 import { NextRequest, NextResponse } from "next/server";

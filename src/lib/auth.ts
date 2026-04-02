@@ -2,7 +2,7 @@
  * NextAuth.js v5 Configuration
  * 
  * Uses credentials provider (email + password) with JWT sessions.
- * Validates against DynamoDB user store.
+ * Validates against PostgreSQL user store.
  * Includes onboardingComplete, isAdmin, pirateId in session.
  */
 
@@ -25,7 +25,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         if (!email || !password) return null;
 
-        // Look up user in DynamoDB
+        // Look up user in database
         const user = await getUserByEmail(email);
         if (!user) return null;
 

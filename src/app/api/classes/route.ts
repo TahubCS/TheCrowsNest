@@ -11,7 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAllClasses, getClassesByIds } from "@/lib/db";
-import { getRecommendedClassIds, ECU_CLASSES } from "@/lib/data/major-class-map";
+import { getRecommendedClassIds } from "@/lib/data/major-class-map";
 import type { ApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -34,15 +34,7 @@ export async function GET(request: NextRequest) {
       const recommendedIds = getRecommendedClassIds(major, year);
 
       if (recommendedIds.length > 0) {
-        // Try to get from DynamoDB first, fall back to static data
-        let classes = await getClassesByIds(recommendedIds);
-
-        if (classes.length === 0) {
-          // Fallback to static data if classes not yet seeded in DB
-          classes = ECU_CLASSES.filter((c) =>
-            recommendedIds.includes(c.classId)
-          );
-        }
+        const classes = await getClassesByIds(recommendedIds);
 
         return NextResponse.json<ApiResponse>({
           success: true,
@@ -52,11 +44,8 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Default: return all classes (try DB then static)
-    let allClasses = await getAllClasses();
-    if (allClasses.length === 0) {
-      allClasses = ECU_CLASSES;
-    }
+    // Default: return all classes from database
+    const allClasses = await getAllClasses();
 
     // If search query, filter the loaded classes
     if (search) {

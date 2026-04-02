@@ -70,7 +70,7 @@ export interface Material {
   classId: string;
   fileName: string;
   fileType: string;
-  s3Key: string;
+  storageKey: string;
   materialType: string; // "Syllabus" | "Lecture Slides" | "Study Guide" | "Past Exam" | "Notes" | "Other"
   uploadedBy: string; // user email
   uploadedByName: string;

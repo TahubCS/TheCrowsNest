@@ -223,14 +223,14 @@ export async function deleteStudyPlan(planId: string): Promise<void> {
 
 export async function createMaterial(material: Material): Promise<void> {
   await sql`
-    INSERT INTO materials (material_id, class_id, file_name, file_type, s3_key, material_type,
+    INSERT INTO materials (material_id, class_id, file_name, file_type, storage_key, material_type,
                            uploaded_by, uploaded_by_name, status, rejection_reason, expires_at, uploaded_at)
     VALUES (
       ${material.materialId},
       ${material.classId},
       ${material.fileName},
       ${material.fileType},
-      ${material.s3Key},
+      ${material.storageKey},
       ${material.materialType},
       ${material.uploadedBy},
       ${material.uploadedByName ?? null},

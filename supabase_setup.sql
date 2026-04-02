@@ -43,7 +43,7 @@ CREATE TABLE IF NOT EXISTS materials (
     class_id        TEXT REFERENCES classes(class_id),
     file_name       TEXT NOT NULL,
     file_type       TEXT NOT NULL,
-    s3_key          TEXT NOT NULL,
+    storage_key     TEXT NOT NULL,
     material_type   TEXT NOT NULL,
     uploaded_by     TEXT REFERENCES users(email),
     uploaded_by_name TEXT,
