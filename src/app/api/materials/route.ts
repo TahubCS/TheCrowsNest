@@ -1,11 +1,12 @@
 /**
  * GET  /api/materials?classId=...  — fetch materials for a class
- * POST /api/materials              — save metadata after S3 upload
+ * POST /api/materials              — save metadata after Supabase Storage upload
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { createMaterial, getMaterialsByClassId, getMaterialsByUserEmail, updateMaterialStatus, deleteMaterial } from "@/lib/db";
+import { supabase, STORAGE_BUCKET } from "@/lib/supabase";
 import type { ApiResponse, Material } from "@/types";
 
 const MATERIAL_TYPES = ["Syllabus", "Lecture Slides", "Study Guide", "Past Exam", "Notes", "Other"];
@@ -28,9 +29,8 @@ export async function GET(request: NextRequest) {
     } else {
       allMaterials = await getMaterialsByUserEmail(session.user.email);
     }
-    
-    // Filter out materials that have passed their TTL expiration manually
-    // (fallback in case DynamoDB TTL background thread hasn't cleaned it up yet)
+
+    // Filter out materials that have passed their manual TTL expiration
     const now = Math.floor(Date.now() / 1000);
     const materials = allMaterials.filter(m => !m.expiresAt || m.expiresAt > now);
 
@@ -98,9 +98,7 @@ export async function POST(request: NextRequest) {
       const classes = await getClassesByIds([classId]);
       const classData = classes.length > 0 ? classes[0] : null;
 
-      // Only attempt evaluation if we have class data
       if (classData) {
-        // Construct a holistic context string for the AI even if syllabus is missing
         const classContext = `
 Course Code: ${classData.courseCode}
 Course Name: ${classData.courseName}
@@ -114,13 +112,7 @@ ${classData.syllabus || 'No syllabus provided.'}
         const res = await fetch("http://localhost:8000/evaluate-and-ingest", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ 
-            classId, 
-            materialId, 
-            s3Key, 
-            fileName,
-            classContext: classContext
-          }),
+          body: JSON.stringify({ classId, materialId, s3Key, fileName, classContext }),
         });
 
         if (res.ok) {
@@ -129,34 +121,21 @@ ${classData.syllabus || 'No syllabus provided.'}
           const reason = pyData.data?.reason || "Unknown";
 
           if (evaluation === "APPROVED") {
-            // AI confidently approved and ingested the document
             await updateMaterialStatus(classId, materialId, "PROCESSED");
             return NextResponse.json<ApiResponse>(
               { success: true, message: "Material autonomously processed and approved by AI! 🥳", data: { materialId } },
               { status: 201 }
             );
-
           } else if (evaluation === "REJECTED") {
-            // Spam/Junk file (< 50% confidence). Delete from S3 and mark REJECTED.
-            const { S3Client, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
-            const s3 = new S3Client({
-              region: process.env.AWS_REGION || "us-east-1",
-              credentials: {
-                accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-                secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-                ...(process.env.AWS_SESSION_TOKEN && {
-                  sessionToken: process.env.AWS_SESSION_TOKEN,
-                }),
-              },
-            });
-            await s3.send(new DeleteObjectCommand({ Bucket: "thecrowsnest", Key: s3Key }));
+            // Delete from Supabase Storage and mark rejected with 7-day TTL
+            await supabase.storage.from(STORAGE_BUCKET).remove([s3Key]);
 
             const sevenDaysFromNow = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
             await updateMaterialWithRejection(classId, materialId, "REJECTED", `AI Auto-Rejection: ${reason}`, sevenDaysFromNow);
 
             return NextResponse.json<ApiResponse>(
               { success: false, message: `Material rejected by AI (Mismatch with syllabus). Reason: ${reason}` },
-              { status: 406 } // 406 Not Acceptable
+              { status: 406 }
             );
           } else if (evaluation === "PENDING") {
             const confidence = pyData.data?.confidence;
@@ -165,7 +144,6 @@ ${classData.syllabus || 'No syllabus provided.'}
               { status: 201 }
             );
           }
-          // If fallback/error, fall through to the default response below
         } else {
           console.error("Python AI Evaluation returned non-ok status:", res.statusText);
         }
@@ -176,7 +154,6 @@ ${classData.syllabus || 'No syllabus provided.'}
     }
     // -------------------------------------------------------------
 
-    // File awaits human admin review (or AI deferred to PENDING)
     return NextResponse.json<ApiResponse>(
       { success: true, message: "Material uploaded. Awaiting admin review.", data: { materialId } },
       { status: 201 }
@@ -231,34 +208,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 1: Delete from S3
-    const { S3Client, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
-    const s3 = new S3Client({
-      region: process.env.AWS_REGION || "us-east-1",
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-        ...(process.env.AWS_SESSION_TOKEN && {
-          sessionToken: process.env.AWS_SESSION_TOKEN,
-        }),
-      },
-    });
-
-    await s3.send(
-      new DeleteObjectCommand({
-        Bucket: "thecrowsnest",
-        Key: s3Key,
-      })
-    );
+    // Step 1: Delete from Supabase Storage
+    const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([s3Key]);
+    if (storageError) {
+      console.error("[Storage Delete Error]", storageError);
+    }
 
     // Step 2: Delete from DB
     await deleteMaterial(classId, materialId);
 
-    // Step 3: Delete Vectors from PostgreSQL
+    // Step 3: Delete vectors from PostgreSQL via Python backend
     try {
-      await fetch(`http://localhost:8000/materials/${materialId}`, {
-        method: "DELETE",
-      });
+      await fetch(`http://localhost:8000/materials/${materialId}`, { method: "DELETE" });
     } catch (err) {
       console.error("[Python Sync Error] Failed to delete vectors from PostgreSQL.", err);
     }

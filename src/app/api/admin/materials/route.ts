@@ -3,12 +3,13 @@
  * PATCH /api/admin/materials        — Approve or reject a material
  *
  * On approve: triggers Python backend processing, then marks PROCESSED.
- * On reject:  marks REJECTED with optional reason.
+ * On reject:  deletes from Supabase Storage, marks REJECTED with optional reason.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getAllPendingMaterials, updateMaterialStatus, updateMaterialWithRejection } from "@/lib/db";
+import { supabase, STORAGE_BUCKET } from "@/lib/supabase";
 import type { ApiResponse } from "@/types";
 
 function isAdmin(email: string): boolean {
@@ -17,7 +18,7 @@ function isAdmin(email: string): boolean {
   return emailsList.includes(email.toLowerCase());
 }
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.email || !isAdmin(session.user.email)) {
@@ -68,29 +69,15 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (action === "REJECT") {
-      // Delete file from S3
+      // Delete file from Supabase Storage
       if (s3Key) {
-        try {
-          const { S3Client, DeleteObjectCommand } = await import("@aws-sdk/client-s3");
-          const s3 = new S3Client({
-            region: process.env.AWS_REGION || "us-east-1",
-            credentials: {
-              accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-              secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-              ...(process.env.AWS_SESSION_TOKEN && {
-                sessionToken: process.env.AWS_SESSION_TOKEN,
-              }),
-            },
-          });
-          await s3.send(new DeleteObjectCommand({ Bucket: "thecrowsnest", Key: s3Key }));
-        } catch (s3Err) {
-          console.error("[S3 Delete Error on Reject]", s3Err);
-          // Continue with DB cleanup even if S3 delete fails
+        const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([s3Key]);
+        if (storageError) {
+          console.error("[Storage Delete Error on Reject]", storageError);
+          // Continue with DB cleanup even if storage delete fails
         }
       }
 
-      // Update the material record in DynamoDB to REJECTED with a 7-day TTL
-      const { updateMaterialWithRejection } = await import("@/lib/db");
       const sevenDaysFromNow = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
       await updateMaterialWithRejection(classId, materialId, "REJECTED", rejectionReason || "No reason provided", sevenDaysFromNow);
 
@@ -110,7 +97,6 @@ export async function PATCH(request: NextRequest) {
 
     await updateMaterialStatus(classId, materialId, "PROCESSING");
 
-    // Trigger Python backend processing
     try {
       const res = await fetch("http://localhost:8000/ingest", {
         method: "POST",
@@ -122,7 +108,6 @@ export async function PATCH(request: NextRequest) {
         throw new Error(`Python Backend Error: ${res.statusText}`);
       }
 
-      // Mark as PROCESSED after successful ingestion
       await updateMaterialStatus(classId, materialId, "PROCESSED");
 
       return NextResponse.json<ApiResponse>({
