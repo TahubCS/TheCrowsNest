@@ -86,10 +86,10 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
         <div className="absolute top-0 right-0 -m-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 -m-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-        {/* Chat History Area (Empty State) */}
-        <div className="flex-1 overflow-y-auto p-6 z-10 flex flex-col justify-center items-center text-center">
+        {/* Chat History Area */}
+        <div className="flex-1 overflow-y-auto p-6 z-10 flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
           {messages.length === 0 ? (
-            <div className="max-w-md space-y-6">
+            <div className="flex-1 flex flex-col justify-center items-center text-center max-w-md mx-auto space-y-6">
               <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20 transform -rotate-6">
                 <span className="text-5xl drop-shadow-md">🤖</span>
               </div>
@@ -112,7 +112,7 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
               </div>
             </div>
           ) : (
-            <div className="w-full flex flex-col space-y-6 pb-4">
+            <div className="w-full flex flex-col space-y-6 pb-4 mt-auto">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-3xl p-5 shadow-sm ${msg.role === "student" ? "bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-br-sm" : "bg-muted/60 border border-border text-foreground rounded-bl-sm text-left"}`}>
