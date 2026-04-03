@@ -74,7 +74,7 @@ export default function PendingRequestsPage() {
               <div className="text-center py-12 px-4 border border-dashed border-border rounded-xl bg-muted/5">
                 <span className="text-4xl hover:-translate-y-1 transition-transform inline-block mb-2">✈️</span>
                 <h3 className="text-lg font-bold mt-2">No pending classes</h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">You haven't requested any new classes. If you can't find a class you are looking for, use the search page to request it!</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">You haven&apos;t requested any new classes. If you can&apos;t find a class you are looking for, use the search page to request it!</p>
               </div>
             ) : (
               <div className="space-y-4">
@@ -130,7 +130,7 @@ export default function PendingRequestsPage() {
               <div className="text-center py-12 px-4 border border-dashed border-border rounded-xl bg-muted/5">
                 <span className="text-4xl hover:-translate-y-1 transition-transform inline-block mb-2">📄</span>
                 <h3 className="text-lg font-bold mt-2">No documents</h3>
-                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">You haven't uploaded any study materials yet.</p>
+                <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">You haven&apos;t uploaded any study materials yet.</p>
               </div>
             ) : (
               <div className="space-y-4">

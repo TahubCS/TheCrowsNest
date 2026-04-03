@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function FlashcardsPage({ params: _ }: { params: Promise<{ classId: string }> }) {
+export default function FlashcardsPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
@@ -68,7 +68,7 @@ export default function FlashcardsPage({ params: _ }: { params: Promise<{ classI
         </Link>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-emerald-600">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-green-400 to-emerald-600">
               Flashcard Studio
             </h1>
             <p className="text-muted-foreground mt-2 text-lg max-w-2xl">
@@ -82,15 +82,15 @@ export default function FlashcardsPage({ params: _ }: { params: Promise<{ classI
       {flashcards.length === 0 ? (
         <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
           {/* Animated Glow Border */}
-          <div className="absolute inset-0 bg-gradient-to-r from-green-500 via-emerald-400 to-teal-500 opacity-20 group-hover:opacity-40 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
+          <div className="absolute inset-0 bg-linear-to-r from-green-500 via-emerald-400 to-teal-500 opacity-20 group-hover:opacity-40 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
           
-          <div className="relative bg-background/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl pointer-events-auto min-h-[400px] flex flex-col justify-center">
+          <div className="relative bg-background/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl pointer-events-auto min-h-100 flex flex-col justify-center">
             
             <div className="text-center max-w-lg mx-auto mb-10">
               <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/20">
                 <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
               </div>
-              <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-foreground to-muted-foreground">Generate New Deck</h2>
+              <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-foreground to-muted-foreground">Generate New Deck</h2>
               <p className="text-muted-foreground mt-3">Select a focus area and let our AI synthesize your class notes, lectures, and syllabus into bite-sized study cards.</p>
             </div>
 
@@ -128,7 +128,7 @@ export default function FlashcardsPage({ params: _ }: { params: Promise<{ classI
               <button 
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="w-full relative overflow-hidden mt-6 bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full relative overflow-hidden mt-6 bg-linear-to-r from-green-500 to-emerald-600 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">
@@ -154,21 +154,21 @@ export default function FlashcardsPage({ params: _ }: { params: Promise<{ classI
           
           {/* 3D Card Container */}
           <div 
-            className="w-full aspect-[4/3] md:aspect-[16/9] perspective-1000 cursor-pointer group"
+            className="w-full aspect-4/3 md:aspect-video perspective-1000 cursor-pointer group"
             onClick={() => setIsFlipped(!isFlipped)}
           >
             <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
               
               {/* Front side */}
               <div className="absolute inset-0 backface-hidden bg-background border border-border rounded-3xl shadow-xl flex items-center justify-center p-8 md:p-12 text-center overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-green-400 to-emerald-500"></div>
+                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-green-400 to-emerald-500"></div>
                 <h3 className="text-2xl md:text-4xl font-bold leading-tight text-foreground">{flashcards[currentIndex].front}</h3>
                 <div className="absolute bottom-6 right-8 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">Click to flip ⤵</div>
               </div>
 
               {/* Back side */}
               <div className="absolute inset-0 backface-hidden rotate-y-180 bg-green-500/5 border border-green-500/20 rounded-3xl shadow-xl flex items-center justify-center p-8 md:p-12 text-center">
-                <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-teal-400 to-green-500"></div>
+                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-teal-400 to-green-500"></div>
                 <p className="text-xl md:text-3xl font-medium leading-relaxed text-foreground">{flashcards[currentIndex].back}</p>
                 <div className="absolute bottom-6 left-8 text-green-500/50 opacity-0 group-hover:opacity-100 transition-opacity">⤴ Click to unflip</div>
               </div>
@@ -182,7 +182,7 @@ export default function FlashcardsPage({ params: _ }: { params: Promise<{ classI
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
               Previous
             </button>
-            <button onClick={nextCard} className="flex-1 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white border-transparent rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
+            <button onClick={nextCard} className="flex-1 py-4 bg-linear-to-r from-green-500 to-emerald-500 text-white border-transparent rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
               Next
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
             </button>

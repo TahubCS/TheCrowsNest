@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -39,14 +39,12 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
-  const [reportSubmitting, setReportSubmitting] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const submitReport = async (type: "USER" | "DOCUMENT", targetId: string, targetName: string) => {
     const reason = prompt(`Why are you reporting this ${type === "USER" ? "user" : "document"}?`);
     if (!reason || reason.trim() === "") return;
-    setReportSubmitting(true);
     try {
       const res = await fetch("/api/reports", {
         method: "POST",
@@ -61,30 +59,10 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       }
     } catch {
       toast.error("Network error. Please try again.");
-    } finally {
-      setReportSubmitting(false);
     }
   };
 
-  // Close user menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
-        setOpenUserMenu(null);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
-
-  useEffect(() => {
-    Promise.resolve(params).then((p) => {
-      setClassId(p.classId);
-      loadMaterials(p.classId);
-    });
-  }, [params]);
-
-  const loadMaterials = async (cid: string) => {
+  const loadMaterials = useCallback(async (cid: string) => {
     // Demo class: load static mock data instead of hitting the API
     if (cid === "onboarding101") {
       setMaterials(MOCK_MATERIALS);
@@ -108,7 +86,25 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     } finally {
       setLoading(false);
     }
-  };
+  }, [session?.user?.email]);
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setOpenUserMenu(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    Promise.resolve(params).then((p) => {
+      setClassId(p.classId);
+      loadMaterials(p.classId);
+    });
+  }, [params, loadMaterials]);
 
   const calculateMetrics = () => {
     const processedMaterials = materials.filter(m => m.status === "PROCESSED");
@@ -289,7 +285,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
               Remove Class
             </button>
           ) : (
-            <div className="bg-background border border-red-500/30 rounded-2xl p-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 min-w-[260px]">
+            <div className="bg-background border border-red-500/30 rounded-2xl p-4 shadow-lg animate-in fade-in slide-in-from-top-2 duration-200 min-w-65">
               <p className="text-sm font-bold text-foreground mb-1">Remove {formattedClass}?</p>
               <p className="text-xs text-muted-foreground mb-4">This will unenroll you from the class. You can re-enroll later.</p>
               <div className="flex gap-2">
@@ -538,7 +534,7 @@ function StudyToolCard({ title, desc, icon, hoverColor, href, classId }: { title
     <Link 
       href={href} 
       onClick={handleClick}
-      className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-[160px]"
+      className="bg-background rounded-2xl border border-border p-8 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group cursor-pointer relative overflow-hidden flex flex-col justify-center min-h-40"
     >
       <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity text-6xl sm:text-8xl">
         {icon}

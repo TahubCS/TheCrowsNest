@@ -1,9 +1,8 @@
 import Link from "next/link";
-import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-background via-background to-ecu-purple/10 relative overflow-hidden">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-background via-background to-ecu-purple/10 relative overflow-hidden">
 
       {/* Decorative background blobs */}
       <div className="absolute top-0 left-0 w-96 h-96 bg-ecu-purple/5 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
@@ -17,8 +16,8 @@ export default function Home() {
               Exclusively for ECU Students 🏴‍☠️
             </span>
           </div>
-          <h1 className="text-6xl font-extrabold tracking-tighter sm:text-7xl xl:text-8xl bg-clip-text text-transparent bg-gradient-to-r from-ecu-purple to-ecu-gold pb-2 drop-shadow-sm">
-            The Crow's Nest
+          <h1 className="text-6xl font-extrabold tracking-tighter sm:text-7xl xl:text-8xl bg-clip-text text-transparent bg-linear-to-r from-ecu-purple to-ecu-gold pb-2 drop-shadow-sm">
+            The Crow&apos;s Nest
           </h1>
           <p className="text-xl sm:text-2xl text-muted-foreground font-medium max-w-2xl mx-auto leading-relaxed">
             Connect with thousands of ECU students to share notes, build study plans, and crush your exams.

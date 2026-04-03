@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState, useRef, useEffect } from "react";
 
-export default function AITutorPage({ params: _ }: { params: Promise<{ classId: string }> }) {
+export default function AITutorPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
@@ -71,7 +71,7 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-500 flex items-center gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-blue-400 to-cyan-500 flex items-center gap-3">
               <span className="text-4xl">🤖</span> AI Study Tutor
             </h1>
             <p className="text-muted-foreground mt-1 text-sm">
@@ -96,24 +96,24 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
         <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-6 z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
           {messages.length === 0 ? (
             <div className="h-full flex flex-col justify-center items-center text-center max-w-md mx-auto space-y-6">
-              <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20 transform -rotate-6">
+              <div className="w-24 h-24 bg-linear-to-tr from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20 transform -rotate-6">
                 <span className="text-5xl drop-shadow-md">🤖</span>
               </div>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">How can I help you today?</h2>
                 <p className="text-muted-foreground mt-2">
-                  I'm fully caught up on everything uploaded for {formattedClass}. Ask me to explain a confusing concept, summarize a lecture, or walk you through a practice problem.
+                  I&apos;m fully caught up on everything uploaded for {formattedClass}. Ask me to explain a confusing concept, summarize a lecture, or walk you through a practice problem.
                 </p>
               </div>
 
               <div className="grid grid-cols-1 gap-2 text-left mt-8">
                 <button onClick={() => handleSend(undefined, "Can you explain the main concepts we've covered so far?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-blue-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
                   <span className="text-blue-500 font-bold mr-2 group-hover/btn:mr-3 transition-all">→</span>
-                  Can you explain the main concepts we've covered so far?
+                  Can you explain the main concepts we&apos;ve covered so far?
                 </button>
                 <button onClick={() => handleSend(undefined, "I'm confused about the recent lecture notes. Can we review them together?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-cyan-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
                   <span className="text-cyan-500 font-bold mr-2 group-hover/btn:mr-3 transition-all">→</span>
-                  I'm confused about the recent lecture notes. Can we review them together?
+                  I&apos;m confused about the recent lecture notes. Can we review them together?
                 </button>
               </div>
             </div>
@@ -121,7 +121,7 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
             <div className="flex flex-col space-y-6 pb-4">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[85%] rounded-3xl p-5 shadow-sm ${msg.role === "student" ? "bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-br-sm" : "bg-muted/60 border border-border text-foreground rounded-bl-sm text-left"}`}>
+                        <div className={`max-w-[85%] rounded-3xl p-5 shadow-sm ${msg.role === "student" ? "bg-linear-to-br from-blue-500 to-cyan-600 text-white rounded-br-sm" : "bg-muted/60 border border-border text-foreground rounded-bl-sm text-left"}`}>
                     <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.text}</p>
                   </div>
                 </div>

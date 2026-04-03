@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export default function PracticeExamsPage({ params: _ }: { params: Promise<{ classId: string }> }) {
+export default function PracticeExamsPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
@@ -70,7 +70,7 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
         </Link>
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
-            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-ecu-gold">
+            <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-purple-400 to-ecu-gold">
               Practice Exams
             </h1>
             <p className="text-muted-foreground mt-2 text-lg max-w-2xl">
@@ -84,7 +84,7 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
       {questions.length === 0 ? (
         <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
           {/* Animated Glow Border */}
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500 via-ecu-gold to-purple-500 opacity-30 group-hover:opacity-60 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
+          <div className="absolute inset-0 bg-linear-to-r from-purple-500 via-ecu-gold to-purple-500 opacity-30 group-hover:opacity-60 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
           
           <div className="relative bg-background/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl pointer-events-auto">
             <div className="flex items-center justify-between mb-8">
@@ -135,7 +135,7 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
               <button 
                 onClick={handleGenerate}
                 disabled={isGenerating}
-                className="w-full relative overflow-hidden mt-4 bg-gradient-to-r from-ecu-purple to-purple-800 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
+                className="w-full relative overflow-hidden mt-4 bg-linear-to-r from-ecu-purple to-purple-800 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">
@@ -152,7 +152,7 @@ export default function PracticeExamsPage({ params: _ }: { params: Promise<{ cla
       ) : showResults ? (
         <div className="bg-background border border-border rounded-3xl p-8 shadow-xl text-center">
           <h2 className="text-3xl font-bold mb-2">Exam Results</h2>
-          <div className="text-6xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-ecu-purple to-purple-500 my-6">
+          <div className="text-6xl font-extrabold text-transparent bg-clip-text bg-linear-to-r from-ecu-purple to-purple-500 my-6">
             {calculateScore()}%
           </div>
           <p className="text-muted-foreground mb-8 text-lg">

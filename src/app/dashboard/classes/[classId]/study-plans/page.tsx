@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import type { StudyPlan } from "@/types";
 
-export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ classId: string }> }) {
+export default function ClassStudyPlansPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
@@ -24,7 +24,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
-  const loadPlans = async () => {
+  const loadPlans = useCallback(async () => {
     try {
       const res = await fetch(`/api/study-plans?classId=${classId}`);
       if (res.ok) {
@@ -36,11 +36,11 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
     } finally {
       setLoading(false);
     }
-  };
+  }, [classId]);
 
   useEffect(() => {
     loadPlans();
-  }, [classId]);
+  }, [loadPlans]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -126,7 +126,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-purple-600">
+            <h1 className="text-4xl font-extrabold tracking-tight text-transparent bg-clip-text bg-linear-to-r from-purple-400 to-purple-600">
               Study Plans
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
@@ -171,7 +171,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
               />
             </div>
             <div className="flex gap-3 pt-2">
-              <Button type="button" onClick={handleGenerateAIPlan} disabled={isGenerating || isSubmitting} className="bg-gradient-to-r from-ecu-purple to-purple-800 text-white font-bold px-6 border-transparent shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all">
+              <Button type="button" onClick={handleGenerateAIPlan} disabled={isGenerating || isSubmitting} className="bg-linear-to-r from-ecu-purple to-purple-800 text-white font-bold px-6 border-transparent shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all">
                 {isGenerating ? "Synthesizing Canvas..." : "✨ Auto-Generate with AI"}
               </Button>
               <Button type="submit" disabled={isSubmitting || isGenerating} className="bg-muted hover:bg-muted/80 text-foreground font-bold px-6">
@@ -220,7 +220,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                     </button>
                   </div>
-                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[40px]">{plan.description || "No description provided."}</p>
+                  <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-10">{plan.description || "No description provided."}</p>
 
                   {/* Expandable Items Detail */}
                   {expandedPlanId === plan.planId && planItems.length > 0 && (

@@ -106,7 +106,7 @@ export default function AdminRequestsPage() {
         ) : pendingRequests.length === 0 ? (
           <div className="flex flex-col items-center justify-center p-12 mt-4 bg-background border border-dashed border-border/70 hover:border-border transition-colors rounded-lg text-center">
             <span className="text-5xl mb-4 drop-shadow-sm">🙌</span>
-            <h3 className="text-lg font-bold text-foreground mb-1">You're all caught up!</h3>
+            <h3 className="text-lg font-bold text-foreground mb-1">You&apos;re all caught up!</h3>
             <p className="text-muted-foreground text-sm max-w-sm">
               There are no pending class creation requests at this time.
             </p>
