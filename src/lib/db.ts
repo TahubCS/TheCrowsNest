@@ -186,10 +186,30 @@ export async function decrementClassEnrollment(classId: string): Promise<void> {
 // Study Plan Operations
 // ============================================================
 
+function normalizeStudyPlanItems(items: unknown): StudyPlan["items"] {
+  if (Array.isArray(items)) return items;
+
+  if (typeof items === "string") {
+    try {
+      const parsed = JSON.parse(items);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  return [];
+}
+
 export async function getStudyPlansByEmail(userEmail: string): Promise<StudyPlan[]> {
-  return sql<StudyPlan[]>`
+  const plans = await sql<StudyPlan[]>`
     SELECT * FROM study_plans WHERE user_email = ${userEmail.toLowerCase()}
   `;
+
+  return plans.map((plan) => ({
+    ...plan,
+    items: normalizeStudyPlanItems(plan.items),
+  }));
 }
 
 export async function createStudyPlan(plan: StudyPlan): Promise<void> {

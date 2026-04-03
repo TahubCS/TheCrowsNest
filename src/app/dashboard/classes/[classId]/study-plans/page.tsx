@@ -207,6 +207,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {plans.map((plan, idx) => {
             const isPurple = idx % 2 === 0;
+            const planItems = Array.isArray(plan.items) ? plan.items : [];
             return (
               <div key={plan.planId} className="bg-background rounded-2xl border border-border shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col h-full overflow-hidden group">
                 <div className={`h-2 w-full bg-linear-to-r ${isPurple ? 'from-ecu-purple to-purple-400' : 'from-ecu-gold to-yellow-300'}`}></div>
@@ -222,9 +223,9 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
                   <p className="text-sm text-muted-foreground mb-4 line-clamp-2 min-h-[40px]">{plan.description || "No description provided."}</p>
 
                   {/* Expandable Items Detail */}
-                  {expandedPlanId === plan.planId && plan.items && plan.items.length > 0 && (
+                  {expandedPlanId === plan.planId && planItems.length > 0 && (
                     <div className="mb-4 space-y-2 animate-in fade-in slide-in-from-top-2 duration-200">
-                      {plan.items.map((item, itemIdx) => (
+                      {planItems.map((item, itemIdx) => (
                         <div key={item.itemId || itemIdx} className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border/50">
                           <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                             item.status === "COMPLETED" ? "bg-green-100 text-green-700" :
@@ -241,7 +242,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
                       ))}
                     </div>
                   )}
-                  {expandedPlanId === plan.planId && (!plan.items || plan.items.length === 0) && (
+                  {expandedPlanId === plan.planId && planItems.length === 0 && (
                     <div className="mb-4 p-4 rounded-lg bg-muted/20 border border-dashed border-border text-center text-sm text-muted-foreground animate-in fade-in duration-200">
                       No items in this plan yet.
                     </div>
@@ -249,7 +250,7 @@ export default function ClassStudyPlansPage({ params: _ }: { params: Promise<{ c
 
                   <div className="mt-auto pt-4 border-t border-border flex items-center justify-between">
                     <span className="text-xs font-semibold bg-muted px-2.5 py-1 rounded-md text-foreground">
-                      {plan.items?.length || 0} items
+                      {planItems.length} items
                     </span>
                     <button 
                       onClick={() => setExpandedPlanId(expandedPlanId === plan.planId ? null : plan.planId)}
