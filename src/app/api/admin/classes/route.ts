@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { courseCode, courseName, department, creditHours, description, syllabus } = await request.json();
+    const { courseCode, courseName, department, creditHours, description, syllabus, relatedMajors } = await request.json();
 
     if (!courseCode || !courseName || !department) {
       return NextResponse.json<ApiResponse>(
@@ -71,7 +71,7 @@ export async function POST(request: NextRequest) {
       department,
       creditHours: creditHours || 3,
       description: description || "",
-      relatedMajors: [],
+      relatedMajors: relatedMajors || [],
       enrolledCount: 0,
       ...(syllabus ? { syllabus: syllabus.trim() } : {}),
     };

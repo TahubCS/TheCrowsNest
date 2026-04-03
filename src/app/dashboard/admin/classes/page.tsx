@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
+import { getMajorNames } from "@/lib/data/ecu-majors";
 
 // ========================================================
 // DEPARTMENTS — Add or remove departments here as needed.
@@ -76,6 +77,11 @@ export default function AdminClassesPage() {
   const [creditHours, setCreditHours] = useState(3);
   const [description, setDescription] = useState("");
   const [syllabus, setSyllabus] = useState("");
+  const [relatedMajors, setRelatedMajors] = useState<string[]>([]);
+  const [majorSearch, setMajorSearch] = useState("");
+  const [majorDropdownOpen, setMajorDropdownOpen] = useState(false);
+  const majorDropdownRef = useRef<HTMLDivElement>(null);
+  const allMajors = getMajorNames();
 
   // Pre-fill form from URL params (when redirected from Pending Requests)
   useEffect(() => {
@@ -96,6 +102,27 @@ export default function AdminClassesPage() {
   useEffect(() => {
     fetchClasses();
   }, []);
+
+  // Close major dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (majorDropdownRef.current && !majorDropdownRef.current.contains(e.target as Node)) {
+        setMajorDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const toggleMajor = (major: string) => {
+    setRelatedMajors((prev) =>
+      prev.includes(major) ? prev.filter((m) => m !== major) : [...prev, major]
+    );
+  };
+
+  const filteredMajors = allMajors.filter((m) =>
+    m.toLowerCase().includes(majorSearch.toLowerCase())
+  );
 
   const fetchClasses = async () => {
     try {
@@ -127,6 +154,7 @@ export default function AdminClassesPage() {
           department,
           creditHours,
           description,
+          relatedMajors,
           ...(syllabus.trim() ? { syllabus: syllabus.trim() } : {}),
         }),
       });
@@ -141,6 +169,8 @@ export default function AdminClassesPage() {
         setCreditHours(3);
         setDescription("");
         setSyllabus("");
+        setRelatedMajors([]);
+        setMajorSearch("");
         setShowSyllabus(false);
         // Refresh list
         fetchClasses();
@@ -267,6 +297,75 @@ export default function AdminClassesPage() {
                   +
                 </button>
               </div>
+            </div>
+
+            {/* Related Majors */}
+            <div ref={majorDropdownRef}>
+              <label className="block text-sm font-semibold mb-1.5">
+                Related Majors
+              </label>
+
+              {/* Selected majors tags */}
+              {relatedMajors.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {relatedMajors.map((major) => (
+                    <span
+                      key={major}
+                      className="inline-flex items-center gap-1 text-xs font-semibold bg-ecu-purple/10 text-ecu-purple border border-ecu-purple/20 rounded-full px-2.5 py-1"
+                    >
+                      {major}
+                      <button
+                        type="button"
+                        onClick={() => toggleMajor(major)}
+                        className="hover:text-red-500 transition-colors ml-0.5"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              {/* Search input to open dropdown */}
+              <input
+                type="text"
+                placeholder={relatedMajors.length > 0 ? "Add more majors..." : "Search and select majors..."}
+                value={majorSearch}
+                onChange={(e) => {
+                  setMajorSearch(e.target.value);
+                  setMajorDropdownOpen(true);
+                }}
+                onFocus={() => setMajorDropdownOpen(true)}
+                className="w-full text-sm border border-border rounded-lg p-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow"
+              />
+
+              {/* Dropdown list */}
+              {majorDropdownOpen && (
+                <div className="mt-1 max-h-40 overflow-y-auto border border-border rounded-lg bg-background shadow-lg [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
+                  {filteredMajors.length === 0 ? (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">No majors found</div>
+                  ) : (
+                    filteredMajors.map((major) => (
+                      <button
+                        key={major}
+                        type="button"
+                        onClick={() => {
+                          toggleMajor(major);
+                          setMajorSearch("");
+                        }}
+                        className={`w-full text-left px-3 py-2 text-sm transition-colors flex items-center justify-between ${
+                          relatedMajors.includes(major)
+                            ? "bg-ecu-purple/10 text-ecu-purple font-semibold"
+                            : "text-foreground hover:bg-muted/50"
+                        }`}
+                      >
+                        {major}
+                        {relatedMajors.includes(major) && <span className="text-xs">✓</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Description */}
