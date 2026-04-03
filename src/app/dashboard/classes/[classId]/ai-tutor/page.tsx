@@ -14,21 +14,27 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
   const [messages, setMessages] = useState<{ role: "student" | "tutor"; text: string }[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: scrollContainerRef.current.scrollHeight,
+        behavior: "smooth"
+      });
+    }
   }, [messages, isTyping]);
 
   const handleSend = async (e?: React.FormEvent, presetMessage?: string) => {
     e?.preventDefault();
     const textToSend = presetMessage || message;
     if (!textToSend.trim()) return;
-    
+
     const updatedMessages = [...messages, { role: "student" as const, text: textToSend }];
     setMessages(updatedMessages);
     setMessage("");
     setIsTyping(true);
-    
+
     try {
       const res = await fetch("/api/ai-tutor", {
         method: "POST",
@@ -36,7 +42,7 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
         body: JSON.stringify({ classId, question: textToSend })
       });
       const data = await res.json();
-      
+
       if (res.ok && data.success) {
         setMessages([...updatedMessages, { role: "tutor" as const, text: data.data.answer }]);
       } else {
@@ -55,8 +61,8 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
   }, []);
 
   return (
-    <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
+    <div className="max-w-4xl mx-auto h-[calc(100vh-8rem)] overflow-hidden flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-700">
+
       {/* Header */}
       <div className="mb-6 shrink-0">
         <Link href={`/dashboard/classes/${classId}`} className="text-sm font-medium text-muted-foreground hover:text-blue-500 inline-flex items-center gap-1 mb-2 transition-colors">
@@ -80,16 +86,16 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
       </div>
 
       {/* Main Chat Area - Full Width */}
-      <div className="flex-1 flex flex-col bg-background/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg overflow-hidden relative group min-h-0">
-        
+      <div className="flex-1 min-h-0 flex flex-col bg-background/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg overflow-hidden relative group">
+
         {/* Subtle animated background glow */}
         <div className="absolute top-0 right-0 -m-20 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
         <div className="absolute bottom-0 left-0 -m-20 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
         {/* Chat History Area */}
-        <div className="flex-1 overflow-y-auto p-6 z-10 flex flex-col [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
+        <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto p-6 z-10 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
           {messages.length === 0 ? (
-            <div className="flex-1 flex flex-col justify-center items-center text-center max-w-md mx-auto space-y-6">
+            <div className="h-full flex flex-col justify-center items-center text-center max-w-md mx-auto space-y-6">
               <div className="w-24 h-24 bg-gradient-to-tr from-blue-500 to-cyan-400 rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-blue-500/20 transform -rotate-6">
                 <span className="text-5xl drop-shadow-md">🤖</span>
               </div>
@@ -99,7 +105,7 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
                   I'm fully caught up on everything uploaded for {formattedClass}. Ask me to explain a confusing concept, summarize a lecture, or walk you through a practice problem.
                 </p>
               </div>
-              
+
               <div className="grid grid-cols-1 gap-2 text-left mt-8">
                 <button onClick={() => handleSend(undefined, "Can you explain the main concepts we've covered so far?")} className="bg-muted/40 hover:bg-muted/80 border border-border/50 p-4 rounded-xl text-sm text-foreground transition-all hover:border-blue-500/50 hover:shadow-md hover:-translate-y-0.5 group/btn">
                   <span className="text-blue-500 font-bold mr-2 group-hover/btn:mr-3 transition-all">→</span>
@@ -112,7 +118,7 @@ export default function AITutorPage({ params: _ }: { params: Promise<{ classId: 
               </div>
             </div>
           ) : (
-            <div className="w-full flex flex-col space-y-6 pb-4 mt-auto">
+            <div className="flex flex-col space-y-6 pb-4">
               {messages.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === "student" ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[85%] rounded-3xl p-5 shadow-sm ${msg.role === "student" ? "bg-gradient-to-br from-blue-500 to-cyan-600 text-white rounded-br-sm" : "bg-muted/60 border border-border text-foreground rounded-bl-sm text-left"}`}>
