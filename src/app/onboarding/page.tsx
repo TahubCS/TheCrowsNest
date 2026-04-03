@@ -147,7 +147,7 @@ export default function OnboardingPage() {
             </div>
 
             {recommendedClasses.length > 0 ? (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 rounded-xl">
+              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 rounded-xl [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
                 {recommendedClasses.map((cls: any) => (
                   <div 
                     key={cls.id} 

@@ -165,7 +165,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-auto border border-border/50 rounded-lg shadow-sm bg-muted/10 relative">
+      <div className="flex-1 overflow-auto border border-border/50 rounded-lg shadow-sm bg-muted/10 relative [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center text-muted-foreground font-medium animate-pulse">
             Loading {activeTab}...
@@ -293,7 +293,7 @@ export default function AdminDashboardPage() {
               </button>
             </div>
             
-            <div className="p-6 flex-1 overflow-auto">
+            <div className="p-6 flex-1 overflow-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
               <p className="text-sm text-muted-foreground mb-4">
                 You are directly editing the raw JSON payload for this record. Ensure the schema is correct before saving.
               </p>

@@ -242,15 +242,31 @@ export default function AdminClassesPage() {
               <label htmlFor="creditHours" className="block text-sm font-semibold mb-1.5">
                 Credit Hours
               </label>
-              <input
-                id="creditHours"
-                type="number"
-                min={1}
-                max={6}
-                value={creditHours}
-                onChange={(e) => setCreditHours(Number(e.target.value))}
-                className="w-full text-sm border border-border rounded-lg p-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow"
-              />
+              <div className="flex items-center border border-border rounded-lg bg-background focus-within:ring-2 focus-within:ring-ecu-purple/40 transition-shadow">
+                <button
+                  type="button"
+                  onClick={() => setCreditHours(Math.max(1, creditHours - 1))}
+                  className="px-3 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-l-lg transition-colors"
+                >
+                  −
+                </button>
+                <input
+                  id="creditHours"
+                  type="number"
+                  min={1}
+                  max={6}
+                  value={creditHours}
+                  onChange={(e) => setCreditHours(Math.min(6, Math.max(1, Number(e.target.value))))}
+                  className="flex-1 text-sm text-center p-2.5 bg-transparent focus:outline-none [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none [-moz-appearance:textfield]"
+                />
+                <button
+                  type="button"
+                  onClick={() => setCreditHours(Math.min(6, creditHours + 1))}
+                  className="px-3 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-r-lg transition-colors"
+                >
+                  +
+                </button>
+              </div>
             </div>
 
             {/* Description */}
@@ -264,7 +280,7 @@ export default function AdminClassesPage() {
                 placeholder="Short course description..."
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full text-sm border border-border rounded-lg p-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow resize-none"
+                className="w-full text-sm border border-border rounded-lg p-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow resize-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border"
               />
             </div>
 
@@ -287,7 +303,7 @@ export default function AdminClassesPage() {
                     placeholder="Paste syllabus text here, or describe the class structure, key topics, and purpose. This context helps our AI validate uploaded materials..."
                     value={syllabus}
                     onChange={(e) => setSyllabus(e.target.value)}
-                    className="w-full text-sm border border-ecu-purple/30 rounded-lg p-2.5 bg-ecu-purple/5 focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow resize-none"
+                    className="w-full text-sm border border-ecu-purple/30 rounded-lg p-2.5 bg-ecu-purple/5 focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow resize-none [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border"
                   />
                   <p className="text-xs text-muted-foreground mt-1.5">
                     💡 This information is stored with the class and can be used by the AI to verify uploaded materials are relevant.
