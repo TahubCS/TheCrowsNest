@@ -82,6 +82,9 @@ export default function AdminClassesPage() {
   const [majorDropdownOpen, setMajorDropdownOpen] = useState(false);
   const majorDropdownRef = useRef<HTMLDivElement>(null);
   const allMajors = getMajorNames();
+  const [deptDropdownOpen, setDeptDropdownOpen] = useState(false);
+  const [deptSearch, setDeptSearch] = useState("");
+  const deptDropdownRef = useRef<HTMLDivElement>(null);
 
   // Pre-fill form from URL params (when redirected from Pending Requests)
   useEffect(() => {
@@ -109,6 +112,9 @@ export default function AdminClassesPage() {
       if (majorDropdownRef.current && !majorDropdownRef.current.contains(e.target as Node)) {
         setMajorDropdownOpen(false);
       }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(e.target as Node)) {
+        setDeptDropdownOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -122,6 +128,10 @@ export default function AdminClassesPage() {
 
   const filteredMajors = allMajors.filter((m) =>
     m.toLowerCase().includes(majorSearch.toLowerCase())
+  );
+
+  const filteredDepts = DEPARTMENTS.filter((d) =>
+    d.toLowerCase().includes(deptSearch.toLowerCase())
   );
 
   const fetchClasses = async () => {
@@ -171,6 +181,7 @@ export default function AdminClassesPage() {
         setSyllabus("");
         setRelatedMajors([]);
         setMajorSearch("");
+        setDeptSearch("");
         setShowSyllabus(false);
         // Refresh list
         fetchClasses();
@@ -248,23 +259,56 @@ export default function AdminClassesPage() {
             </div>
 
             {/* Department Dropdown */}
-            <div>
-              <label htmlFor="department" className="block text-sm font-semibold mb-1.5">
+            <div ref={deptDropdownRef} className="relative">
+              <label className="block text-sm font-semibold mb-1.5">
                 Department <span className="text-red-500">*</span>
               </label>
-              <select
-                id="department"
-                value={department}
-                onChange={(e) => setDepartment(e.target.value)}
-                required
-                className="w-full text-sm border border-border rounded-lg p-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow"
+              <button
+                type="button"
+                onClick={() => { setDeptDropdownOpen(!deptDropdownOpen); setDeptSearch(""); }}
+                className="w-full text-sm border border-border rounded-lg p-2.5 bg-background focus:outline-none focus:ring-2 focus:ring-ecu-purple/40 transition-shadow text-left flex items-center justify-between"
               >
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
+                <span>{department}</span>
+                <svg className={`w-4 h-4 text-muted-foreground transition-transform ${deptDropdownOpen ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+              </button>
+              {deptDropdownOpen && (
+                <div className="absolute z-20 mt-1 w-full border border-border rounded-lg bg-background shadow-lg">
+                  <div className="p-2 border-b border-border/50">
+                    <input
+                      type="text"
+                      placeholder="Search departments..."
+                      value={deptSearch}
+                      onChange={(e) => setDeptSearch(e.target.value)}
+                      autoFocus
+                      className="w-full text-sm px-2.5 py-1.5 bg-muted/30 border border-border rounded-md focus:outline-none focus:ring-1 focus:ring-ecu-purple/40"
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
+                    {filteredDepts.length === 0 ? (
+                      <div className="px-3 py-2 text-sm text-muted-foreground">No departments found</div>
+                    ) : (
+                      filteredDepts.map((dept) => (
+                        <button
+                          key={dept}
+                          type="button"
+                          onClick={() => {
+                            setDepartment(dept);
+                            setDeptDropdownOpen(false);
+                            setDeptSearch("");
+                          }}
+                          className={`w-full text-left px-3 py-2 text-sm transition-colors ${
+                            department === dept
+                              ? "bg-ecu-purple/10 text-ecu-purple font-semibold"
+                              : "text-foreground hover:bg-muted/50"
+                          }`}
+                        >
+                          {dept}
+                        </button>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Credit Hours */}
