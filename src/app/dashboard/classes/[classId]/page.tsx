@@ -17,6 +17,38 @@ interface Material {
   status: string;
   storageKey: string;
   rejectionReason?: string;
+  rejectionCode?: string;
+  aiConfidence?: number;
+}
+
+const REASON_MESSAGES: Record<string, string> = {
+  unsupported_type: "This file type is not supported.",
+  mime_extension_mismatch: "File extension does not match file type.",
+  file_too_large: "File is too large. Max is 20 MB.",
+  magic_bytes_mismatch: "Could not verify file format.",
+  invalid_filename: "File name is invalid.",
+  duplicate_content: "Similar material was already uploaded recently.",
+  unreadable_file: "File could not be read.",
+  encrypted_file: "Encrypted files are not supported.",
+  excessive_pages: "File is very large and needs admin review.",
+  empty_or_low_text: "Not enough readable text found.",
+  garbled_text: "Extracted text appears corrupted.",
+  low_ocr_content: "Not enough readable text found in image.",
+  irrelevant_material: "File appears unrelated to this class.",
+  low_relevance_confidence: "AI review found low relevance to class.",
+  uncertain_relevance: "Uploaded and routed to admin review.",
+  approved: "Material approved and processed.",
+  excessive_chunks: "File is too large for auto embedding.",
+  embedding_failed: "Processing failed, please retry later.",
+  rate_limited: "Too many uploads. Try again shortly.",
+  suspicious_upload_pattern: "Uploads require manual review.",
+};
+
+async function computeFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
 // Mock materials for the Onboarding 101 demo class
@@ -181,7 +213,10 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         return;
       }
 
-      const { presignedUrl, storageKey, materialId } = presignData.data;
+      const { presignedUrl, storageKey, materialId, fileExtension } = presignData.data;
+
+      // Step 1b: Compute content hash for duplicate detection
+      const contentHash = await computeFileHash(file);
 
       // Step 2: Upload to Supabase Storage
       setUploadProgress(50);
@@ -210,6 +245,9 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
           fileType: file.type,
           storageKey,
           materialType: typeInput.value,
+          fileSize: file.size,
+          fileExtension,
+          contentHash,
         }),
       });
 
@@ -442,12 +480,21 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                             file.status === "APPROVED" ? "bg-green-50 text-green-600" :
                             "bg-yellow-100 text-yellow-700"
                           }`}
-                          title={file.status === "REJECTED" && file.rejectionReason ? `Reason: ${file.rejectionReason}` : undefined}
+                          title={
+                            (file.status === "REJECTED" || file.status === "FAILED")
+                              ? (file.rejectionCode ? REASON_MESSAGES[file.rejectionCode] : file.rejectionReason) || undefined
+                              : undefined
+                          }
                         >
                           {file.status === "PENDING_REVIEW" ? "Awaiting Review" :
                            file.status === "PROCESSING" ? "Processing..." :
                            file.status}
                         </span>
+                        {(file.status === "REJECTED" || file.status === "FAILED") && (file.rejectionCode || file.rejectionReason) && (
+                          <span className="text-[10px] text-red-500 font-medium max-w-35 truncate hidden md:inline" title={file.rejectionCode ? REASON_MESSAGES[file.rejectionCode] : file.rejectionReason}>
+                            {file.rejectionCode ? REASON_MESSAGES[file.rejectionCode] : file.rejectionReason}
+                          </span>
+                        )}
                         {file.status === "REJECTED" && (
                           <button
                             title="Dismiss & Remove from View"

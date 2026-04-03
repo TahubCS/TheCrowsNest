@@ -160,7 +160,50 @@ Context:
     )
     return response.text
 
+def _deterministic_relevance_check(class_context: str, document_snippet: str) -> dict | None:
+    """
+    Fast, no-AI overlap check (RL-001).
+    Tokenizes class context and document, checks for minimum keyword overlap.
+    Returns a rejection dict if there's zero overlap, or None to proceed to AI.
+    """
+    import re
+
+    def tokenize(text: str) -> set[str]:
+        words = re.findall(r'[a-zA-Z]{3,}', text.lower())
+        # Filter out very common stop words
+        stop = {'the', 'and', 'for', 'that', 'this', 'with', 'from', 'are', 'was',
+                'were', 'been', 'have', 'has', 'had', 'not', 'but', 'what', 'all',
+                'can', 'her', 'his', 'one', 'our', 'out', 'you', 'which', 'their',
+                'will', 'each', 'about', 'how', 'them', 'than', 'its', 'into'}
+        return {w for w in words if w not in stop}
+
+    class_tokens = tokenize(class_context)
+    doc_tokens = tokenize(document_snippet[:5000])  # only check start of doc
+
+    if not class_tokens or not doc_tokens:
+        return None  # can't determine, let AI decide
+
+    overlap = class_tokens & doc_tokens
+    overlap_ratio = len(overlap) / min(len(class_tokens), len(doc_tokens))
+
+    # If less than 3% token overlap AND fewer than 3 matching tokens → hard fail
+    if overlap_ratio < 0.03 and len(overlap) < 3:
+        return {
+            "confidence": 0,
+            "reason": f"No meaningful keyword overlap found between document and class context (overlap: {len(overlap)} tokens).",
+            "reasonCode": "irrelevant_material",
+        }
+
+    return None  # passed, proceed to AI
+
+
 def evaluate_material_against_syllabus(class_context: str, document_snippet: str) -> dict:
+    # RL-001: Deterministic overlap check before spending AI tokens
+    det_result = _deterministic_relevance_check(class_context, document_snippet)
+    if det_result is not None:
+        print(f"Deterministic check failed: {det_result['reasonCode']}")
+        return det_result
+
     prompt = f"""You are a university professor evaluating a document a student just uploaded for your class.
 Your job is to determine if the uploaded document is a genuine, relevant study material (like a lecture slide, reading, past exam, or study guide) for this exact class, or if it is completely irrelevant spam.
 

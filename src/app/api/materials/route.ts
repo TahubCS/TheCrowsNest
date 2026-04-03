@@ -5,11 +5,30 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { createMaterial, getMaterialsByClassId, getMaterialsByUserEmail, updateMaterialStatus, deleteMaterial } from "@/lib/db";
+import {
+  createMaterial,
+  getMaterialsByClassId,
+  getMaterialsByUserEmail,
+  updateMaterialEvaluation,
+  logMaterialUploadEvent,
+  deleteMaterial,
+  countRecentUploads,
+  countRecentRejections,
+  findDuplicateByHash,
+} from "@/lib/db";
 import { supabase, STORAGE_BUCKET } from "@/lib/supabase";
-import type { ApiResponse, Material } from "@/types";
+import {
+  UPLOAD_THRESHOLDS,
+  REASON_MESSAGES,
+  type ReasonCode,
+} from "@/lib/upload-safety";
+import type { ApiResponse, Material, EvaluationResponse } from "@/types";
 
 const MATERIAL_TYPES = ["Syllabus", "Lecture Slides", "Study Guide", "Past Exam", "Notes", "Other"];
+
+// ============================================================
+// GET — list materials
+// ============================================================
 
 export async function GET(request: NextRequest) {
   try {
@@ -51,6 +70,21 @@ export async function GET(request: NextRequest) {
   }
 }
 
+// ============================================================
+// POST — save metadata + trigger AI evaluation
+// ============================================================
+
+function rejectResponse(reasonCode: ReasonCode, status = 400) {
+  return NextResponse.json<ApiResponse>(
+    {
+      success: false,
+      message: REASON_MESSAGES[reasonCode],
+      data: { reasonCode },
+    },
+    { status }
+  );
+}
+
 export async function POST(request: NextRequest) {
   try {
     const session = await auth();
@@ -61,7 +95,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { materialId, classId, fileName, fileType, storageKey, materialType } = await request.json();
+    const {
+      materialId, classId, fileName, fileType, storageKey, materialType,
+      fileSize, fileExtension, contentHash,
+    } = await request.json();
 
     if (!materialId || !classId || !fileName || !fileType || !storageKey || !materialType) {
       return NextResponse.json<ApiResponse>(
@@ -77,6 +114,31 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // AB-001: Rate limit check
+    const recentCount = await countRecentUploads(
+      session.user.email,
+      UPLOAD_THRESHOLDS.rateLimitWindowMinutes
+    );
+    if (recentCount >= UPLOAD_THRESHOLDS.rateLimitUploads) {
+      return rejectResponse("rate_limited", 429);
+    }
+
+    // AB-002: Repeated rejection pattern
+    const recentRejections = await countRecentRejections(
+      session.user.email,
+      UPLOAD_THRESHOLDS.rateLimitWindowMinutes
+    );
+    const forceReview = recentRejections >= 3;
+
+    // UP-006: Duplicate content hash suppression
+    if (contentHash) {
+      const duplicate = await findDuplicateByHash(classId, contentHash);
+      if (duplicate) {
+        return rejectResponse("duplicate_content", 409);
+      }
+    }
+
+    // Persist material with new audit fields
     await createMaterial({
       materialId,
       classId,
@@ -88,13 +150,41 @@ export async function POST(request: NextRequest) {
       uploadedByName: session.user.name,
       status: "PENDING_REVIEW",
       uploadedAt: new Date().toISOString(),
+      fileSizeBytes: fileSize ?? undefined,
+      fileExtension: fileExtension ?? undefined,
+      contentHashSha256: contentHash ?? undefined,
     });
 
+    // Log upload event
+    await logMaterialUploadEvent({
+      materialId,
+      classId,
+      userEmail: session.user.email,
+      eventType: "upload",
+      eventStage: "metadata_saved",
+      decision: forceReview ? "FORCE_REVIEW" : undefined,
+      reasonCode: forceReview ? "suspicious_upload_pattern" : undefined,
+    });
+
+    // If abuse pattern detected, skip AI eval and route to review
+    if (forceReview) {
+      await updateMaterialEvaluation(classId, materialId, {
+        status: "PENDING_REVIEW",
+        rejectionCode: "suspicious_upload_pattern",
+        rejectionReason: REASON_MESSAGES.suspicious_upload_pattern,
+      });
+
+      return NextResponse.json<ApiResponse>(
+        { success: true, message: REASON_MESSAGES.suspicious_upload_pattern, data: { materialId } },
+        { status: 201 }
+      );
+    }
+
     // -------------------------------------------------------------
-    // AI EVALUATION LOGIC
+    // AI EVALUATION
     // -------------------------------------------------------------
     try {
-      const { getClassesByIds, updateMaterialWithRejection } = await import("@/lib/db");
+      const { getClassesByIds } = await import("@/lib/db");
       const classes = await getClassesByIds([classId]);
       const classData = classes.length > 0 ? classes[0] : null;
 
@@ -102,11 +192,11 @@ export async function POST(request: NextRequest) {
         const classContext = `
 Course Code: ${classData.courseCode}
 Course Name: ${classData.courseName}
-Department: ${classData.department || 'Unknown'}
-Description: ${classData.description || 'No description available.'}
+Department: ${classData.department || "Unknown"}
+Description: ${classData.description || "No description available."}
 
 Syllabus / Official Course Details:
-${classData.syllabus || 'No syllabus provided.'}
+${classData.syllabus || "No syllabus provided."}
 `.trim();
 
         const res = await fetch("http://localhost:8000/evaluate-and-ingest", {
@@ -117,31 +207,92 @@ ${classData.syllabus || 'No syllabus provided.'}
 
         if (res.ok) {
           const pyData = await res.json();
-          const evaluation = pyData.data?.evaluation;
-          const reason = pyData.data?.reason || "Unknown";
+          const evalResult: EvaluationResponse = pyData.data ?? pyData;
+          const evaluation = evalResult.evaluation;
+          const reason = evalResult.reason || "Unknown";
+          const reasonCode = evalResult.reasonCode || "approved";
+          const confidence = evalResult.confidence ?? 0;
+          const metrics = evalResult.metrics;
+
+          // Log evaluation event
+          await logMaterialUploadEvent({
+            materialId,
+            classId,
+            userEmail: session.user.email,
+            eventType: "evaluation",
+            eventStage: "ai_evaluation",
+            decision: evaluation,
+            reasonCode,
+            reasonText: reason,
+            metrics: metrics as unknown as Record<string, unknown>,
+          });
 
           if (evaluation === "APPROVED") {
-            await updateMaterialStatus(classId, materialId, "PROCESSED");
+            await updateMaterialEvaluation(classId, materialId, {
+              status: "PROCESSED",
+              rejectionCode: undefined,
+              aiConfidence: confidence,
+              extractCharCount: metrics?.extractCharCount,
+              pageCount: metrics?.pageCount,
+              ocrUsed: metrics?.ocrUsed,
+              processedAt: new Date().toISOString(),
+            });
+
             return NextResponse.json<ApiResponse>(
-              { success: true, message: "Material autonomously processed and approved by AI! 🥳", data: { materialId } },
+              { success: true, message: REASON_MESSAGES.approved, data: { materialId } },
               { status: 201 }
             );
           } else if (evaluation === "REJECTED") {
             // Delete from Supabase Storage and mark rejected with 7-day TTL
             await supabase.storage.from(STORAGE_BUCKET).remove([storageKey]);
 
-            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + (7 * 24 * 60 * 60);
-            await updateMaterialWithRejection(classId, materialId, "REJECTED", `AI Auto-Rejection: ${reason}`, sevenDaysFromNow);
+            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
+            await updateMaterialEvaluation(classId, materialId, {
+              status: "REJECTED",
+              rejectionCode: reasonCode,
+              rejectionReason: `AI Auto-Rejection: ${reason}`,
+              aiConfidence: confidence,
+              extractCharCount: metrics?.extractCharCount,
+              pageCount: metrics?.pageCount,
+              ocrUsed: metrics?.ocrUsed,
+              expiresAt: sevenDaysFromNow,
+            });
 
+            const userMessage = REASON_MESSAGES[reasonCode as ReasonCode] ?? reason;
             return NextResponse.json<ApiResponse>(
-              { success: false, message: `Material rejected by AI (Mismatch with syllabus). Reason: ${reason}` },
+              { success: false, message: userMessage, data: { reasonCode, materialId } },
               { status: 406 }
             );
           } else if (evaluation === "PENDING") {
-            const confidence = pyData.data?.confidence;
+            await updateMaterialEvaluation(classId, materialId, {
+              status: "PENDING_REVIEW",
+              rejectionCode: reasonCode,
+              aiConfidence: confidence,
+              extractCharCount: metrics?.extractCharCount,
+              pageCount: metrics?.pageCount,
+              ocrUsed: metrics?.ocrUsed,
+            });
+
+            const userMessage = REASON_MESSAGES[reasonCode as ReasonCode] ?? `Uploaded and routed to admin review (AI confidence: ${confidence}%).`;
             return NextResponse.json<ApiResponse>(
-              { success: true, message: `Material uploaded securely. AI confidence was ${confidence}%, so it was marked for Admin Review to be safe.`, data: { materialId } },
+              { success: true, message: userMessage, data: { materialId } },
               { status: 201 }
+            );
+          } else if (evaluation === "FAILED") {
+            await updateMaterialEvaluation(classId, materialId, {
+              status: "FAILED",
+              rejectionCode: reasonCode,
+              lastError: reason,
+              failedAt: new Date().toISOString(),
+              extractCharCount: metrics?.extractCharCount,
+              pageCount: metrics?.pageCount,
+              ocrUsed: metrics?.ocrUsed,
+            });
+
+            const userMessage = REASON_MESSAGES[reasonCode as ReasonCode] ?? reason;
+            return NextResponse.json<ApiResponse>(
+              { success: false, message: userMessage, data: { reasonCode, materialId } },
+              { status: 422 }
             );
           }
         } else {
@@ -166,6 +317,10 @@ ${classData.syllabus || 'No syllabus provided.'}
     );
   }
 }
+
+// ============================================================
+// DELETE — remove a material
+// ============================================================
 
 export async function DELETE(request: NextRequest) {
   try {
@@ -223,6 +378,16 @@ export async function DELETE(request: NextRequest) {
     } catch (err) {
       console.error("[Python Sync Error] Failed to delete vectors from PostgreSQL.", err);
     }
+
+    // Log deletion event
+    await logMaterialUploadEvent({
+      materialId,
+      classId,
+      userEmail: session.user.email,
+      eventType: "deletion",
+      eventStage: "deleted",
+      decision: "DELETED",
+    });
 
     return NextResponse.json<ApiResponse>({
       success: true,

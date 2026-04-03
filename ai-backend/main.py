@@ -47,18 +47,39 @@ class EvalIngestReq(BaseModel):
 @app.post("/evaluate-and-ingest")
 async def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
     from core.ingest import download_extract_and_evaluate
-    from core.vector_store import add_documents
-    
+    from core.vector_store import add_documents, ChunkCapExceededError, EmbeddingExhaustedError
+
     result = download_extract_and_evaluate(
         req.classId, req.materialId, req.storageKey, req.fileName, req.classContext
     )
-    
+
     if result.get("evaluation") == "APPROVED":
         texts = result.pop("texts", [])
         metadatas = result.pop("metadatas", [])
-        # Decouple the embedding generation so Next.js doesn't time out waiting 60s for a giant PDF 
-        background_tasks.add_task(add_documents, req.classId, req.materialId, texts, metadatas)
-        
+        metrics = result.get("metrics", {})
+
+        # EM-001: Check chunk cap before scheduling embedding
+        from core.vector_store import MAX_CHUNKS_PER_MATERIAL
+        if len(texts) > MAX_CHUNKS_PER_MATERIAL:
+            result["evaluation"] = "PENDING"
+            result["reasonCode"] = "excessive_chunks"
+            result["reason"] = f"File produces {len(texts)} chunks (cap: {MAX_CHUNKS_PER_MATERIAL}). Needs admin review."
+            metrics["chunkCount"] = len(texts)
+            result["metrics"] = metrics
+            return {"success": True, "data": result}
+
+        metrics["chunkCount"] = len(texts)
+        result["metrics"] = metrics
+
+        # Wrap add_documents to catch EM-002 (embedding exhausted) in background
+        async def safe_embed():
+            try:
+                add_documents(req.classId, req.materialId, texts, metadatas)
+            except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
+                print(f"Embedding failed for {req.materialId}: {e}")
+
+        background_tasks.add_task(safe_embed)
+
     return {"success": True, "data": result}
 
 class FlashcardsReq(BaseModel):

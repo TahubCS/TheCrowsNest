@@ -12,7 +12,7 @@
  */
 
 import postgres from "postgres";
-import type { User, CourseClass, StudyPlan, Material, ClassRequest, Report } from "@/types";
+import type { User, CourseClass, StudyPlan, Material, ClassRequest, Report, MaterialUploadEvent } from "@/types";
 
 // Singleton connection — postgres.camel auto-converts snake_case columns to camelCase
 const sql = postgres(process.env.DATABASE_URL!, {
@@ -244,7 +244,8 @@ export async function deleteStudyPlan(planId: string): Promise<void> {
 export async function createMaterial(material: Material): Promise<void> {
   await sql`
     INSERT INTO materials (material_id, class_id, file_name, file_type, storage_key, material_type,
-                           uploaded_by, uploaded_by_name, status, rejection_reason, expires_at, uploaded_at)
+                           uploaded_by, uploaded_by_name, status, rejection_reason, expires_at, uploaded_at,
+                           file_size_bytes, file_extension, content_hash_sha256)
     VALUES (
       ${material.materialId},
       ${material.classId},
@@ -257,7 +258,10 @@ export async function createMaterial(material: Material): Promise<void> {
       ${material.status ?? "PENDING_REVIEW"},
       ${material.rejectionReason ?? null},
       ${material.expiresAt ?? null},
-      ${material.uploadedAt ?? new Date().toISOString()}
+      ${material.uploadedAt ?? new Date().toISOString()},
+      ${material.fileSizeBytes ?? null},
+      ${material.fileExtension ?? null},
+      ${material.contentHashSha256 ?? null}
     )
   `;
 }
@@ -311,6 +315,101 @@ export async function updateMaterialWithRejection(
     UPDATE materials SET ${sql(values)}
     WHERE material_id = ${materialId} AND class_id = ${classId}
   `;
+}
+
+/**
+ * Persist evaluation metrics and decision from the AI backend.
+ * Updates safety/audit columns added in the upload-safety migration.
+ */
+export async function updateMaterialEvaluation(
+  classId: string,
+  materialId: string,
+  update: {
+    status: string;
+    rejectionCode?: string;
+    rejectionReason?: string;
+    aiConfidence?: number;
+    extractCharCount?: number;
+    pageCount?: number;
+    ocrUsed?: boolean;
+    ingestionAttempts?: number;
+    processedAt?: string;
+    failedAt?: string;
+    lastError?: string;
+    expiresAt?: number;
+  }
+): Promise<void> {
+  const values: Record<string, unknown> = { status: update.status };
+  if (update.rejectionCode !== undefined) values["rejection_code"] = update.rejectionCode;
+  if (update.rejectionReason !== undefined) values["rejection_reason"] = update.rejectionReason;
+  if (update.aiConfidence !== undefined) values["ai_confidence"] = update.aiConfidence;
+  if (update.extractCharCount !== undefined) values["extract_char_count"] = update.extractCharCount;
+  if (update.pageCount !== undefined) values["page_count"] = update.pageCount;
+  if (update.ocrUsed !== undefined) values["ocr_used"] = update.ocrUsed;
+  if (update.ingestionAttempts !== undefined) values["ingestion_attempts"] = update.ingestionAttempts;
+  if (update.processedAt !== undefined) values["processed_at"] = update.processedAt;
+  if (update.failedAt !== undefined) values["failed_at"] = update.failedAt;
+  if (update.lastError !== undefined) values["last_error"] = update.lastError;
+  if (update.expiresAt !== undefined) values["expires_at"] = update.expiresAt;
+
+  await sql`
+    UPDATE materials SET ${sql(values)}
+    WHERE material_id = ${materialId} AND class_id = ${classId}
+  `;
+}
+
+/** Log an event to the material_upload_events audit table */
+export async function logMaterialUploadEvent(event: MaterialUploadEvent): Promise<void> {
+  await sql`
+    INSERT INTO material_upload_events
+      (material_id, class_id, user_email, event_type, event_stage, decision, reason_code, reason_text, metrics, created_at)
+    VALUES (
+      ${event.materialId},
+      ${event.classId},
+      ${event.userEmail},
+      ${event.eventType},
+      ${event.eventStage},
+      ${event.decision ?? null},
+      ${event.reasonCode ?? null},
+      ${event.reasonText ?? null},
+      ${event.metrics ? JSON.stringify(event.metrics) : null},
+      ${event.createdAt ?? new Date().toISOString()}
+    )
+  `;
+}
+
+/** Check for duplicate content hash within a class */
+export async function findDuplicateByHash(classId: string, contentHash: string): Promise<Material | null> {
+  const rows = await sql<Material[]>`
+    SELECT * FROM materials
+    WHERE class_id = ${classId}
+      AND content_hash_sha256 = ${contentHash}
+      AND status != 'REJECTED'
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+/** Count recent uploads by a user within a time window (for rate limiting) */
+export async function countRecentUploads(userEmail: string, windowMinutes: number): Promise<number> {
+  const rows = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM material_upload_events
+    WHERE user_email = ${userEmail.toLowerCase()}
+      AND event_type = 'upload'
+      AND created_at > NOW() - ${windowMinutes + ' minutes'}::interval
+  `;
+  return rows[0]?.count ?? 0;
+}
+
+/** Count recent rejections for abuse pattern detection */
+export async function countRecentRejections(userEmail: string, windowMinutes: number): Promise<number> {
+  const rows = await sql<{ count: number }[]>`
+    SELECT COUNT(*)::int AS count FROM material_upload_events
+    WHERE user_email = ${userEmail.toLowerCase()}
+      AND decision = 'REJECTED'
+      AND created_at > NOW() - ${windowMinutes + ' minutes'}::interval
+  `;
+  return rows[0]?.count ?? 0;
 }
 
 // ============================================================

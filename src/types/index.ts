@@ -78,6 +78,52 @@ export interface Material {
   rejectionReason?: string;
   expiresAt?: number; // Unix timestamp for TTL deletion of rejected files
   uploadedAt: string;
+  // Safety & audit fields (Phase 1)
+  fileSizeBytes?: number;
+  fileExtension?: string;
+  contentHashSha256?: string;
+  parserStatus?: string;
+  extractCharCount?: number;
+  pageCount?: number;
+  ocrUsed?: boolean;
+  aiConfidence?: number;
+  rejectionCode?: string;
+  ingestionAttempts?: number;
+  processedAt?: string;
+  failedAt?: string;
+  lastError?: string;
+}
+
+/** Structured evaluation response from the Python AI backend */
+export interface EvaluationResponse {
+  evaluation: "APPROVED" | "REJECTED" | "PENDING" | "FAILED";
+  confidence: number;
+  reason: string;
+  reasonCode: string;
+  metrics: EvaluationMetrics;
+}
+
+export interface EvaluationMetrics {
+  extractCharCount: number;
+  pageCount: number;
+  ocrUsed: boolean;
+  garbleRatio: number;
+  chunkCount: number;
+}
+
+/** Row in the material_upload_events table */
+export interface MaterialUploadEvent {
+  eventId?: number;
+  materialId: string;
+  classId: string;
+  userEmail: string;
+  eventType: string;
+  eventStage: string;
+  decision?: string;
+  reasonCode?: string;
+  reasonText?: string;
+  metrics?: Record<string, unknown>;
+  createdAt?: string;
 }
 
 // ============================================================

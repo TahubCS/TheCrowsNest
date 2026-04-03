@@ -39,17 +39,42 @@ def get_embedding_with_retry(text: str, max_retries: int = 5) -> list[float]:
             print(f"Embedding API limit reached or 503 Unavailable. Retrying in {sleep_time} seconds...")
             time.sleep(sleep_time)
 
+MAX_CHUNKS_PER_MATERIAL = 800
+MAX_EMBEDDING_RETRIES = 5
+
+
+class ChunkCapExceededError(Exception):
+    """Raised when a material exceeds the maximum allowed chunk count."""
+    pass
+
+
+class EmbeddingExhaustedError(Exception):
+    """Raised when too many chunks fail embedding consecutively."""
+    pass
+
+
 def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: list[dict]):
     """
     Add chunked texts to pgvector in PostgreSQL.
+    Enforces chunk cap (EM-001) and tracks consecutive failures (EM-002).
     """
     if not texts:
         return
 
+    # EM-001: Chunk cap
+    if len(texts) > MAX_CHUNKS_PER_MATERIAL:
+        raise ChunkCapExceededError(
+            f"Material {material_id} has {len(texts)} chunks, exceeding the cap of {MAX_CHUNKS_PER_MATERIAL}."
+        )
+
+    consecutive_failures = 0
+    max_consecutive_failures = 5
+    embedded_count = 0
+
     with pool.connection() as conn:
         try:
             print(f"Starting background embedding for {len(texts)} chunks of material {material_id}...")
-            
+
             # Ensure document exists to satisfy foreign key constraints
             conn.execute(
                 "INSERT INTO documents (id, domain, status) VALUES (%s, 'general', 'PROCESSED') ON CONFLICT DO NOTHING",
@@ -59,12 +84,12 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
             for i, text in enumerate(texts):
                 if i % 10 == 0 and i > 0:
                     print(f"Embedded {i}/{len(texts)} chunks...")
-                    
+
                 # Enrich content with class_id and metadata to aid retrieval and LLM context
                 metadata = metadatas[i] if metadatas and i < len(metadatas) else {}
                 source_file = metadata.get('source', 'Unknown Document')
                 page_num = metadata.get('page', '?')
-                
+
                 enriched_content = f"[Class: {class_id}] [File: {source_file}, Page: {page_num}]\n{text}"
                 try:
                     embedding = get_embedding_with_retry(enriched_content)
@@ -74,12 +99,22 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
                     )
                     # Pace limit internally to avoid triggering aggressive 503s on giant textbooks
                     time.sleep(0.5)
+                    consecutive_failures = 0
+                    embedded_count += 1
                 except Exception as chunk_err:
+                    consecutive_failures += 1
                     print(f"Skipping chunk {i} due to unrecoverable embedding error: {chunk_err}")
+                    # EM-002: Too many consecutive failures → abort
+                    if consecutive_failures >= max_consecutive_failures:
+                        raise EmbeddingExhaustedError(
+                            f"Embedding aborted after {max_consecutive_failures} consecutive failures at chunk {i}."
+                        )
                     continue
-            
-            print(f"✅ Successfully finished embedding {len(texts)} chunks for material {material_id} into pgvector!")
-            
+
+            print(f"Successfully finished embedding {embedded_count}/{len(texts)} chunks for material {material_id} into pgvector!")
+
+        except (ChunkCapExceededError, EmbeddingExhaustedError):
+            raise  # propagate to caller
         except Exception as e:
             print(f"Database Insert Error: {e}")
 
