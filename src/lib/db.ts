@@ -245,7 +245,7 @@ export async function createMaterial(material: Material): Promise<void> {
   await sql`
     INSERT INTO materials (material_id, class_id, file_name, file_type, storage_key, material_type,
                            uploaded_by, uploaded_by_name, status, rejection_reason, expires_at, uploaded_at,
-                           file_size_bytes, file_extension, content_hash_sha256)
+                           file_size_bytes, file_extension, content_hash_sha256, parser_status)
     VALUES (
       ${material.materialId},
       ${material.classId},
@@ -261,7 +261,8 @@ export async function createMaterial(material: Material): Promise<void> {
       ${material.uploadedAt ?? new Date().toISOString()},
       ${material.fileSizeBytes ?? null},
       ${material.fileExtension ?? null},
-      ${material.contentHashSha256 ?? null}
+      ${material.contentHashSha256 ?? null},
+      ${material.parserStatus ?? null}
     )
   `;
 }
@@ -399,6 +400,29 @@ export async function countRecentUploads(userEmail: string, windowMinutes: numbe
       AND created_at > NOW() - ${windowMinutes + ' minutes'}::interval
   `;
   return rows[0]?.count ?? 0;
+}
+
+/** Get lightweight status fields for polling */
+export async function getMaterialStatus(classId: string, materialId: string): Promise<{
+  status: string;
+  parserStatus: string | null;
+  rejectionCode: string | null;
+  rejectionReason: string | null;
+  aiConfidence: number | null;
+} | null> {
+  const rows = await sql<{
+    status: string;
+    parserStatus: string | null;
+    rejectionCode: string | null;
+    rejectionReason: string | null;
+    aiConfidence: number | null;
+  }[]>`
+    SELECT status, parser_status, rejection_code, rejection_reason, ai_confidence
+    FROM materials
+    WHERE material_id = ${materialId} AND class_id = ${classId}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
 }
 
 /** Count recent rejections for abuse pattern detection */

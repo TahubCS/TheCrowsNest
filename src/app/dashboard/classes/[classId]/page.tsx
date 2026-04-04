@@ -19,7 +19,19 @@ interface Material {
   rejectionReason?: string;
   rejectionCode?: string;
   aiConfidence?: number;
+  parserStatus?: string;
 }
+
+const STAGE_LABELS: Record<string, string> = {
+  queued: "Queued...",
+  downloading: "Downloading file...",
+  extracting: "Extracting text...",
+  evaluating: "AI is reviewing...",
+  embedding: "Embedding content...",
+  complete: "Wrapping up...",
+};
+
+const TERMINAL_STATUSES = ["PROCESSED", "REJECTED", "FAILED", "PENDING_REVIEW"];
 
 const REASON_MESSAGES: Record<string, string> = {
   unsupported_type: "This file type is not supported.",
@@ -73,6 +85,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -114,6 +127,12 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
           m.status === "PROCESSED" || m.uploadedBy === userEmail
         );
         setMaterials(filtered);
+
+        // Auto-detect any materials still processing (e.g. after a page refresh)
+        const stillProcessing = filtered.filter((m: Material) => m.status === "PROCESSING");
+        if (stillProcessing.length > 0) {
+          setProcessingIds(new Set(stillProcessing.map((m: Material) => m.materialId)));
+        }
       }
     } catch (e) {
       console.error(e);
@@ -139,6 +158,69 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       loadMaterials(p.classId);
     });
   }, [params, loadMaterials]);
+
+  // Poll for status updates on processing materials
+  useEffect(() => {
+    if (processingIds.size === 0 || !classId) return;
+
+    const interval = setInterval(async () => {
+      for (const mid of processingIds) {
+        try {
+          const res = await fetch(`/api/materials/status?materialId=${mid}&classId=${classId}`);
+          const data = await res.json();
+
+          if (res.status === 404) {
+            setProcessingIds(prev => {
+              const next = new Set(prev);
+              next.delete(mid);
+              return next;
+            });
+            continue;
+          }
+
+          if (!data.success) continue;
+
+          const { status, parserStatus, rejectionCode, rejectionReason } = data.data;
+
+          // Update the material in the local list with the latest stage
+          setMaterials(prev => prev.map(m =>
+            m.materialId === mid ? { ...m, status, parserStatus, rejectionCode, rejectionReason } : m
+          ));
+
+          // If it reached a terminal state, stop polling and show a toast
+          if (TERMINAL_STATUSES.includes(status)) {
+            setProcessingIds(prev => {
+              const next = new Set(prev);
+              next.delete(mid);
+              return next;
+            });
+
+            // Find the material name for the toast
+            const mat = materials.find(m => m.materialId === mid);
+            const name = mat?.fileName ?? "Material";
+
+            if (status === "PROCESSED") {
+              toast.success(`${name} approved and processed!`);
+            } else if (status === "REJECTED") {
+              const reason = rejectionCode ? REASON_MESSAGES[rejectionCode] : rejectionReason;
+              toast.error(`${name} rejected: ${reason || "Unknown reason"}`);
+            } else if (status === "FAILED") {
+              toast.error(`${name} failed to process. Please try again.`);
+            } else if (status === "PENDING_REVIEW") {
+              toast.info(`${name} sent for admin review.`);
+            }
+
+            // Full refresh to get complete data
+            loadMaterials(classId);
+          }
+        } catch (err) {
+          console.error(`Polling error for ${mid}:`, err);
+        }
+      }
+    }, 2500);
+
+    return () => clearInterval(interval);
+  }, [processingIds, classId, materials, loadMaterials]);
 
   const calculateMetrics = () => {
     const processedMaterials = materials.filter(m => m.status === "PROCESSED");
@@ -207,11 +289,16 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    const fileInput = form.elements.namedItem("file") as HTMLInputElement;
-    const typeInput = form.elements.namedItem("materialType") as HTMLSelectElement;
+    const fileInput = form.elements.namedItem("file") as HTMLInputElement | null;
+    const typeInput = form.elements.namedItem("materialType") as HTMLSelectElement | null;
 
-    const file = selectedFile ?? fileInput.files?.[0];
-    if (!file) return;
+    const file = selectedFile ?? fileInput?.files?.[0];
+    const materialTypeValue = typeInput?.value;
+
+    if (!file || !materialTypeValue) {
+      toast.error("Please select a file and material type.");
+      return;
+    }
 
     setUploading(true);
     setUploadProgress(0);
@@ -267,7 +354,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
           fileName: file.name,
           fileType: file.type,
           storageKey,
-          materialType: typeInput.value,
+          materialType: materialTypeValue,
           fileSize: file.size,
           fileExtension,
           contentHash,
@@ -278,9 +365,26 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       if (metaData.success) {
         setUploadProgress(100);
         setShowUploadModal(false);
-        loadMaterials(classId);
         form.reset();
         setSelectedFile(null);
+
+        // Optimistically add the material to the list with PROCESSING status
+        const optimisticMaterial: Material = {
+          materialId,
+          fileName: file.name,
+          fileType: file.type,
+          materialType: materialTypeValue,
+          uploadedBy: session?.user?.email ?? "",
+          uploadedByName: session?.user?.name ?? "",
+          uploadedAt: new Date().toISOString(),
+          status: "PROCESSING",
+          storageKey,
+          parserStatus: "queued",
+        };
+        setMaterials(prev => [optimisticMaterial, ...prev]);
+
+        // Start polling for this material
+        setProcessingIds(prev => new Set(prev).add(materialId));
       } else {
         toast.error(metaData.message);
       }
@@ -295,6 +399,12 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   };
 
   const handleDismissRejected = async (materialId: string, storageKey: string) => {
+    setProcessingIds(prev => {
+      const next = new Set(prev);
+      next.delete(materialId);
+      return next;
+    });
+
     try {
       const res = await fetch(`/api/materials?classId=${classId}&materialId=${materialId}&storageKey=${encodeURIComponent(storageKey)}`, {
         method: "DELETE",
@@ -528,8 +638,9 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                           }
                         >
                           {file.status === "PENDING_REVIEW" ? "Awaiting Review" :
-                           file.status === "PROCESSING" ? "Processing..." :
-                           file.status}
+                           file.status === "PROCESSING"
+                             ? (file.parserStatus && STAGE_LABELS[file.parserStatus]) || "Processing..."
+                             : file.status}
                         </span>
                         {(file.status === "REJECTED" || file.status === "FAILED") && (file.rejectionCode || file.rejectionReason) && (
                           <span className="text-[10px] text-red-500 font-medium max-w-35 truncate hidden md:inline" title={file.rejectionCode ? REASON_MESSAGES[file.rejectionCode] : file.rejectionReason}>
@@ -665,6 +776,22 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                     </div>
                   )}
                 </label>
+              </div>
+
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-foreground">Material Type</label>
+                <select
+                  name="materialType"
+                  required
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-sm font-medium text-foreground transition-colors focus:border-ecu-purple focus:outline-none focus:ring-2 focus:ring-ecu-purple/20"
+                >
+                  <option value="Syllabus">Syllabus</option>
+                  <option value="Lecture Slides">Lecture Slides</option>
+                  <option value="Study Guide">Study Guide</option>
+                  <option value="Past Exam">Past Exam</option>
+                  <option value="Notes">Notes</option>
+                  <option value="Other">Other</option>
+                </select>
               </div>
 
               {uploading && (

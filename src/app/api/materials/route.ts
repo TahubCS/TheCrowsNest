@@ -1,6 +1,6 @@
 /**
  * GET  /api/materials?classId=...  — fetch materials for a class
- * POST /api/materials              — save metadata after Supabase Storage upload
+ * POST /api/materials              — save metadata after Supabase Storage upload (non-blocking)
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -9,7 +9,6 @@ import {
   createMaterial,
   getMaterialsByClassId,
   getMaterialsByUserEmail,
-  updateMaterialEvaluation,
   logMaterialUploadEvent,
   deleteMaterial,
   countRecentUploads,
@@ -22,7 +21,7 @@ import {
   REASON_MESSAGES,
   type ReasonCode,
 } from "@/lib/upload-safety";
-import type { ApiResponse, Material, EvaluationResponse } from "@/types";
+import type { ApiResponse, Material } from "@/types";
 
 const MATERIAL_TYPES = ["Syllabus", "Lecture Slides", "Study Guide", "Past Exam", "Notes", "Other"];
 
@@ -71,7 +70,7 @@ export async function GET(request: NextRequest) {
 }
 
 // ============================================================
-// POST — save metadata + trigger AI evaluation
+// POST — save metadata + fire off AI evaluation (non-blocking)
 // ============================================================
 
 function rejectResponse(reasonCode: ReasonCode, status = 400) {
@@ -138,7 +137,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Persist material with new audit fields
+    // Persist material with PROCESSING status — user sees it immediately
     await createMaterial({
       materialId,
       classId,
@@ -148,11 +147,12 @@ export async function POST(request: NextRequest) {
       materialType,
       uploadedBy: session.user.email,
       uploadedByName: session.user.name,
-      status: "PENDING_REVIEW",
+      status: "PROCESSING",
       uploadedAt: new Date().toISOString(),
       fileSizeBytes: fileSize ?? undefined,
       fileExtension: fileExtension ?? undefined,
       contentHashSha256: contentHash ?? undefined,
+      parserStatus: "queued",
     });
 
     // Log upload event
@@ -166,30 +166,29 @@ export async function POST(request: NextRequest) {
       reasonCode: forceReview ? "suspicious_upload_pattern" : undefined,
     });
 
-    // If abuse pattern detected, skip AI eval and route to review
+    // If abuse pattern detected, skip AI eval and route directly to review
     if (forceReview) {
+      // Update to PENDING_REVIEW (overrides the PROCESSING status)
+      const { updateMaterialEvaluation } = await import("@/lib/db");
       await updateMaterialEvaluation(classId, materialId, {
         status: "PENDING_REVIEW",
         rejectionCode: "suspicious_upload_pattern",
         rejectionReason: REASON_MESSAGES.suspicious_upload_pattern,
       });
-
       return NextResponse.json<ApiResponse>(
-        { success: true, message: REASON_MESSAGES.suspicious_upload_pattern, data: { materialId } },
+        { success: true, message: REASON_MESSAGES.suspicious_upload_pattern, data: { materialId, status: "PENDING_REVIEW" } },
         { status: 201 }
       );
     }
 
-    // -------------------------------------------------------------
-    // AI EVALUATION
-    // -------------------------------------------------------------
+    // Build class context for AI evaluation
+    let classContext = "";
     try {
       const { getClassesByIds } = await import("@/lib/db");
       const classes = await getClassesByIds([classId]);
       const classData = classes.length > 0 ? classes[0] : null;
-
       if (classData) {
-        const classContext = `
+        classContext = `
 Course Code: ${classData.courseCode}
 Course Name: ${classData.courseName}
 Department: ${classData.department || "Unknown"}
@@ -198,115 +197,30 @@ Description: ${classData.description || "No description available."}
 Syllabus / Official Course Details:
 ${classData.syllabus || "No syllabus provided."}
 `.trim();
-
-        const res = await fetch("http://localhost:8000/evaluate-and-ingest", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ classId, materialId, storageKey, fileName, classContext }),
-        });
-
-        if (res.ok) {
-          const pyData = await res.json();
-          const evalResult: EvaluationResponse = pyData.data ?? pyData;
-          const evaluation = evalResult.evaluation;
-          const reason = evalResult.reason || "Unknown";
-          const reasonCode = evalResult.reasonCode || "approved";
-          const confidence = evalResult.confidence ?? 0;
-          const metrics = evalResult.metrics;
-
-          // Log evaluation event
-          await logMaterialUploadEvent({
-            materialId,
-            classId,
-            userEmail: session.user.email,
-            eventType: "evaluation",
-            eventStage: "ai_evaluation",
-            decision: evaluation,
-            reasonCode,
-            reasonText: reason,
-            metrics: metrics as unknown as Record<string, unknown>,
-          });
-
-          if (evaluation === "APPROVED") {
-            await updateMaterialEvaluation(classId, materialId, {
-              status: "PROCESSED",
-              rejectionCode: undefined,
-              aiConfidence: confidence,
-              extractCharCount: metrics?.extractCharCount,
-              pageCount: metrics?.pageCount,
-              ocrUsed: metrics?.ocrUsed,
-              processedAt: new Date().toISOString(),
-            });
-
-            return NextResponse.json<ApiResponse>(
-              { success: true, message: REASON_MESSAGES.approved, data: { materialId } },
-              { status: 201 }
-            );
-          } else if (evaluation === "REJECTED") {
-            // Delete from Supabase Storage and mark rejected with 7-day TTL
-            await supabase.storage.from(STORAGE_BUCKET).remove([storageKey]);
-
-            const sevenDaysFromNow = Math.floor(Date.now() / 1000) + 7 * 24 * 60 * 60;
-            await updateMaterialEvaluation(classId, materialId, {
-              status: "REJECTED",
-              rejectionCode: reasonCode,
-              rejectionReason: `AI Auto-Rejection: ${reason}`,
-              aiConfidence: confidence,
-              extractCharCount: metrics?.extractCharCount,
-              pageCount: metrics?.pageCount,
-              ocrUsed: metrics?.ocrUsed,
-              expiresAt: sevenDaysFromNow,
-            });
-
-            const userMessage = REASON_MESSAGES[reasonCode as ReasonCode] ?? reason;
-            return NextResponse.json<ApiResponse>(
-              { success: false, message: userMessage, data: { reasonCode, materialId } },
-              { status: 406 }
-            );
-          } else if (evaluation === "PENDING") {
-            await updateMaterialEvaluation(classId, materialId, {
-              status: "PENDING_REVIEW",
-              rejectionCode: reasonCode,
-              aiConfidence: confidence,
-              extractCharCount: metrics?.extractCharCount,
-              pageCount: metrics?.pageCount,
-              ocrUsed: metrics?.ocrUsed,
-            });
-
-            const userMessage = REASON_MESSAGES[reasonCode as ReasonCode] ?? `Uploaded and routed to admin review (AI confidence: ${confidence}%).`;
-            return NextResponse.json<ApiResponse>(
-              { success: true, message: userMessage, data: { materialId } },
-              { status: 201 }
-            );
-          } else if (evaluation === "FAILED") {
-            await updateMaterialEvaluation(classId, materialId, {
-              status: "FAILED",
-              rejectionCode: reasonCode,
-              lastError: reason,
-              failedAt: new Date().toISOString(),
-              extractCharCount: metrics?.extractCharCount,
-              pageCount: metrics?.pageCount,
-              ocrUsed: metrics?.ocrUsed,
-            });
-
-            const userMessage = REASON_MESSAGES[reasonCode as ReasonCode] ?? reason;
-            return NextResponse.json<ApiResponse>(
-              { success: false, message: userMessage, data: { reasonCode, materialId } },
-              { status: 422 }
-            );
-          }
-        } else {
-          console.error("Python AI Evaluation returned non-ok status:", res.statusText);
-        }
       }
-    } catch (evalError) {
-      console.error("[AI Evaluation Error]", evalError);
-      // Failsafe: If evaluation crashes, allow the material to remain in PENDING_REVIEW
+    } catch (err) {
+      console.error("[Class Context Error]", err);
     }
-    // -------------------------------------------------------------
 
+    // Fire-and-forget: trigger Python evaluation (non-blocking)
+    fetch("http://localhost:8000/evaluate-and-ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        classId,
+        materialId,
+        storageKey,
+        fileName,
+        classContext,
+        userEmail: session.user.email,
+      }),
+    }).catch(err => {
+      console.error("[AI Eval Fire Error]", err);
+    });
+
+    // Return immediately — Python will update the material status directly in the DB
     return NextResponse.json<ApiResponse>(
-      { success: true, message: "Material uploaded. Awaiting admin review.", data: { materialId } },
+      { success: true, message: "Processing started.", data: { materialId, status: "PROCESSING" } },
       { status: 201 }
     );
   } catch (error) {
@@ -347,10 +261,10 @@ export async function DELETE(request: NextRequest) {
     const material = await getMaterial(classId, materialId);
 
     if (!material) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, message: "Material not found." },
-        { status: 404 }
-      );
+      return NextResponse.json<ApiResponse>({
+        success: true,
+        message: "Material already removed.",
+      });
     }
 
     const adminEmails = process.env.ADMIN_EMAILS || "";
@@ -366,7 +280,7 @@ export async function DELETE(request: NextRequest) {
     // Step 1: Delete from Supabase Storage
     const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([storageKey as string]);
     if (storageError) {
-      console.error("[Storage Delete Error]", storageError);
+      console.warn("[Storage Delete Warning]", storageError);
     }
 
     // Step 2: Delete from DB

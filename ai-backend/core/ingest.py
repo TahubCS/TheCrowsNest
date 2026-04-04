@@ -4,11 +4,27 @@ import tempfile
 import fitz  # PyMuPDF
 from supabase import create_client
 from .config import settings
-from .vector_store import add_documents
+from .vector_store import add_documents, pool
 
 STORAGE_BUCKET = "thecrowsnest"
 
 _supabase = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
+
+def _update_parser_status(material_id: str, stage: str):
+    """Update parser_status column so the client can poll for live progress."""
+    query = "UPDATE materials SET parser_status = %s WHERE material_id = %s"
+    values = (stage, material_id)
+
+    try:
+        with pool.connection() as conn:
+            conn.execute(query, values)
+        print(f"[DB] Updated parser_status for material {material_id}: {stage}")
+    except Exception as e:
+        print(f"[DB ERROR] Failed to update parser_status for material {material_id} to '{stage}': {e}")
+        print(f"[DB ERROR] Query: {query}")
+        print(f"[DB ERROR] Values: {values}")
+        raise
 
 # ============================================================
 # Extraction-gate thresholds (mirrors upload-safety.ts)
@@ -63,8 +79,23 @@ def download_and_extract_text(storage_key: str) -> list[str]:
             texts.append("\n".join(slide_text))
     elif local_path.lower().endswith(".docx"):
         from docx import Document
+
+        def _table_rows_to_text(table) -> list[str]:
+            rows = []
+            for row in table.rows:
+                cells = [cell.text.strip() for cell in row.cells if cell.text.strip()]
+                if cells:
+                    rows.append(" | ".join(cells))
+            return rows
+
         doc = Document(local_path)
-        content = "\n".join([p.text for p in doc.paragraphs if p.text.strip()])
+        parts = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+
+        for table in doc.tables:
+            parts.extend(_table_rows_to_text(table))
+
+        content = "\n".join(parts)
+        print(f"[EXTRACT] DOCX extracted {len(parts)} blocks / {len(content)} chars from {storage_key}")
         texts = [content[i:i+2000] for i in range(0, len(content), 2000)]
     elif local_path.lower().endswith((".png", ".jpg", ".jpeg", ".webp")):
         from .ai import extract_text_from_image
@@ -168,7 +199,8 @@ def download_extract_and_evaluate(class_id: str, material_id: str, storage_key: 
     """Autonomous evaluation logic with extraction gate."""
     print(f"Autonomous Evaluation for material: {file_name} (class: {class_id})")
 
-    # 1. Extract text
+    # 1. Download and extract text
+    _update_parser_status(material_id, "downloading")
     try:
         texts = download_and_extract_text(storage_key)
     except Exception as e:
@@ -182,12 +214,13 @@ def download_extract_and_evaluate(class_id: str, material_id: str, storage_key: 
         }
 
     # 2. Compute extraction metrics
+    _update_parser_status(material_id, "extracting")
     metrics = _compute_extraction_metrics(texts, storage_key)
 
     # 3. Run extraction gate (deterministic checks before AI call)
     gate_result = _run_extraction_gate(texts, metrics)
     if gate_result is not None:
-        print(f"Extraction gate failed: {gate_result['reasonCode']}")
+        print(f"Extraction gate failed: {gate_result['reasonCode']} | metrics={metrics}")
         return gate_result
 
     # 4. Grab a snippet of the text (first ~15,000 characters to fit context window comfortably)
@@ -195,6 +228,7 @@ def download_extract_and_evaluate(class_id: str, material_id: str, storage_key: 
     snippet = full_text[:15000]
 
     # 5. Evaluate using Google Gemini
+    _update_parser_status(material_id, "evaluating")
     from .ai import evaluate_material_against_syllabus
     try:
         results = evaluate_material_against_syllabus(class_context, snippet)

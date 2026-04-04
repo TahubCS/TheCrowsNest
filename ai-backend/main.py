@@ -1,30 +1,91 @@
+import math
+import json
+import time
+import traceback
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uvicorn
 
-from core.ingest import process_material
+from core.ingest import process_material, _update_parser_status, _supabase, STORAGE_BUCKET
 from core.ai import generate_flashcards, generate_study_plan, generate_practice_exam, chat_with_tutor
 from core.vector_store import pool
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Server is starting up
     yield
-    # Server is shutting down — close the DB connection pool gracefully
     pool.close()
 
 app = FastAPI(title="The Crows Nest AI Backend", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    # Allow local Next.js instance
     allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# ============================================================
+# Helpers — direct DB updates for material lifecycle
+# ============================================================
+
+def _update_material_status(material_id: str, class_id: str, updates: dict):
+    """Update material columns directly in PostgreSQL."""
+    if not updates:
+        return
+    set_clauses = ", ".join(f"{k} = %s" for k in updates.keys())
+    values = list(updates.values()) + [material_id, class_id]
+    query = f"UPDATE materials SET {set_clauses} WHERE material_id = %s AND class_id = %s"
+    try:
+        with pool.connection() as conn:
+            conn.execute(query, values)
+        print(f"[DB] Updated material {material_id}: {list(updates.keys())}")
+    except Exception as e:
+        print(f"[DB ERROR] Failed to update material {material_id}: {e}")
+        print(f"[DB ERROR] Query: {query}")
+        print(f"[DB ERROR] Values: {values}")
+        raise
+
+
+def _log_upload_event(material_id: str, class_id: str, user_email: str,
+                      event_type: str, event_stage: str, decision: str = None,
+                      reason_code: str = None, reason_text: str = None, metrics: dict = None):
+    """Log to material_upload_events table."""
+    try:
+        with pool.connection() as conn:
+            conn.execute(
+                """INSERT INTO material_upload_events
+                   (material_id, class_id, user_email, event_type, event_stage,
+                    decision, reason_code, reason_text, metrics)
+                   VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)""",
+                (material_id, class_id, user_email, event_type, event_stage,
+                 decision, reason_code, reason_text,
+                 json.dumps(metrics) if metrics else None)
+            )
+    except Exception as e:
+        print(f"[DB WARNING] Failed to log upload event: {e}")
+
+
+def _mark_material_failed(material_id: str, class_id: str, error: Exception):
+    """Best-effort terminal failure update with explicit logging."""
+    try:
+        _update_material_status(material_id, class_id, {
+            "status": "FAILED",
+            "last_error": str(error)[:500],
+            "parser_status": "error",
+        })
+        print(f"[DB] Marked material {material_id} as FAILED")
+    except Exception as db_err:
+        print(f"[CRITICAL] Failed to mark material {material_id} as FAILED: {db_err}")
+        print(f"[CRITICAL] Original error for material {material_id}: {error}")
+
+
+# ============================================================
+# Routes
+# ============================================================
 
 class IngestReq(BaseModel):
     classId: str
@@ -33,7 +94,7 @@ class IngestReq(BaseModel):
     fileName: str
 
 @app.post("/ingest")
-async def ingest_material(req: IngestReq):
+def ingest_material(req: IngestReq):
     process_material(req.classId, req.materialId, req.storageKey, req.fileName)
     return {"success": True}
 
@@ -43,44 +104,140 @@ class EvalIngestReq(BaseModel):
     storageKey: str
     fileName: str
     classContext: str
+    userEmail: str = ""
 
 @app.post("/evaluate-and-ingest")
-async def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
+def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
+    """
+    Evaluate a material and handle the full lifecycle.
+    Next.js fires this without awaiting — we update the DB directly at each stage.
+
+    NOTE: This is a regular `def` (not async) so FastAPI runs it in a thread pool,
+    preventing the blocking sync code from freezing the event loop.
+    """
     from core.ingest import download_extract_and_evaluate
-    from core.vector_store import add_documents, ChunkCapExceededError, EmbeddingExhaustedError
+    from core.vector_store import add_documents, ChunkCapExceededError, EmbeddingExhaustedError, MAX_CHUNKS_PER_MATERIAL
 
-    result = download_extract_and_evaluate(
-        req.classId, req.materialId, req.storageKey, req.fileName, req.classContext
-    )
+    print(f"\n{'='*60}")
+    print(f"[EVAL] Starting evaluation for material {req.materialId}")
+    print(f"[EVAL] File: {req.fileName}, Class: {req.classId}")
+    print(f"{'='*60}")
 
-    if result.get("evaluation") == "APPROVED":
-        texts = result.pop("texts", [])
-        metadatas = result.pop("metadatas", [])
+    try:
+        result = download_extract_and_evaluate(
+            req.classId, req.materialId, req.storageKey, req.fileName, req.classContext
+        )
+
+        evaluation = result.get("evaluation", "FAILED")
+        confidence = result.get("confidence", 0)
+        reason = result.get("reason", "Unknown")
+        reason_code = result.get("reasonCode", "")
         metrics = result.get("metrics", {})
 
-        # EM-001: Check chunk cap before scheduling embedding
-        from core.vector_store import MAX_CHUNKS_PER_MATERIAL
-        if len(texts) > MAX_CHUNKS_PER_MATERIAL:
-            result["evaluation"] = "PENDING"
-            result["reasonCode"] = "excessive_chunks"
-            result["reason"] = f"File produces {len(texts)} chunks (cap: {MAX_CHUNKS_PER_MATERIAL}). Needs admin review."
-            metrics["chunkCount"] = len(texts)
-            result["metrics"] = metrics
-            return {"success": True, "data": result}
+        print(f"[EVAL] Result: {evaluation} (confidence: {confidence}, reason: {reason_code or reason})")
 
-        metrics["chunkCount"] = len(texts)
-        result["metrics"] = metrics
+        # Log the evaluation event
+        _log_upload_event(
+            req.materialId, req.classId, req.userEmail,
+            "evaluation", "ai_evaluation", evaluation, reason_code, reason, metrics
+        )
 
-        # Wrap add_documents to catch EM-002 (embedding exhausted) in background
-        async def safe_embed():
+        if evaluation == "APPROVED":
+            texts = result.pop("texts", [])
+            metadatas = result.pop("metadatas", [])
+
+            # EM-001: Chunk cap check
+            if len(texts) > MAX_CHUNKS_PER_MATERIAL:
+                print(f"[EVAL] Chunk cap exceeded: {len(texts)} > {MAX_CHUNKS_PER_MATERIAL}")
+                _update_material_status(req.materialId, req.classId, {
+                    "status": "PENDING_REVIEW",
+                    "rejection_code": "excessive_chunks",
+                    "rejection_reason": f"File produces {len(texts)} chunks (cap: {MAX_CHUNKS_PER_MATERIAL}).",
+                    "ai_confidence": confidence,
+                    "extract_char_count": metrics.get("extractCharCount"),
+                    "page_count": metrics.get("pageCount"),
+                    "ocr_used": metrics.get("ocrUsed", False),
+                    "parser_status": "complete",
+                })
+                return {"success": True, "data": result}
+
+            # Mark as PROCESSED and start embedding in background
+            print(f"[EVAL] Approved! Updating status to PROCESSED and scheduling embedding...")
+            _update_material_status(req.materialId, req.classId, {
+                "status": "PROCESSED",
+                "ai_confidence": confidence,
+                "extract_char_count": metrics.get("extractCharCount"),
+                "page_count": metrics.get("pageCount"),
+                "ocr_used": metrics.get("ocrUsed", False),
+                "processed_at": datetime.now(timezone.utc).isoformat(),
+                "parser_status": "embedding",
+            })
+
+            def safe_embed():
+                try:
+                    print(f"[EMBED] Starting embedding for {req.materialId} ({len(texts)} chunks)...")
+                    add_documents(req.classId, req.materialId, texts, metadatas)
+                    _update_parser_status(req.materialId, "complete")
+                    print(f"[EMBED] Completed for {req.materialId}")
+                except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
+                    print(f"[EMBED ERROR] {req.materialId}: {e}")
+                    _mark_material_failed(req.materialId, req.classId, e)
+                except Exception as e:
+                    print(f"[EMBED ERROR] Unexpected: {req.materialId}: {e}")
+                    _mark_material_failed(req.materialId, req.classId, e)
+
+            background_tasks.add_task(safe_embed)
+
+        elif evaluation == "REJECTED":
+            print(f"[EVAL] Rejected. Deleting file from storage and updating DB...")
             try:
-                add_documents(req.classId, req.materialId, texts, metadatas)
-            except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
-                print(f"Embedding failed for {req.materialId}: {e}")
+                _supabase.storage.from_(STORAGE_BUCKET).remove([req.storageKey])
+            except Exception as e:
+                print(f"[STORAGE WARNING] Failed to delete rejected file: {e}")
 
-        background_tasks.add_task(safe_embed)
+            seven_days = math.floor(time.time()) + (7 * 24 * 60 * 60)
+            _update_material_status(req.materialId, req.classId, {
+                "status": "REJECTED",
+                "rejection_code": reason_code,
+                "rejection_reason": f"AI Auto-Rejection: {reason}",
+                "ai_confidence": confidence,
+                "extract_char_count": metrics.get("extractCharCount"),
+                "page_count": metrics.get("pageCount"),
+                "ocr_used": metrics.get("ocrUsed", False),
+                "expires_at": seven_days,
+                "parser_status": "complete",
+            })
 
-    return {"success": True, "data": result}
+        elif evaluation == "PENDING":
+            print(f"[EVAL] Pending review. Updating DB...")
+            _update_material_status(req.materialId, req.classId, {
+                "status": "PENDING_REVIEW",
+                "rejection_code": reason_code,
+                "ai_confidence": confidence,
+                "extract_char_count": metrics.get("extractCharCount"),
+                "page_count": metrics.get("pageCount"),
+                "ocr_used": metrics.get("ocrUsed", False),
+                "parser_status": "complete",
+            })
+
+        else:
+            print(f"[EVAL] Unknown/Failed evaluation: {evaluation}")
+            _update_material_status(req.materialId, req.classId, {
+                "status": "FAILED",
+                "rejection_code": reason_code,
+                "last_error": reason,
+                "parser_status": "error",
+            })
+
+        print(f"[EVAL] Done for {req.materialId}")
+        return {"success": True, "data": result}
+
+    except Exception as e:
+        print(f"[CRITICAL] evaluate-and-ingest crashed for {req.materialId}:")
+        traceback.print_exc()
+        _mark_material_failed(req.materialId, req.classId, e)
+        return {"success": False, "error": str(e)}
+
 
 class FlashcardsReq(BaseModel):
     classId: str
