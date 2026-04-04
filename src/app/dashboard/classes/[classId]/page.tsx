@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type ChangeEvent, type DragEvent } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -68,6 +68,8 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
@@ -181,13 +183,34 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     }
   };
 
+  const handleFileSelection = (file: File | null) => {
+    setSelectedFile(file);
+  };
+
+  const handleFileInputChange = (e: ChangeEvent<HTMLInputElement>) => {
+    handleFileSelection(e.target.files?.[0] ?? null);
+  };
+
+  const handleDrop = (e: DragEvent<HTMLLabelElement>) => {
+    e.preventDefault();
+    setIsDragActive(false);
+    const file = e.dataTransfer.files?.[0] ?? null;
+    if (!file) return;
+
+    const input = document.getElementById("material-file-input") as HTMLInputElement | null;
+    if (input && e.dataTransfer.files.length > 0) {
+      input.files = e.dataTransfer.files;
+    }
+    handleFileSelection(file);
+  };
+
   const handleUpload = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const fileInput = form.elements.namedItem("file") as HTMLInputElement;
     const typeInput = form.elements.namedItem("materialType") as HTMLSelectElement;
 
-    const file = fileInput.files?.[0];
+    const file = selectedFile ?? fileInput.files?.[0];
     if (!file) return;
 
     setUploading(true);
@@ -257,6 +280,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         setShowUploadModal(false);
         loadMaterials(classId);
         form.reset();
+        setSelectedFile(null);
       } else {
         toast.error(metaData.message);
       }
@@ -266,6 +290,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
     } finally {
       setUploading(false);
       setUploadProgress(0);
+      setIsDragActive(false);
     }
   };
 
@@ -382,12 +407,21 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
       </div>
 
       {/* Course Materials */}
-      <div className="mt-16 space-y-6">
-        <div className="flex items-center justify-between">
+      <div className="mt-16 space-y-0">
+        <div className="mb-3 flex items-center justify-between">
           <h2 className="text-2xl font-bold tracking-tight">Course Materials</h2>
-          <button id="tour-upload-btn" onClick={() => setShowUploadModal(true)} className="text-sm bg-ecu-purple/10 text-ecu-purple hover:bg-ecu-purple/20 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
-            Upload File
+          <button
+            id="tour-upload-btn"
+            onClick={() => {
+              setSelectedFile(null);
+              setShowUploadModal(true);
+            }}
+            className="group cursor-pointer text-sm bg-linear-to-r from-ecu-purple/15 via-ecu-purple/10 to-ecu-gold/10 text-ecu-purple hover:from-ecu-purple hover:to-ecu-purple/90 hover:text-white px-3.5 py-2 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2 border border-ecu-purple/20 hover:border-ecu-purple/50 shadow-sm hover:shadow-lg hover:-translate-y-0.5"
+          >
+            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-ecu-purple transition-all duration-300 group-hover:bg-white/20 group-hover:text-white">
+              <svg className="w-4 h-4 transition-transform duration-300 group-hover:-translate-y-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
+            </span>
+            <span>Upload File</span>
           </button>
         </div>
 
@@ -405,7 +439,14 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
               <p className="text-sm text-muted-foreground max-w-sm mx-auto mb-6">
                 Be the first to upload the syllabus, study guides, or your lecture notes to help train the AI for this class!
               </p>
-              <button onClick={() => setShowUploadModal(true)} className="text-sm bg-ecu-purple text-primary-foreground hover:bg-ecu-purple/90 px-8 py-3 rounded-xl font-bold shadow-md transition-all hover:-translate-y-0.5">
+              <button
+                onClick={() => {
+                  setSelectedFile(null);
+                  setShowUploadModal(true);
+                }}
+                className="group cursor-pointer text-sm bg-linear-to-r from-ecu-purple to-ecu-purple/90 text-primary-foreground hover:from-ecu-purple/95 hover:to-ecu-gold hover:text-slate-950 px-8 py-3 rounded-xl font-bold shadow-md transition-all hover:-translate-y-0.5 inline-flex items-center gap-2"
+              >
+                <svg className="w-4 h-4 transition-transform duration-300 group-hover:rotate-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" /></svg>
                 Upload First File
               </button>
             </div>
@@ -529,36 +570,154 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
 
       {/* Upload Modal */}
       {showUploadModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-background rounded-2xl border border-border p-6 max-w-md w-full shadow-xl">
-            <h3 className="text-xl font-bold mb-4">Upload Material</h3>
-            <form onSubmit={handleUpload} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">File</label>
-                <input type="file" name="file" accept=".pdf,.pptx,.docx,.doc,.txt,.png,.jpg,.jpeg,.webp" required className="w-full text-sm border border-border rounded-lg p-2 bg-background" />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/65 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-lg overflow-hidden rounded-3xl border border-border/80 bg-background shadow-2xl">
+            <div className="border-b border-border bg-linear-to-r from-ecu-purple/10 via-background to-ecu-gold/10 px-6 py-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-[0.24em] text-ecu-purple/80">Course materials</p>
+                  <h3 className="mt-1 text-2xl font-bold text-foreground">Upload Material</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Share useful files for <span className="font-semibold text-foreground">{formattedClass}</span> and improve the class study experience.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setSelectedFile(null);
+                    setIsDragActive(false);
+                  }}
+                  disabled={uploading}
+                  className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-full border border-border bg-background/80 text-muted-foreground transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-2">Material Type</label>
-                <select name="materialType" required className="w-full text-sm border border-border rounded-lg p-2 bg-background">
-                  <option value="Syllabus">Syllabus</option>
-                  <option value="Lecture Slides">Lecture Slides</option>
-                  <option value="Study Guide">Study Guide</option>
-                  <option value="Past Exam">Past Exam</option>
-                  <option value="Notes">Notes</option>
-                  <option value="Other">Other</option>
-                </select>
+            </div>
+
+            <form onSubmit={handleUpload} className="space-y-5 p-6">
+              <div className="space-y-2">
+                <label className="block text-sm font-semibold text-foreground">File</label>
+                <label
+                  htmlFor="material-file-input"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setIsDragActive(true);
+                  }}
+                  onDragLeave={() => setIsDragActive(false)}
+                  onDrop={handleDrop}
+                  className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed px-6 py-8 text-center transition-all duration-300 ${
+                    isDragActive
+                      ? "border-ecu-purple bg-ecu-purple/10 shadow-lg shadow-ecu-purple/10"
+                      : selectedFile
+                        ? "border-emerald-400/60 bg-emerald-500/5"
+                        : "border-border bg-muted/30 hover:border-ecu-purple/50 hover:bg-ecu-purple/5"
+                  }`}
+                >
+                  <input
+                    id="material-file-input"
+                    type="file"
+                    name="file"
+                    accept=".pdf,.pptx,.docx,.doc,.txt,.png,.jpg,.jpeg,.webp"
+                    required
+                    onChange={handleFileInputChange}
+                    className="sr-only"
+                  />
+
+                  <div
+                    className={`mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-all duration-300 ${
+                      uploading
+                        ? "bg-ecu-purple/15 text-ecu-purple"
+                        : selectedFile
+                          ? "bg-emerald-500/15 text-emerald-600"
+                          : "bg-background text-ecu-purple shadow-sm"
+                    }`}
+                  >
+                    {uploading ? (
+                      <svg className="h-7 w-7 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                        <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V1C5.925 1 1 5.925 1 12h3z"></path>
+                      </svg>
+                    ) : selectedFile ? (
+                      <svg className="h-7 w-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M9 12l2 2 4-4m6 2A9 9 0 113 12a9 9 0 0118 0z" /></svg>
+                    ) : (
+                      <svg className="h-7 w-7 transition-transform duration-300 group-hover:-translate-y-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 0115.9 6L16 6a5 5 0 011 9.9M12 11v7m0 0l-3-3m3 3l3-3" /></svg>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold text-foreground">
+                      {selectedFile ? "File ready to upload" : "Drag and drop your file here"}
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {selectedFile ? selectedFile.name : "or click to browse your device"}
+                    </p>
+                    <p className="text-xs text-muted-foreground/80">
+                      PDF, PPTX, DOCX, DOC, TXT, PNG, JPG, JPEG, WEBP
+                    </p>
+                  </div>
+
+                  {selectedFile && (
+                    <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700">
+                      <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" /></svg>
+                      {(selectedFile.size / (1024 * 1024)).toFixed(2)} MB selected
+                    </div>
+                  )}
+                </label>
               </div>
+
               {uploading && (
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div className="bg-ecu-purple h-2 rounded-full transition-all" style={{ width: `${uploadProgress}%` }}></div>
+                <div className="rounded-2xl border border-ecu-purple/15 bg-ecu-purple/5 p-4">
+                  <div className="mb-2 flex items-center justify-between text-sm">
+                    <span className="font-semibold text-foreground">Uploading material...</span>
+                    <span className="font-semibold text-ecu-purple">{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 w-full rounded-full bg-muted">
+                    <div className="h-2 rounded-full bg-linear-to-r from-ecu-purple to-ecu-gold transition-all" style={{ width: `${uploadProgress}%` }}></div>
+                  </div>
                 </div>
               )}
-              <div className="flex gap-3">
-                <button type="button" onClick={() => setShowUploadModal(false)} disabled={uploading} className="flex-1 px-4 py-2 border border-border rounded-lg font-semibold hover:bg-muted transition-colors disabled:opacity-50">
+
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowUploadModal(false);
+                    setSelectedFile(null);
+                    setIsDragActive(false);
+                  }}
+                  disabled={uploading}
+                  className="flex-1 cursor-pointer rounded-xl border border-border px-4 py-3 font-semibold text-foreground transition-all hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   Cancel
                 </button>
-                <button type="submit" disabled={uploading} className="flex-1 px-4 py-2 bg-ecu-purple text-white rounded-lg font-semibold hover:bg-ecu-purple/90 transition-colors disabled:opacity-50">
-                  {uploading ? "Uploading..." : "Upload"}
+                <button
+                  type="submit"
+                  disabled={uploading || !selectedFile}
+                  className="group flex-1 cursor-pointer rounded-xl bg-linear-to-r from-ecu-purple to-ecu-purple/90 px-4 py-3 font-semibold text-white shadow-md transition-all hover:-translate-y-0.5 hover:from-ecu-purple/95 hover:to-ecu-gold hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    {uploading ? (
+                      <>
+                        <svg className="h-4 w-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
+                          <path className="opacity-90" fill="currentColor" d="M4 12a8 8 0 018-8V1C5.925 1 1 5.925 1 12h3z"></path>
+                        </svg>
+                        Uploading...
+                      </>
+                    ) : selectedFile ? (
+                      <>
+                        <svg className="h-4 w-4 transition-transform duration-300 group-hover:scale-110" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.2} d="M5 13l4 4L19 7" /></svg>
+                        Upload Material
+                      </>
+                    ) : (
+                      <>
+                        <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 16V4m0 0l-4 4m4-4l4 4M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1" /></svg>
+                        Select a File
+                      </>
+                    )}
+                  </span>
                 </button>
               </div>
             </form>
