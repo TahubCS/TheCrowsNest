@@ -69,8 +69,15 @@ def _log_upload_event(material_id: str, class_id: str, user_email: str,
         print(f"[DB WARNING] Failed to log upload event: {e}")
 
 
-def _mark_material_failed(material_id: str, class_id: str, error: Exception):
+def _mark_material_failed(material_id: str, class_id: str, error: Exception, storage_key: str | None = None):
     """Best-effort terminal failure update with explicit logging."""
+    # Delete file from storage so orphaned files don't accumulate in the bucket
+    if storage_key:
+        try:
+            _supabase.storage.from_(STORAGE_BUCKET).remove([storage_key])
+            print(f"[STORAGE] Deleted failed file {storage_key} from bucket")
+        except Exception as s_err:
+            print(f"[STORAGE WARNING] Could not delete failed file {storage_key}: {s_err}")
     try:
         _update_material_status(material_id, class_id, {
             "status": "FAILED",
@@ -181,10 +188,10 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                     print(f"[EMBED] Completed for {req.materialId}")
                 except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
                     print(f"[EMBED ERROR] {req.materialId}: {e}")
-                    _mark_material_failed(req.materialId, req.classId, e)
+                    _mark_material_failed(req.materialId, req.classId, e, req.storageKey)
                 except Exception as e:
                     print(f"[EMBED ERROR] Unexpected: {req.materialId}: {e}")
-                    _mark_material_failed(req.materialId, req.classId, e)
+                    _mark_material_failed(req.materialId, req.classId, e, req.storageKey)
 
             background_tasks.add_task(safe_embed)
 
@@ -222,6 +229,11 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
 
         else:
             print(f"[EVAL] Unknown/Failed evaluation: {evaluation}")
+            try:
+                _supabase.storage.from_(STORAGE_BUCKET).remove([req.storageKey])
+                print(f"[STORAGE] Deleted failed file {req.storageKey} from bucket")
+            except Exception as e:
+                print(f"[STORAGE WARNING] Could not delete failed file: {e}")
             _update_material_status(req.materialId, req.classId, {
                 "status": "FAILED",
                 "rejection_code": reason_code,
@@ -235,7 +247,7 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
     except Exception as e:
         print(f"[CRITICAL] evaluate-and-ingest crashed for {req.materialId}:")
         traceback.print_exc()
-        _mark_material_failed(req.materialId, req.classId, e)
+        _mark_material_failed(req.materialId, req.classId, e, req.storageKey)
         return {"success": False, "error": str(e)}
 
 

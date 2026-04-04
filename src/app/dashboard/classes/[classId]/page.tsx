@@ -647,7 +647,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                             {file.rejectionCode ? REASON_MESSAGES[file.rejectionCode] : file.rejectionReason}
                           </span>
                         )}
-                        {file.status === "REJECTED" && (
+                        {(file.status === "REJECTED" || file.status === "FAILED") && (
                           <button
                             title="Dismiss & Remove from View"
                             onClick={() => handleDismissRejected(file.materialId, file.storageKey)}
