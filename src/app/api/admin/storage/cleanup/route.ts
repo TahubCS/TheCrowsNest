@@ -6,6 +6,14 @@
  *
  * ?dry=true  → report only, nothing deleted
  * Admin-only.
+ * 
+ * // Dry run first — just shows what would be deleted
+ * fetch('/api/admin/storage/cleanup?dry=true', {method:'POST'})
+ *    .then(r => r.json()).then(console.log)
+ * 
+ * // Then delete for real
+ * fetch('/api/admin/storage/cleanup', {method:'POST'})
+ *    .then(r => r.json()).then(console.log)  
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -112,3 +120,5 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
