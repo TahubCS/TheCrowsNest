@@ -203,6 +203,8 @@ ${classData.syllabus || "No syllabus provided."}
     }
 
     // Fire-and-forget: trigger Python evaluation (non-blocking)
+    // If Python is immediately unreachable, the .catch() cleans up so the
+    // material does not hang in PROCESSING forever.
     fetch("http://localhost:8000/evaluate-and-ingest", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -214,8 +216,19 @@ ${classData.syllabus || "No syllabus provided."}
         classContext,
         userEmail: session.user.email,
       }),
-    }).catch(err => {
-      console.error("[AI Eval Fire Error]", err);
+    }).catch(async (err) => {
+      console.error("[AI Eval Fire Error] Python unreachable — marking FAILED and cleaning up:", err);
+      try {
+        const { updateMaterialEvaluation } = await import("@/lib/db");
+        await updateMaterialEvaluation(classId, materialId, {
+          status: "FAILED",
+          rejectionCode: "python_unavailable",
+          rejectionReason: "AI processing service was unavailable at upload time.",
+        });
+        await supabase.storage.from(STORAGE_BUCKET).remove([storageKey]);
+      } catch (cleanupErr) {
+        console.error("[AI Eval Cleanup Error]", cleanupErr);
+      }
     });
 
     // Return immediately — Python will update the material status directly in the DB
@@ -248,9 +261,10 @@ export async function DELETE(request: NextRequest) {
 
     const materialId = request.nextUrl.searchParams.get("materialId");
     const classId = request.nextUrl.searchParams.get("classId");
-    const storageKey = request.nextUrl.searchParams.get("storageKey");
+    // Note: storageKey from the query string is intentionally ignored below.
+    // We always use material.storageKey from the DB to prevent path manipulation.
 
-    if (!materialId || !classId || !storageKey) {
+    if (!materialId || !classId) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Missing required parameters." },
         { status: 400 }
@@ -277,10 +291,15 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Step 1: Delete from Supabase Storage
-    const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([storageKey as string]);
-    if (storageError) {
-      console.warn("[Storage Delete Warning]", storageError);
+    // Step 1: Delete from Supabase Storage — only if the file still exists there.
+    // FAILED materials have their storage file deleted automatically at failure time,
+    // so we skip this step to avoid a noisy "not found" warning.
+    const dbStorageKey = material.storageKey;
+    if (dbStorageKey && material.status !== "FAILED") {
+      const { error: storageError } = await supabase.storage.from(STORAGE_BUCKET).remove([dbStorageKey]);
+      if (storageError) {
+        console.warn("[Storage Delete Warning]", storageError);
+      }
     }
 
     // Step 2: Delete from DB
@@ -293,15 +312,20 @@ export async function DELETE(request: NextRequest) {
       console.error("[Python Sync Error] Failed to delete vectors from PostgreSQL.", err);
     }
 
-    // Log deletion event
-    await logMaterialUploadEvent({
-      materialId,
-      classId,
-      userEmail: session.user.email,
-      eventType: "deletion",
-      eventStage: "deleted",
-      decision: "DELETED",
-    });
+    // Log deletion event (best-effort — don't let logging failures
+    // mask a successful deletion)
+    try {
+      await logMaterialUploadEvent({
+        materialId,
+        classId,
+        userEmail: session.user.email,
+        eventType: "deletion",
+        eventStage: "deleted",
+        decision: "DELETED",
+      });
+    } catch (logErr) {
+      console.warn("[Delete Log Warning] Failed to log deletion event:", logErr);
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,

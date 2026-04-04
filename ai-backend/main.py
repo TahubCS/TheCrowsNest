@@ -168,15 +168,15 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                 })
                 return {"success": True, "data": result}
 
-            # Mark as PROCESSED and start embedding in background
-            print(f"[EVAL] Approved! Updating status to PROCESSED and scheduling embedding...")
+            # Stay in PROCESSING until embedding is confirmed complete.
+            # Only transition to PROCESSED inside safe_embed after add_documents() succeeds.
+            print(f"[EVAL] Approved! Scheduling embedding (staying PROCESSING until done)...")
             _update_material_status(req.materialId, req.classId, {
-                "status": "PROCESSED",
+                "status": "PROCESSING",
                 "ai_confidence": confidence,
                 "extract_char_count": metrics.get("extractCharCount"),
                 "page_count": metrics.get("pageCount"),
                 "ocr_used": metrics.get("ocrUsed", False),
-                "processed_at": datetime.now(timezone.utc).isoformat(),
                 "parser_status": "embedding",
             })
 
@@ -184,8 +184,13 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                 try:
                     print(f"[EMBED] Starting embedding for {req.materialId} ({len(texts)} chunks)...")
                     add_documents(req.classId, req.materialId, texts, metadatas)
-                    _update_parser_status(req.materialId, "complete")
-                    print(f"[EMBED] Completed for {req.materialId}")
+                    # Embedding succeeded — now it is safe to mark PROCESSED
+                    _update_material_status(req.materialId, req.classId, {
+                        "status": "PROCESSED",
+                        "parser_status": "complete",
+                        "processed_at": datetime.now(timezone.utc).isoformat(),
+                    })
+                    print(f"[EMBED] Completed and marked PROCESSED for {req.materialId}")
                 except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
                     print(f"[EMBED ERROR] {req.materialId}: {e}")
                     _mark_material_failed(req.materialId, req.classId, e, req.storageKey)
