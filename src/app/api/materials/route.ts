@@ -73,7 +73,14 @@ export async function GET(request: NextRequest) {
 // POST — save metadata + fire off AI evaluation (non-blocking)
 // ============================================================
 
-function rejectResponse(reasonCode: ReasonCode, status = 400) {
+async function rejectResponse(reasonCode: ReasonCode, storageKey?: string, status = 400) {
+  if (storageKey) {
+    try {
+      await supabase.storage.from(STORAGE_BUCKET).remove([storageKey]);
+    } catch (err) {
+      console.error("[Storage Cleanup Error on Rejection]", err);
+    }
+  }
   return NextResponse.json<ApiResponse>(
     {
       success: false,
@@ -107,10 +114,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!MATERIAL_TYPES.includes(materialType)) {
-      return NextResponse.json<ApiResponse>(
-        { success: false, message: "Invalid material type." },
-        { status: 400 }
-      );
+      return rejectResponse("unsupported_type", storageKey, 400);
     }
 
     // AB-001: Rate limit check
@@ -119,7 +123,7 @@ export async function POST(request: NextRequest) {
       UPLOAD_THRESHOLDS.rateLimitWindowMinutes
     );
     if (recentCount >= UPLOAD_THRESHOLDS.rateLimitUploads) {
-      return rejectResponse("rate_limited", 429);
+      return rejectResponse("rate_limited", storageKey, 429);
     }
 
     // AB-002: Repeated rejection pattern
@@ -133,7 +137,7 @@ export async function POST(request: NextRequest) {
     if (contentHash) {
       const duplicate = await findDuplicateByHash(classId, contentHash);
       if (duplicate) {
-        return rejectResponse("duplicate_content", 409);
+        return rejectResponse("duplicate_content", storageKey, 409);
       }
     }
 
