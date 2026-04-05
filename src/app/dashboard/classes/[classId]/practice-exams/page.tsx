@@ -17,6 +17,56 @@ interface MaterialOption {
   status?: string;
 }
 
+interface PersonalResourceRow {
+  resource_type?: string;
+  content_json?: unknown;
+  contentJson?: unknown;
+  created_at?: string;
+  createdAt?: string;
+}
+
+interface UIQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+}
+
+function normalizeExamQuestions(input: unknown): UIQuestion[] {
+  const source = Array.isArray((input as { questions?: unknown[] })?.questions)
+    ? (input as { questions: unknown[] }).questions
+    : Array.isArray((input as { practiceExam?: { questions?: unknown[] } })?.practiceExam?.questions)
+      ? (input as { practiceExam: { questions: unknown[] } }).practiceExam.questions
+      : Array.isArray(input)
+        ? input
+        : [];
+
+  return source
+    .map((q, idx) => {
+      if (!q || typeof q !== "object") return null;
+      const row = q as { question?: string; text?: string; options?: unknown[]; correctAnswer?: unknown };
+      const options = Array.isArray(row.options)
+        ? row.options.map((opt) => String(opt))
+        : [];
+      const prompt = row.question || row.text || `Question ${idx + 1}`;
+
+      let answerText = "";
+      if (typeof row.correctAnswer === "number") {
+        answerText = options[row.correctAnswer] ?? "";
+      } else if (typeof row.correctAnswer === "string") {
+        answerText = row.correctAnswer;
+      }
+
+      if (!prompt || options.length === 0 || !answerText) return null;
+
+      return {
+        question: prompt,
+        options,
+        correctAnswer: answerText,
+      };
+    })
+    .filter((q): q is UIQuestion => q !== null);
+}
+
 export default function PracticeExamsPage() {
   const params = useParams();
   const classId = params.classId as string;
@@ -30,7 +80,7 @@ export default function PracticeExamsPage() {
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
 
   // Exam state
-  const [questions, setQuestions] = useState<{question: string; options: string[]; correctAnswer: string}[]>([]);
+  const [questions, setQuestions] = useState<UIQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState<Record<number, string>>({});
   const [showResults, setShowResults] = useState(false);
@@ -73,6 +123,35 @@ export default function PracticeExamsPage() {
     }
   }, [classId, plan]);
 
+  useEffect(() => {
+    async function loadLatestPersonalExam() {
+      try {
+        const res = await fetch(`/api/classes/${classId}/personal-resources`);
+        const data = await res.json();
+        if (!data.success || !Array.isArray(data.data)) return;
+
+        const latestExam = (data.data as PersonalResourceRow[]).find((row) => row.resource_type === "exam");
+        if (!latestExam) return;
+
+        const content = latestExam.content_json ?? latestExam.contentJson;
+        const normalized = normalizeExamQuestions(content);
+        if (normalized.length > 0) {
+          setQuestions(normalized);
+          setCurrentIndex(0);
+          setSelectedAnswers({});
+          setShowResults(false);
+          setIsReviewing(false);
+        }
+      } catch (err) {
+        console.error("[Practice Exams] Failed to load personal exam:", err);
+      }
+    }
+
+    if (classId && plan === "premium") {
+      loadLatestPersonalExam();
+    }
+  }, [classId, plan]);
+
   const handleToggleMaterial = (id: string) => {
     setSelectedMaterialIds((prev) =>
       prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
@@ -111,11 +190,7 @@ export default function PracticeExamsPage() {
       }
 
       const content = data.data?.content_json ?? data.data?.contentJson ?? data.data;
-      const generatedQuestions = Array.isArray(content?.questions)
-        ? content.questions
-        : Array.isArray(content)
-          ? content
-          : [];
+      const generatedQuestions = normalizeExamQuestions(content);
 
       if (generatedQuestions.length === 0) {
         toast.error("Generation completed but no questions were returned.");

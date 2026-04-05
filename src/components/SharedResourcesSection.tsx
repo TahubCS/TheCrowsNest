@@ -33,6 +33,7 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
   // Exam viewer state
   const [examIndex, setExamIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [selectedExamAnswer, setSelectedExamAnswer] = useState<string | null>(null);
 
   // Study plan expand state
   const [expandedPlan, setExpandedPlan] = useState(false);
@@ -147,6 +148,11 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
     if (!questions || !Array.isArray(questions) || questions.length === 0) return null;
 
     const q = questions[examIndex] as { question?: string; text?: string; options?: string[]; correctAnswer?: string | number; explanation?: string };
+    const correctAnswerText = typeof q.correctAnswer === "number" ? q.options?.[q.correctAnswer] : q.correctAnswer;
+
+    const handleSelectExamOption = (opt: string) => {
+      setSelectedExamAnswer(opt);
+    };
 
     return (
       <div className="rounded-2xl border border-purple-500/20 bg-purple-500/5 p-6 mb-8">
@@ -166,18 +172,25 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
           {q.options && Array.isArray(q.options) && (
             <div className="space-y-2">
               {q.options.map((opt: string, i: number) => (
-                <div
+                <button
                   key={i}
-                  className={`px-4 py-2.5 rounded-lg border text-sm font-medium transition-colors ${
-                    showAnswer && (typeof q.correctAnswer === "number" ? i === q.correctAnswer : opt === q.correctAnswer)
-                      ? "border-green-500 bg-green-500/10 text-green-700"
-                      : "border-border bg-muted/20 text-foreground"
-                  }`}
+                  type="button"
+                  onClick={() => handleSelectExamOption(opt)}
+                  className={`w-full text-left px-4 py-2.5 rounded-lg border text-sm font-medium transition-all ${
+                    selectedExamAnswer === opt
+                      ? "border-purple-500 bg-purple-500/10 text-foreground ring-1 ring-purple-500"
+                      : "border-border bg-muted/20 text-foreground hover:border-purple-400 hover:bg-purple-500/5"
+                  } ${showAnswer && opt === correctAnswerText ? "border-green-500 bg-green-500/10 text-green-700" : ""}`}
                 >
                   {opt}
-                </div>
+                </button>
               ))}
             </div>
+          )}
+          {selectedExamAnswer && !showAnswer && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Selected: <span className="font-semibold text-foreground">{selectedExamAnswer}</span>
+            </p>
           )}
           {!showAnswer ? (
             <button
@@ -188,21 +201,21 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
             </button>
           ) : (
             <p className="mt-3 text-xs text-green-600 font-semibold">
-              Answer: {typeof q.correctAnswer === "number" ? q.options?.[q.correctAnswer] : q.correctAnswer}
+              Answer: {correctAnswerText}
             </p>
           )}
         </div>
 
         <div className="flex gap-2">
           <button
-            onClick={() => { setShowAnswer(false); setExamIndex((i) => Math.max(0, i - 1)); }}
+            onClick={() => { setShowAnswer(false); setSelectedExamAnswer(null); setExamIndex((i) => Math.max(0, i - 1)); }}
             disabled={examIndex === 0}
             className="flex-1 py-2 text-sm font-semibold rounded-lg border border-border hover:bg-muted/50 transition-colors disabled:opacity-50"
           >
             Previous
           </button>
           <button
-            onClick={() => { setShowAnswer(false); setExamIndex((i) => Math.min(questions.length - 1, i + 1)); }}
+            onClick={() => { setShowAnswer(false); setSelectedExamAnswer(null); setExamIndex((i) => Math.min(questions.length - 1, i + 1)); }}
             disabled={examIndex === questions.length - 1}
             className="flex-1 py-2 text-sm font-semibold rounded-lg bg-purple-500/10 border border-purple-500/20 text-purple-700 hover:bg-purple-500/20 transition-colors disabled:opacity-50"
           >

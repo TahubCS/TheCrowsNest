@@ -133,6 +133,17 @@ export async function POST(
       throw new Error(json.message || "Generation failed.");
     }
 
+    // Normalize backend response envelope by resource type so content_json is
+    // directly consumable by frontend pages.
+    let normalizedContent: unknown = json.data;
+    if (resourceType === "exam") {
+      normalizedContent = json.data?.practiceExam ?? json.data;
+    } else if (resourceType === "study_plan") {
+      normalizedContent = json.data?.studyPlan ?? json.data;
+    } else if (resourceType === "flashcards") {
+      normalizedContent = json.data?.flashcards ?? json.data;
+    }
+
     // Save to personal_resources table
     const { data: saved, error: saveError } = await supabase
       .from("personal_resources")
@@ -141,7 +152,7 @@ export async function POST(
         class_id: classId,
         resource_type: resourceType,
         material_ids: materialIds,
-        content_json: json.data,
+        content_json: normalizedContent,
       })
       .select()
       .single();
@@ -156,12 +167,13 @@ export async function POST(
       message: "Personal resource generated.",
       data: saved,
     }, { status: 201 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Personal Resources POST Error]", error);
+    const messageText = error instanceof Error ? error.message : String(error);
     return NextResponse.json<ApiResponse>(
       {
         success: false,
-        message: error.message?.includes("fetch")
+        message: messageText.includes("fetch")
           ? "AI backend unavailable. Please try again later."
           : "Failed to generate personal resource.",
       },
