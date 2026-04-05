@@ -49,10 +49,22 @@ export async function GET(
         data: {
           generationStatus: "idle",
           exam: null,
+          sharedExamSession: null,
           studyPlan: null,
           flashcards: null,
         },
       });
+    }
+
+    let sharedExamSession: unknown = null;
+    if (data.shared_exam_session_id) {
+      const { data: examSession } = await supabase
+        .from("exam_sessions")
+        .select("*")
+        .eq("id", data.shared_exam_session_id)
+        .maybeSingle();
+
+      sharedExamSession = examSession ?? null;
     }
 
     return NextResponse.json<ApiResponse>({
@@ -61,9 +73,12 @@ export async function GET(
       data: {
         generationStatus: data.generation_status,
         exam: data.exam_json,
+        sharedExamSession,
         studyPlan: data.study_plan_json,
         flashcards: data.flashcards_json,
         updatedAt: data.updated_at,
+        sharedExamQuestionCount: data.shared_exam_question_count,
+        sharedExamUpdatedAt: data.shared_exam_updated_at,
       },
     });
   } catch (error) {

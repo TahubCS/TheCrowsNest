@@ -27,6 +27,42 @@ def get_context_for_class(class_id: str, query: str = "Key concepts") -> str:
     """Retrieve context from the vector store."""
     return query_documents(class_id, query, n_results=5)
 
+
+def clamp_question_count(count: int | None, default: int = 15, minimum: int = 5, maximum: int = 30) -> int:
+    try:
+        value = int(count) if count is not None else default
+    except (TypeError, ValueError):
+        value = default
+    return max(minimum, min(maximum, value))
+
+
+def suggest_practice_exam_question_count(
+    class_id: str,
+    topic: str = "Core class concepts",
+    minimum: int = 5,
+    default: int = 15,
+    maximum: int = 30,
+) -> int:
+    context = get_context_for_class(class_id, f"Practice questions for {topic}")
+    if not context.strip():
+        return default
+
+    word_count = len(context.split())
+    if word_count < 250:
+        suggested = minimum
+    elif word_count < 600:
+        suggested = 10
+    elif word_count < 1200:
+        suggested = 15
+    elif word_count < 2000:
+        suggested = 20
+    elif word_count < 3000:
+        suggested = 25
+    else:
+        suggested = maximum
+
+    return clamp_question_count(suggested, default=default, minimum=minimum, maximum=maximum)
+
 def generate_flashcards(class_id: str, topic: str, count: int, style: str) -> list[dict]:
     context = get_context_for_class(class_id, f"Flashcards for {topic}")
     

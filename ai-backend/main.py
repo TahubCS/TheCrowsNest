@@ -10,7 +10,13 @@ from pydantic import BaseModel
 import uvicorn
 
 from core.ingest import process_material, _update_parser_status, _supabase, STORAGE_BUCKET
-from core.ai import generate_flashcards, generate_study_plan, generate_practice_exam, chat_with_tutor
+from core.ai import (
+    generate_flashcards,
+    generate_study_plan,
+    generate_practice_exam,
+    chat_with_tutor,
+    suggest_practice_exam_question_count,
+)
 from core.vector_store import pool
 
 @asynccontextmanager
@@ -106,6 +112,17 @@ def _compute_context_score(metrics: dict) -> float:
     char_count = metrics.get("extractCharCount", 0) or 0
     return (page_count * 0.5) + (char_count * 0.0001)
 
+
+def _count_exam_questions(exam_payload: object) -> int:
+    if isinstance(exam_payload, dict):
+        questions = exam_payload.get("questions", [])
+    elif isinstance(exam_payload, list):
+        questions = exam_payload
+    else:
+        questions = []
+
+    return len(questions) if isinstance(questions, list) else 0
+
 def _generate_shared_resources(class_id: str):
     """Regenerate shared exam/study-plan/flashcards for a class.
     Called after a high-context material is embedded."""
@@ -118,13 +135,15 @@ def _generate_shared_resources(class_id: str):
 
         print(f"[SHARED] Generating shared resources for class {class_id}...")
 
+        suggested_exam_count = suggest_practice_exam_question_count(class_id, topic="Core class concepts")
+
         # Generate each resource type using existing AI functions.
         # Keep these defaults intentionally balanced: challenging but learnable.
         exam_result = generate_practice_exam(
             class_id,
             topic="Core class concepts",
             difficulty="Medium",
-            count=10,
+            count=suggested_exam_count,
         )
         flashcards_result = generate_flashcards(
             class_id,
@@ -137,14 +156,34 @@ def _generate_shared_resources(class_id: str):
             timeframe="Current semester",
         )
 
-        # Normalize exam payload for the frontend shared viewer.
-        # generate_practice_exam returns {title, questions:[...]}; UI expects question array.
         exam_questions = exam_result.get("questions", []) if isinstance(exam_result, dict) else []
+        exam_question_count = _count_exam_questions(exam_result)
+
+        exam_session_payload = {
+            "class_id": class_id,
+            "user_email": None,
+            "exam_scope": "shared",
+            "resource_type": "exam",
+            "suggested_question_count": suggested_exam_count,
+            "question_count": exam_question_count or suggested_exam_count,
+            "difficulty": "Medium",
+            "material_ids": [],
+            "content_json": exam_result,
+            "generation_status": "ready",
+        }
+
+        session_response = _supabase.table("exam_sessions").insert(exam_session_payload).execute()
+        shared_session_id = None
+        if session_response.data:
+            shared_session_id = session_response.data[0].get("id")
 
         # Upsert into shared_resources table
         _supabase.table("shared_resources").upsert({
             "class_id": class_id,
             "exam_json": exam_questions if exam_questions else None,
+            "shared_exam_session_id": shared_session_id,
+            "shared_exam_question_count": exam_question_count or suggested_exam_count,
+            "shared_exam_updated_at": datetime.now(timezone.utc).isoformat(),
             "flashcards_json": flashcards_result if flashcards_result else None,
             "study_plan_json": study_plan_result if study_plan_result else None,
             "generation_status": "ready",

@@ -12,6 +12,12 @@ import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage, type QuotaApiType } from "@/lib/quota";
 import type { ApiResponse } from "@/types";
 
+function clampQuestionCount(value: unknown, defaultValue = 15) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return defaultValue;
+  return Math.min(30, Math.max(5, Math.trunc(parsed)));
+}
+
 /**
  * GET — list all personal resources for the current user in this class.
  */
@@ -81,7 +87,7 @@ export async function POST(
       );
     }
 
-    const { resourceType, materialIds } = await request.json();
+    const { resourceType, materialIds, questionCount, difficulty } = await request.json();
 
     if (!resourceType || !["exam", "study_plan", "flashcards"].includes(resourceType)) {
       return NextResponse.json<ApiResponse>(
@@ -121,7 +127,12 @@ export async function POST(
     const res = await fetch(endpointMap[resourceType], {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ classId, materialIds }),
+      body: JSON.stringify({
+        classId,
+        materialIds,
+        questionCount: clampQuestionCount(questionCount, 15),
+        difficulty: typeof difficulty === "string" && difficulty.trim() ? difficulty.trim() : "Medium",
+      }),
     });
 
     if (!res.ok) {
@@ -136,6 +147,8 @@ export async function POST(
     // Normalize backend response envelope by resource type so content_json is
     // directly consumable by frontend pages.
     let normalizedContent: unknown = json.data;
+    const clampedQuestionCount = clampQuestionCount(questionCount, 15);
+
     if (resourceType === "exam") {
       normalizedContent = json.data?.practiceExam ?? json.data;
     } else if (resourceType === "study_plan") {
@@ -145,6 +158,39 @@ export async function POST(
     }
 
     // Save to personal_resources table
+    const examPayload = resourceType === "exam"
+      ? {
+          suggested_question_count: clampedQuestionCount,
+          question_count: Array.isArray(normalizedContent)
+            ? normalizedContent.length
+            : typeof normalizedContent === "object" && normalizedContent !== null && Array.isArray((normalizedContent as { questions?: unknown[] }).questions)
+              ? (normalizedContent as { questions: unknown[] }).questions.length
+              : clampedQuestionCount,
+          difficulty: typeof difficulty === "string" && difficulty.trim() ? difficulty.trim() : "Medium",
+        }
+      : {};
+
+    const { data: sessionRow, error: sessionError } = resourceType === "exam"
+      ? await supabase
+          .from("exam_sessions")
+          .insert({
+            class_id: classId,
+            user_email: session.user.email.toLowerCase(),
+            exam_scope: "personal",
+            resource_type: "exam",
+            suggested_question_count: clampedQuestionCount,
+            question_count: (examPayload as { question_count: number }).question_count,
+            difficulty: (examPayload as { difficulty: string }).difficulty,
+            material_ids: materialIds,
+            content_json: normalizedContent,
+            generation_status: "ready",
+          })
+          .select()
+          .single()
+      : { data: null, error: null };
+
+    if (sessionError) throw new Error(sessionError.message);
+
     const { data: saved, error: saveError } = await supabase
       .from("personal_resources")
       .insert({
@@ -153,6 +199,10 @@ export async function POST(
         resource_type: resourceType,
         material_ids: materialIds,
         content_json: normalizedContent,
+        exam_session_id: resourceType === "exam" ? sessionRow?.id ?? null : null,
+        suggested_question_count: resourceType === "exam" ? clampedQuestionCount : null,
+        question_count: resourceType === "exam" ? (examPayload as { question_count: number }).question_count : null,
+        difficulty: resourceType === "exam" ? (examPayload as { difficulty: string }).difficulty : null,
       })
       .select()
       .single();
