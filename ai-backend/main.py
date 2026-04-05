@@ -91,6 +91,63 @@ def _mark_material_failed(material_id: str, class_id: str, error: Exception, sto
 
 
 # ============================================================
+# Context scoring — determines if an upload is "high context"
+# enough to trigger shared-resource regeneration.
+#
+# Examples:
+#   30-page lecture slides: 15 + 3 = 18 → high context
+#   3-page student notes:   1.5 + 0.3 = 1.8 → low context
+# ============================================================
+
+HIGH_CONTEXT_THRESHOLD = 15
+
+def _compute_context_score(metrics: dict) -> float:
+    page_count = metrics.get("pageCount", 0) or 0
+    char_count = metrics.get("extractCharCount", 0) or 0
+    return (page_count * 0.5) + (char_count * 0.0001)
+
+def _generate_shared_resources(class_id: str):
+    """Regenerate shared exam/study-plan/flashcards for a class.
+    Called after a high-context material is embedded."""
+    try:
+        # Mark status as generating
+        _supabase.table("shared_resources").upsert({
+            "class_id": class_id,
+            "generation_status": "generating",
+        }, on_conflict="class_id").execute()
+
+        print(f"[SHARED] Generating shared resources for class {class_id}...")
+
+        # Generate each resource type using existing AI functions
+        exam_result = generate_practice_exam(class_id, topic=None, count=10)
+        flashcards_result = generate_flashcards(class_id, topic=None, count=20, style=None)
+        study_plan_result = generate_study_plan(class_id, topic=None)
+
+        # Upsert into shared_resources table
+        _supabase.table("shared_resources").upsert({
+            "class_id": class_id,
+            "exam_json": exam_result if exam_result else None,
+            "flashcards_json": flashcards_result if flashcards_result else None,
+            "study_plan_json": study_plan_result if study_plan_result else None,
+            "generation_status": "ready",
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }, on_conflict="class_id").execute()
+
+        print(f"[SHARED] Shared resources ready for class {class_id}")
+    except Exception as e:
+        print(f"[SHARED ERROR] Failed to generate shared resources for {class_id}: {e}")
+        traceback.print_exc()
+        # Mark as idle (failed) so it can be retried
+        try:
+            _supabase.table("shared_resources").upsert({
+                "class_id": class_id,
+                "generation_status": "idle",
+            }, on_conflict="class_id").execute()
+        except:
+            pass
+
+
+# ============================================================
 # Routes
 # ============================================================
 
@@ -168,6 +225,11 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                 })
                 return {"success": True, "data": result}
 
+            # Compute context score to decide if shared resources should be regenerated
+            context_score = _compute_context_score(metrics)
+            high_context = context_score >= HIGH_CONTEXT_THRESHOLD
+            print(f"[EVAL] Context score: {context_score:.2f} (threshold: {HIGH_CONTEXT_THRESHOLD}, high_context: {high_context})")
+
             # Stay in PROCESSING until embedding is confirmed complete.
             # Only transition to PROCESSED inside safe_embed after add_documents() succeeds.
             print(f"[EVAL] Approved! Scheduling embedding (staying PROCESSING until done)...")
@@ -178,6 +240,8 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                 "page_count": metrics.get("pageCount"),
                 "ocr_used": metrics.get("ocrUsed", False),
                 "parser_status": "embedding",
+                "high_context": high_context,
+                "context_score": context_score,
             })
 
             def safe_embed():
@@ -191,6 +255,12 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                         "processed_at": datetime.now(timezone.utc).isoformat(),
                     })
                     print(f"[EMBED] Completed and marked PROCESSED for {req.materialId}")
+
+                    # If this was a high-context material, regenerate shared resources
+                    if high_context:
+                        print(f"[EMBED] High-context material — triggering shared resource generation...")
+                        _generate_shared_resources(req.classId)
+
                 except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
                     print(f"[EMBED ERROR] {req.materialId}: {e}")
                     _mark_material_failed(req.materialId, req.classId, e, req.storageKey)
