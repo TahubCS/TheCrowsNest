@@ -201,10 +201,16 @@ function normalizeStudyPlanItems(items: unknown): StudyPlan["items"] {
   return [];
 }
 
-export async function getStudyPlansByEmail(userEmail: string): Promise<StudyPlan[]> {
-  const plans = await sql<StudyPlan[]>`
-    SELECT * FROM study_plans WHERE user_email = ${userEmail.toLowerCase()}
-  `;
+export async function getStudyPlansByEmail(userEmail: string, classId?: string): Promise<StudyPlan[]> {
+  const plans = classId
+    ? await sql<StudyPlan[]>`
+        SELECT * FROM study_plans
+        WHERE user_email = ${userEmail.toLowerCase()} AND class_id = ${classId}
+      `
+    : await sql<StudyPlan[]>`
+        SELECT * FROM study_plans
+        WHERE user_email = ${userEmail.toLowerCase()}
+      `;
 
   return plans.map((plan) => ({
     ...plan,

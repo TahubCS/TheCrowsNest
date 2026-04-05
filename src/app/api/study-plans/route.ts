@@ -16,7 +16,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json<ApiResponse>({ success: false, message: "Not authenticated" }, { status: 401 });
     }
 
-    const plans = await getStudyPlansByEmail(session.user.email);
+    const { searchParams } = new URL(request.url);
+    const classId = searchParams.get("classId");
+
+    if (!classId) {
+      return NextResponse.json<ApiResponse>({ success: false, message: "classId is required" }, { status: 400 });
+    }
+
+    const plans = await getStudyPlansByEmail(session.user.email, classId);
 
     return NextResponse.json<ApiResponse>({
       success: true,
@@ -37,14 +44,15 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, items } = body;
+    const { title, description, classId, items } = body;
 
-    if (!title) {
-      return NextResponse.json<ApiResponse>({ success: false, message: "Title is required" }, { status: 400 });
+    if (!title || !classId) {
+      return NextResponse.json<ApiResponse>({ success: false, message: "Title and classId are required" }, { status: 400 });
     }
 
     const plan: StudyPlan = {
       planId: crypto.randomUUID(),
+      classId,
       userEmail: session.user.email,
       title,
       description: description || "",
