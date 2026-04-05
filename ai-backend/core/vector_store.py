@@ -14,7 +14,14 @@ pool = ConnectionPool(
     max_size=10,
     max_idle=300,
     check=ConnectionPool.check_connection,
-    kwargs={"row_factory": dict_row, "autocommit": True}
+    # Supabase transaction poolers can recycle backend sessions between statements.
+    # Disable server-side prepared statements to avoid
+    # "prepared statement ... does not exist" errors under PgBouncer.
+    kwargs={
+        "row_factory": dict_row,
+        "autocommit": True,
+        "prepare_threshold": None,
+    }
 )
 
 def get_embedding(text: str) -> list[float]:
@@ -117,6 +124,7 @@ def add_documents(class_id: str, material_id: str, texts: list[str], metadatas: 
             raise  # propagate to caller
         except Exception as e:
             print(f"Database Insert Error: {e}")
+            raise
 
 def delete_documents(material_id: str):
     """

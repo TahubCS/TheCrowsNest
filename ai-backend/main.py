@@ -118,15 +118,33 @@ def _generate_shared_resources(class_id: str):
 
         print(f"[SHARED] Generating shared resources for class {class_id}...")
 
-        # Generate each resource type using existing AI functions
-        exam_result = generate_practice_exam(class_id, topic=None, count=10)
-        flashcards_result = generate_flashcards(class_id, topic=None, count=20, style=None)
-        study_plan_result = generate_study_plan(class_id, topic=None)
+        # Generate each resource type using existing AI functions.
+        # Keep these defaults intentionally balanced: challenging but learnable.
+        exam_result = generate_practice_exam(
+            class_id,
+            topic="Core class concepts",
+            difficulty="Medium",
+            count=10,
+        )
+        flashcards_result = generate_flashcards(
+            class_id,
+            topic="Core class concepts",
+            count=20,
+            style="Concepts",
+        )
+        study_plan_result = generate_study_plan(
+            class_id,
+            timeframe="Current semester",
+        )
+
+        # Normalize exam payload for the frontend shared viewer.
+        # generate_practice_exam returns {title, questions:[...]}; UI expects question array.
+        exam_questions = exam_result.get("questions", []) if isinstance(exam_result, dict) else []
 
         # Upsert into shared_resources table
         _supabase.table("shared_resources").upsert({
             "class_id": class_id,
-            "exam_json": exam_result if exam_result else None,
+            "exam_json": exam_questions if exam_questions else None,
             "flashcards_json": flashcards_result if flashcards_result else None,
             "study_plan_json": study_plan_result if study_plan_result else None,
             "generation_status": "ready",
