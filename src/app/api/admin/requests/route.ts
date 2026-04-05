@@ -5,19 +5,16 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import { getAllRequests, updateRequestStatus } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
-function isAdmin(email: string): boolean {
-  const adminEmails = process.env.ADMIN_EMAILS || "";
-  const emailsList = adminEmails.split(",").map((e) => e.trim().toLowerCase());
-  return emailsList.includes(email.toLowerCase());
-}
+// isAdmin is now imported from @/lib/admin (DB-backed)
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.email || !isAdmin(session.user.email)) {
+    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Unauthorized" },
         { status: 403 }
@@ -48,7 +45,7 @@ export async function GET(request: NextRequest) {
 export async function PATCH(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.email || !isAdmin(session.user.email)) {
+    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Unauthorized" },
         { status: 403 }

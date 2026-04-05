@@ -1,5 +1,14 @@
+/**
+ * POST /api/flashcards
+ *
+ * Premium only — generates flashcards via the Python backend.
+ * Free users consume shared resources (no API call).
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEffectivePlan } from "@/lib/plan";
+import { checkQuota, recordUsage } from "@/lib/quota";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -9,6 +18,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Not authenticated." },
         { status: 401 }
+      );
+    }
+
+    // Plan gate — premium only for personal generation
+    const plan = await getEffectivePlan(session.user.email);
+    if (plan !== "premium") {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "Upgrade to Premium to generate custom flashcards." },
+        { status: 403 }
+      );
+    }
+
+    // Quota check
+    const quota = await checkQuota(session.user.email, plan, "flashcards");
+    if (!quota.allowed) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          message: `Daily flashcard generation limit reached (${quota.limit}/${quota.limit}). Try again tomorrow.`,
+        },
+        { status: 429 }
       );
     }
 
@@ -38,12 +68,13 @@ export async function POST(request: NextRequest) {
 
     const flashcards = json.data.flashcards;
 
+    // Record usage
+    await recordUsage(session.user.email, "flashcards", classId);
+
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Flashcards generated.",
-      data: {
-        flashcards
-      },
+      data: { flashcards, remaining: quota.remaining - 1 },
     });
   } catch (error: any) {
     console.error("[Flashcards Generation Error]", error);

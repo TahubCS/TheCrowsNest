@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import {
   createMaterial,
   getMaterialsByClassId,
@@ -285,10 +286,9 @@ export async function DELETE(request: NextRequest) {
       });
     }
 
-    const adminEmails = process.env.ADMIN_EMAILS || "";
-    const isAdmin = adminEmails.split(",").map(e => e.trim().toLowerCase()).includes(session.user.email.toLowerCase());
+    const admin = await isAdmin(session.user.email);
 
-    if (material.uploadedBy !== session.user.email && !isAdmin) {
+    if (material.uploadedBy !== session.user.email && !admin) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "You are not authorized to delete this material." },
         { status: 403 }

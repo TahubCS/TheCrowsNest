@@ -1,5 +1,14 @@
+/**
+ * POST /api/practice-exams
+ *
+ * Premium only — generates a practice exam via the Python backend.
+ * Free users consume shared resources (no API call).
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEffectivePlan } from "@/lib/plan";
+import { checkQuota, recordUsage } from "@/lib/quota";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -9,6 +18,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Not authenticated." },
         { status: 401 }
+      );
+    }
+
+    // Plan gate — premium only for personal generation
+    const plan = await getEffectivePlan(session.user.email);
+    if (plan !== "premium") {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "Upgrade to Premium to generate custom practice exams." },
+        { status: 403 }
+      );
+    }
+
+    // Quota check
+    const quota = await checkQuota(session.user.email, plan, "exam");
+    if (!quota.allowed) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          message: `Daily exam generation limit reached (${quota.limit}/${quota.limit}). Try again tomorrow.`,
+        },
+        { status: 429 }
       );
     }
 
@@ -38,12 +68,13 @@ export async function POST(request: NextRequest) {
 
     let questions = json.data.practiceExam.questions || [];
 
+    // Record usage
+    await recordUsage(session.user.email, "exam", classId);
+
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Exam generated.",
-      data: {
-        questions
-      },
+      data: { questions, remaining: quota.remaining - 1 },
     });
   } catch (error: any) {
     console.error("[Exam Generation Error]", error);

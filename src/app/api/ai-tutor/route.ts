@@ -1,5 +1,14 @@
+/**
+ * POST /api/ai-tutor
+ *
+ * Premium only — proxies chat to the Python backend.
+ * Free users get a 403.
+ */
+
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getEffectivePlan } from "@/lib/plan";
+import { checkQuota, recordUsage } from "@/lib/quota";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -9,6 +18,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json<ApiResponse>(
         { success: false, message: "Not authenticated." },
         { status: 401 }
+      );
+    }
+
+    // Plan gate — premium only
+    const plan = await getEffectivePlan(session.user.email);
+    if (plan !== "premium") {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "Upgrade to Premium to use the AI Tutor." },
+        { status: 403 }
+      );
+    }
+
+    // Quota check
+    const quota = await checkQuota(session.user.email, plan, "chat");
+    if (!quota.allowed) {
+      return NextResponse.json<ApiResponse>(
+        {
+          success: false,
+          message: `Daily chat limit reached (${quota.limit}/${quota.limit}). Try again tomorrow.`,
+          data: { remaining: 0, limit: quota.limit },
+        },
+        { status: 429 }
       );
     }
 
@@ -36,15 +67,17 @@ export async function POST(request: NextRequest) {
       throw new Error(json.message || "Failed to generate AI answer.");
     }
 
-    const answer = json.reply;
+    // Record usage after successful call
+    await recordUsage(session.user.email, "chat", classId);
 
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Answer generated.",
       data: {
-        answer,
-        sourcesUsed: 1, // Fallback since actual citation links handling can be added later
+        answer: json.reply,
+        sourcesUsed: 1,
         relevanceScores: [],
+        remaining: quota.remaining - 1,
       },
     });
   } catch (error: any) {

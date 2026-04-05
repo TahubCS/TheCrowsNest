@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import postgres from "postgres";
 
 const sql = postgres(process.env.DATABASE_URL!, {
@@ -21,15 +22,12 @@ const TABLE_PK: Record<string, string> = {
   reports: "report_id",
 };
 
-function isAdminEmail(email: string): boolean {
-  const adminEmails = process.env.ADMIN_EMAILS || "";
-  return adminEmails.split(",").map((e) => e.trim().toLowerCase()).includes(email.toLowerCase());
-}
+// isAdmin is now imported from @/lib/admin (DB-backed)
 
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
     }
 
@@ -53,7 +51,7 @@ export async function GET(request: NextRequest) {
 export async function PUT(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
     }
 
@@ -92,7 +90,7 @@ export async function PUT(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const session = await auth();
-    if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+    if (!session?.user?.email || !(await isAdmin(session.user.email))) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 403 });
     }
 

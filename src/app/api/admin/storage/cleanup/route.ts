@@ -18,18 +18,14 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import { supabase, STORAGE_BUCKET } from "@/lib/supabase";
 
-function isAdmin(email: string): boolean {
-  return (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .includes(email.toLowerCase());
-}
+// isAdmin is now imported from @/lib/admin (DB-backed)
 
 export async function POST(request: NextRequest) {
   const session = await auth();
-  if (!session?.user?.email || !isAdmin(session.user.email)) {
+  if (!session?.user?.email || !(await isAdmin(session.user.email))) {
     return NextResponse.json(
       { success: false, message: "Unauthorized" },
       { status: 403 }

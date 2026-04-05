@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
+import { isAdmin } from "@/lib/admin";
 import AdminNav from "./AdminNav";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -8,10 +9,8 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     redirect("/login");
   }
 
-  const adminEmails = process.env.ADMIN_EMAILS || "";
-  const emailsList = adminEmails.split(",").map((e) => e.trim().toLowerCase());
-  
-  if (!emailsList.includes(session.user.email.toLowerCase())) {
+  const admin = await isAdmin(session.user.email);
+  if (!admin) {
     redirect("/dashboard");
   }
 
