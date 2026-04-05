@@ -88,34 +88,19 @@ const STEPS: TourStep[] = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-interface OnboardingTourProps {
-  enrolledCount: number;
-}
-
-export default function OnboardingTour({ enrolledCount }: OnboardingTourProps) {
+export default function OnboardingTour() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [active, setActive] = useState(false);
+  const [active, setActive] = useState(() => {
+    if (typeof window === "undefined") return false;
+    const isMobile = window.innerWidth < 768;
+    const done = localStorage.getItem(TOUR_KEY) === "true";
+    return !isMobile && !done;
+  });
   const [stepIndex, setStepIndex] = useState(0);
   const [rect, setRect] = useState<DOMRect | null>(null);
   const observerRef = useRef<MutationObserver | null>(null);
-
-  useEffect(() => {
-    const isMobile = window.innerWidth < 768;
-    const done = localStorage.getItem(TOUR_KEY) === "true";
-    if (!isMobile && !done) setActive(true);
-  }, []);
-
-  useEffect(() => {
-    const handleRestart = () => {
-      setStepIndex(0);
-      setActive(true);
-      setTimeout(updateRect, 50);
-    };
-    window.addEventListener("restart-tour", handleRestart);
-    return () => window.removeEventListener("restart-tour", handleRestart);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const currentStep = STEPS[stepIndex];
 
@@ -133,13 +118,24 @@ export default function OnboardingTour({ enrolledCount }: OnboardingTourProps) {
   }, [active, currentStep]);
 
   useEffect(() => {
+    const handleRestart = () => {
+      setStepIndex(0);
+      setActive(true);
+      setTimeout(updateRect, 50);
+    };
+    window.addEventListener("restart-tour", handleRestart);
+    return () => window.removeEventListener("restart-tour", handleRestart);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
     if (!active) return;
     window.addEventListener("scroll", updateRect, true);
     window.addEventListener("resize", updateRect);
     observerRef.current = new MutationObserver(updateRect);
     observerRef.current.observe(document.body, { childList: true, subtree: true, attributes: true });
-    updateRect();
+    const t = setTimeout(() => updateRect(), 0);
     return () => {
+      clearTimeout(t);
       window.removeEventListener("scroll", updateRect, true);
       window.removeEventListener("resize", updateRect);
       observerRef.current?.disconnect();
@@ -209,18 +205,18 @@ export default function OnboardingTour({ enrolledCount }: OnboardingTourProps) {
   return (
     <>
       {(!currentStep.targetId || currentStep.placement === "center") && (
-        <div className="fixed inset-0 z-[9997] bg-black/30 backdrop-blur-[1px]" />
+        <div className="fixed inset-0 z-9997 bg-black/30 backdrop-blur-[1px]" />
       )}
 
       {currentStep.targetId && rect && (
         <>
           <div 
-            className="fixed z-[9998] rounded-2xl ring-2 ring-ecu-purple ring-offset-2 ring-offset-transparent transition-all pointer-events-none"
+            className="fixed z-9998 rounded-2xl ring-2 ring-ecu-purple ring-offset-2 ring-offset-transparent transition-all pointer-events-none"
             style={{ top: rect.top, left: rect.left, width: rect.width, height: rect.height, boxShadow: "0 0 0 9999px rgba(0,0,0,0.25)" }}
           />
           {currentStep.clickToContinue && (
             <div 
-              className="fixed z-[9999] bg-ecu-purple text-white text-[9px] font-bold px-2 py-0.5 rounded-full animate-bounce pointer-events-none"
+              className="fixed z-9999 bg-ecu-purple text-white text-[9px] font-bold px-2 py-0.5 rounded-full animate-bounce pointer-events-none"
               style={{ top: rect.top - 24, left: rect.left + rect.width / 2, transform: "translateX(-50%)" }}
             >
               TAP! 👆
@@ -231,7 +227,7 @@ export default function OnboardingTour({ enrolledCount }: OnboardingTourProps) {
 
       <div
         style={{ ...getPos(), width: CARD_W }}
-        className="fixed z-[9999] bg-white/95 backdrop-blur-sm border border-border shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-[32px] p-6 animate-in fade-in zoom-in-95 duration-200"
+        className="fixed z-9999 bg-white/95 backdrop-blur-sm border border-border shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-4xl p-6 animate-in fade-in zoom-in-95 duration-200"
       >
         <h3 className="font-bold text-sm mb-1.5 text-foreground leading-tight">{currentStep.title}</h3>
         <p className="text-[11px] text-muted-foreground mb-4 leading-normal">{currentStep.body}</p>

@@ -6,24 +6,33 @@ import { useSession, signOut } from 'next-auth/react';
 import React, { useState, useEffect, useCallback } from 'react';
 import { toast } from "sonner";
 import OnboardingTour from '@/components/ui/OnboardingTour';
+import { usePlan } from '@/hooks/usePlan';
+import AdminDevBadge from '@/components/AdminDevBadge';
+
+interface EnrolledClass {
+  classId: string;
+  courseCode: string;
+  department: string;
+}
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const userName = session?.user?.name || 'Student';
   const userInitial = userName.charAt(0).toUpperCase();
+  const { plan, isAdmin: isPlanAdmin, loading: planLoading } = usePlan();
 
   // Basic logic to determine if we are in a specific class
   const classMatch = pathname.match(/\/dashboard\/classes\/([^/]+)/);
   const activeClass = classMatch ? classMatch[1] : null;
 
   // Dynamic Class Fetching
-  const [enrolledClasses, setEnrolledClasses] = useState<any[]>([]);
+  const [enrolledClasses, setEnrolledClasses] = useState<EnrolledClass[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showTourClass, setShowTourClass] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const profileMenuRef = React.useRef<HTMLDivElement>(null);
+  const showTourClass = typeof window !== "undefined" && localStorage.getItem("thecrowsnest_tour_complete") !== "true";
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -34,12 +43,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  useEffect(() => {
-    // Check if tour is complete to show/hide the onboarding class
-    const tourDone = localStorage.getItem("thecrowsnest_tour_complete") === "true";
-    setShowTourClass(!tourDone);
-  }, [pathname, refreshKey]);
 
   useEffect(() => {
     fetch("/api/admin/verify")
@@ -59,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const classesData = await classesRes.json();
         const enrolledData = await enrolledRes.json();
         const enrolledIds = enrolledData.data?.enrolledClasses || [];
-        const myClasses = classesData.data.classes.filter((c: any) =>
+        const myClasses = classesData.data.classes.filter((c: EnrolledClass) =>
           enrolledIds.includes(c.classId)
         );
         setEnrolledClasses(myClasses);
@@ -71,7 +74,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Re-fetch when route changes, session updates, or enrollment event fires
   useEffect(() => {
-    loadClasses();
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadClasses();
   }, [loadClasses, refreshKey, pathname]);
 
   // Listen for custom enrollment-changed events from enroll/unenroll actions
@@ -206,6 +210,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="flex items-center gap-4">
             <div className="hidden lg:flex items-center gap-2 mr-2">
+              {!planLoading && (
+                <Link
+                  href="/pricing"
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold transition-all duration-300 ${
+                    plan === "premium"
+                      ? "bg-ecu-gold/10 border border-ecu-gold/30 text-ecu-gold hover:bg-ecu-gold/20"
+                      : "bg-muted/40 border border-border/50 text-muted-foreground hover:border-ecu-purple/30 hover:bg-ecu-purple/5"
+                  }`}
+                >
+                  <span className="text-sm">{plan === "premium" ? "👑" : "🆓"}</span>
+                  <span className="text-foreground">{plan === "premium" ? "Premium" : "Free"}</span>
+                </Link>
+              )}
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-muted/40 border border-border/50 rounded-full text-[11px] font-bold text-muted-foreground group hover:border-ecu-purple/30 hover:bg-ecu-purple/5 transition-all duration-300">
                 <span className="text-sm group-hover:scale-110 transition-transform">☁️</span>
                 <span className="opacity-70">Storage:</span>
@@ -244,13 +261,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                       <span className="text-lg opacity-70 group-hover:opacity-100">⚙️</span>
                       Profile Settings
                     </Link>
-                    <button 
-                      onClick={() => { setShowProfileMenu(false); toast.info("Billing — coming soon!"); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-ecu-gold/10 hover:text-ecu-gold transition-colors group cursor-pointer"
+                    <Link
+                      href="/pricing"
+                      onClick={() => setShowProfileMenu(false)}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-ecu-gold/10 hover:text-ecu-gold transition-colors group"
                     >
                       <span className="text-lg opacity-70 group-hover:opacity-100">💎</span>
                       Subscription
-                    </button>
+                      {!planLoading && (
+                        <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full ${plan === "premium" ? "bg-ecu-gold/15 text-ecu-gold" : "bg-muted text-muted-foreground"}`}>
+                          {plan === "premium" ? "Premium" : "Free"}
+                        </span>
+                      )}
+                    </Link>
                     <button 
                       onClick={() => { setShowProfileMenu(false); toast.info("Help Center — coming soon!"); }}
                       className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-xl hover:bg-muted/60 transition-colors group cursor-pointer"
@@ -281,7 +304,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Onboarding Tour — rendered at layout level so it spans the full viewport */}
-      <OnboardingTour enrolledCount={enrolledClasses.length} />
+      <OnboardingTour />
+
+      {/* Admin Dev-Mode Badge — only for admins */}
+      {isPlanAdmin && <AdminDevBadge />}
     </div>
   );
 }

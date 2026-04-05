@@ -1,14 +1,17 @@
 "use client"
 
+import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { usePlan } from "@/hooks/usePlan";
 import { resetTour } from "@/components/ui/OnboardingTour";
 
 export default function ProfilePage() {
   const { data: session, update } = useSession();
+  const { plan } = usePlan();
   
   // Form State
   const [firstName, setFirstName] = useState("");
@@ -206,6 +209,115 @@ export default function ProfilePage() {
             </Button>
           </div>
         </form>
+      </div>
+
+      {/* Subscription/Plan Card */}
+      <div className={`max-w-3xl rounded-2xl border-2 p-8 shadow-sm relative overflow-hidden ${
+        plan === "premium" 
+          ? "border-ecu-gold bg-ecu-gold/5" 
+          : "border-border bg-background"
+      }`}>
+        {/* Decorative gradients */}
+        {plan === "premium" && (
+          <>
+            <div className="absolute top-0 right-0 w-40 h-40 bg-ecu-gold/20 rounded-full -mr-20 -mt-20 blur-3xl"></div>
+            <div className="absolute bottom-0 left-0 w-40 h-40 bg-ecu-purple/10 rounded-full -ml-20 -mb-20 blur-3xl"></div>
+          </>
+        )}
+        
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-6">
+            <div className="flex-1">
+              <h2 className="text-lg font-bold text-foreground flex items-center gap-2">
+                {plan === "premium" ? (
+                  <>
+                    <span className="text-xl">👑</span> Your Premium Plan
+                  </>
+                ) : (
+                  <>
+                    <span className="text-xl">🚀</span> Free Plan
+                  </>
+                )}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {plan === "premium"
+                  ? "You have access to all premium features including AI tools with daily quotas."
+                  : "Access community resources and shared materials. Upgrade to unlock AI-powered study tools."}
+              </p>
+              
+              {/* Plan features summary */}
+              <div className="mt-4 space-y-2">
+                {plan === "premium" ? (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-ecu-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>25 AI chat messages per day</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-ecu-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>5 custom flashcard generations daily</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-ecu-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>5 custom exam generations daily</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-ecu-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>5 custom study plan generations daily</span>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Unlimited material uploads</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Community shared resources</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm text-foreground">
+                      <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                      </svg>
+                      <span>Pre-generated study materials</span>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+            
+            {/* Action buttons */}
+            <div className="shrink-0 flex gap-3">
+              {plan === "premium" ? (
+                <Button
+                  onClick={() => router.push("/pricing")}
+                  className="bg-ecu-gold hover:bg-ecu-gold/90 text-slate-900 font-bold"
+                >
+                  Manage Plan
+                </Button>
+              ) : (
+                <Link href="/pricing">
+                  <Button className="bg-ecu-purple hover:bg-ecu-purple/90 text-white font-bold">
+                    Upgrade to Premium
+                  </Button>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Restart Tour Card */}

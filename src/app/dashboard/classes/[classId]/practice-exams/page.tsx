@@ -2,18 +2,32 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import SharedResourcesSection from "@/components/SharedResourcesSection";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import QuotaIndicator from "@/components/QuotaIndicator";
+import MaterialSelectionModal from "@/components/MaterialSelectionModal";
+import { usePlan } from "@/hooks/usePlan";
+
+interface MaterialOption {
+  materialId: string;
+  fileName: string;
+  materialType?: string;
+  status?: string;
+}
 
 export default function PracticeExamsPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
 
+  const { plan, loading: planLoading } = usePlan();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [selectedTopic, setSelectedTopic] = useState("All Course Topics");
-  const [difficulty, setDifficulty] = useState("Standard");
-  const [format, setFormat] = useState("Short Quiz");
+  const [quota, setQuota] = useState<{ remaining: number; total: number } | null>(null);
+  const [materials, setMaterials] = useState<MaterialOption[]>([]);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
 
   // Exam state
   const [questions, setQuestions] = useState<{question: string; options: string[]; correctAnswer: string}[]>([]);
@@ -22,25 +36,104 @@ export default function PracticeExamsPage() {
   const [showResults, setShowResults] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
 
-  const handleGenerate = async () => {
+  // Load initial quota on page load (Premium users only)
+  const loadInitialQuota = useCallback(async () => {
+    if (plan !== "premium") return;
+    try {
+      const res = await fetch(`/api/user/plan`);
+      const data = await res.json();
+      if (data.success && data.data?.quotas?.exam) {
+        setQuota({ remaining: data.data.quotas.exam.remaining, total: data.data.quotas.exam.total });
+      }
+    } catch (err) {
+      console.error("[Practice Exams] Failed to load quota:", err);
+    }
+  }, [plan]);
+
+  useEffect(() => {
+    loadInitialQuota();
+  }, [loadInitialQuota, plan]);
+
+  useEffect(() => {
+    async function loadMaterials() {
+      try {
+        const res = await fetch(`/api/materials?classId=${classId}`);
+        const data = await res.json();
+        if (data.success) {
+          const approved = (data.data?.materials || []).filter((m: MaterialOption) => m.status === "PROCESSED");
+          setMaterials(approved);
+        }
+      } catch (err) {
+        console.error("[Practice Exams] Failed to load materials:", err);
+      }
+    }
+
+    if (classId && plan === "premium") {
+      loadMaterials();
+    }
+  }, [classId, plan]);
+
+  const handleToggleMaterial = (id: string) => {
+    setSelectedMaterialIds((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  };
+
+  const handleGeneratePersonal = async () => {
+    if (selectedMaterialIds.length === 0) {
+      toast.error("Select at least one material.");
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/practice-exams", {
+      const res = await fetch(`/api/classes/${classId}/personal-resources`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, topic: selectedTopic, difficulty, format })
+        body: JSON.stringify({
+          resourceType: "exam",
+          materialIds: selectedMaterialIds,
+        }),
       });
       const data = await res.json();
-      if (data.success && data.data?.questions?.length > 0) {
-        setQuestions(data.data.questions);
-        setCurrentIndex(0);
-        setSelectedAnswers({});
-        setShowResults(false);
-      } else {
-        toast.error(data.message || "Failed to generate exam.");
+
+      if (res.status === 403) {
+        toast.error("Upgrade to Premium to generate personal exams.");
+        return;
       }
-    } catch (e) {
-      console.error(e);
+      if (res.status === 429) {
+        toast.error(data.message || "Daily exam limit reached. Try again tomorrow!");
+        return;
+      }
+      if (!data.success) {
+        toast.error(data.message || "Failed to generate personal exam.");
+        return;
+      }
+
+      const content = data.data?.content_json ?? data.data?.contentJson ?? data.data;
+      const generatedQuestions = Array.isArray(content?.questions)
+        ? content.questions
+        : Array.isArray(content)
+          ? content
+          : [];
+
+      if (generatedQuestions.length === 0) {
+        toast.error("Generation completed but no questions were returned.");
+        return;
+      }
+
+      setQuestions(generatedQuestions);
+      setCurrentIndex(0);
+      setSelectedAnswers({});
+      setShowResults(false);
+      setIsReviewing(false);
+      setSelectedMaterialIds([]);
+      setShowMaterialModal(false);
+      toast.success("Personal practice exam generated.");
+
+      await loadInitialQuota();
+    } catch (err) {
+      console.error(err);
       toast.error("Network error.");
     } finally {
       setIsGenerating(false);
@@ -80,8 +173,28 @@ export default function PracticeExamsPage() {
         </div>
       </div>
 
+      {/* Shared Community Exam (Free for all) */}
+      <SharedResourcesSection classId={classId} resourceType="exam" />
+
+      {/* Quota Indicator */}
+      {quota && <QuotaIndicator remaining={quota.remaining} total={quota.total} resourceName="exam generations" />}
+
       {/* Main Area */}
-      {questions.length === 0 ? (
+      {planLoading ? (
+        <div className="flex justify-center py-16">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ecu-purple" />
+        </div>
+      ) : plan === "free" && questions.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-muted/10 p-6">
+          <h2 className="text-lg font-bold text-foreground">Personal Practice Exam Generation</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Free users can use community practice exams above. Premium unlocks personal exams generated from selected materials.
+          </p>
+          <div className="mt-4">
+            <UpgradePrompt featureName="generate personal practice exams from selected materials" />
+          </div>
+        </div>
+      ) : questions.length === 0 ? (
         <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
           {/* Animated Glow Border */}
           <div className="absolute inset-0 bg-linear-to-r from-purple-500 via-ecu-gold to-purple-500 opacity-30 group-hover:opacity-60 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
@@ -102,48 +215,22 @@ export default function PracticeExamsPage() {
             </div>
 
             <div className="space-y-6">
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">Focus Topic</label>
-                <select 
-                  value={selectedTopic}
-                  onChange={(e) => setSelectedTopic(e.target.value)}
-                  className="w-full bg-muted/50 border border-border rounded-xl p-3 text-foreground focus:ring-2 focus:ring-purple-400 focus:border-transparent transition-all outline-none appearance-none cursor-pointer"
-                >
-                  <option value="All Course Topics">All Course Topics</option>
-                  <option value="Midterm 1 Review">Midterm 1 Review</option>
-                  <option value="Recent Material">Recent Material</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold">Difficulty</label>
-                  <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
-                    <button onClick={() => setDifficulty("Standard")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${difficulty === "Standard" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Standard</button>
-                    <button onClick={() => setDifficulty("Hard")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${difficulty === "Hard" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Hard</button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold">Length</label>
-                  <div className="flex bg-muted/50 rounded-xl p-1 border border-border">
-                    <button onClick={() => setFormat("Short Quiz")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${format === "Short Quiz" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>5 Qs</button>
-                    <button onClick={() => setFormat("Full Exam")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${format === "Full Exam" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>10 Qs</button>
-                  </div>
-                </div>
-              </div>
+              <p className="text-sm text-muted-foreground">
+                Premium personal exams are generated from specific approved class materials.
+              </p>
 
               <button 
-                onClick={handleGenerate}
+                onClick={() => setShowMaterialModal(true)}
                 disabled={isGenerating}
                 className="w-full relative overflow-hidden mt-4 bg-linear-to-r from-ecu-purple to-purple-800 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] hover:shadow-[0_0_30px_rgba(147,51,234,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
                 {isGenerating ? (
                   <span className="flex items-center justify-center gap-2">
                     <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                    Generating Exam...
+                    Generating Personal Exam...
                   </span>
                 ) : (
-                  "Generate Practice Exam"
+                  "Select Materials & Generate"
                 )}
               </button>
             </div>
@@ -238,6 +325,20 @@ export default function PracticeExamsPage() {
           </div>
         </div>
       )}
+
+      <MaterialSelectionModal
+        open={showMaterialModal}
+        title="Generate Personal Practice Exam"
+        subtitle="Select approved materials to include in your personal exam."
+        materials={materials}
+        selectedIds={selectedMaterialIds}
+        submitting={isGenerating}
+        onToggle={handleToggleMaterial}
+        onClose={() => {
+          if (!isGenerating) setShowMaterialModal(false);
+        }}
+        onSubmit={handleGeneratePersonal}
+      />
     </div>
   );
 }

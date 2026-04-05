@@ -2,19 +2,43 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { toast } from "sonner";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import QuotaIndicator from "@/components/QuotaIndicator";
+import { usePlan } from "@/hooks/usePlan";
 
 export default function AITutorPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
 
+  const { plan, loading: planLoading } = usePlan();
   const [message, setMessage] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const [messages, setMessages] = useState<{ role: "student" | "tutor"; text: string }[]>([]);
+  const [quota, setQuota] = useState<{ remaining: number; total: number } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load initial quota on page load
+  const loadInitialQuota = useCallback(async () => {
+    if (plan === "free") return;
+    try {
+      const res = await fetch(`/api/user/plan`);
+      const data = await res.json();
+      if (data.success && data.data?.quotas?.chat) {
+        setQuota({ remaining: data.data.quotas.chat.remaining, total: data.data.quotas.chat.total });
+      }
+    } catch (err) {
+      console.error("[AI Tutor] Failed to load quota:", err);
+    }
+  }, [plan]);
+
+  useEffect(() => {
+    loadInitialQuota();
+  }, [loadInitialQuota, plan]);
 
   useEffect(() => {
     if (scrollContainerRef.current) {
@@ -43,8 +67,22 @@ export default function AITutorPage() {
       });
       const data = await res.json();
 
+      if (res.status === 403) {
+        toast.error("Upgrade to Premium to use the AI Tutor.");
+        setMessages(updatedMessages.slice(0, -1));
+        return;
+      }
+      if (res.status === 429) {
+        toast.error("Daily chat limit reached. Try again tomorrow!");
+        setMessages([...updatedMessages, { role: "tutor" as const, text: "You've reached your daily chat limit. Try again tomorrow!" }]);
+        return;
+      }
       if (res.ok && data.success) {
         setMessages([...updatedMessages, { role: "tutor" as const, text: data.data.answer }]);
+        // Update quota if provided in response
+        if (data.data?.remaining !== undefined) {
+          setQuota({ remaining: data.data.remaining, total: data.data.total ?? 25 });
+        }
       } else {
         setMessages([...updatedMessages, { role: "tutor" as const, text: data.message || "I encountered an error retrieving that information." }]);
       }
@@ -85,7 +123,19 @@ export default function AITutorPage() {
         </div>
       </div>
 
+      {/* Quota Indicator - Premium Only */}
+      {plan === "premium" && quota && <QuotaIndicator remaining={quota.remaining} total={quota.total} resourceName="AI chat messages" />}
+
       {/* Main Chat Area - Full Width */}
+      {planLoading ? (
+        <div className="flex-1 flex justify-center items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500" />
+        </div>
+      ) : plan === "free" ? (
+        <div className="flex-1 flex items-center justify-center">
+          <UpgradePrompt featureName="chat with the AI Study Tutor" />
+        </div>
+      ) : (
       <div className="flex-1 min-h-0 flex flex-col bg-background/80 backdrop-blur-xl border border-border rounded-3xl shadow-lg overflow-hidden relative group">
 
         {/* Subtle animated background glow */}
@@ -164,6 +214,7 @@ export default function AITutorPage() {
           </p>
         </div>
       </div>
+      )}
     </div>
   );
 }

@@ -52,7 +52,7 @@ export default function DashboardPage() {
           const enrolledData = await enrolledRes.json();
           const freshEnrolledIds: string[] = enrolledData.data?.enrolledClasses || [];
           setEnrolledIds(freshEnrolledIds);
-          const myClasses = classesData.data.classes.filter((c: any) =>
+          const myClasses = classesData.data.classes.filter((c: { classId: string }) =>
             freshEnrolledIds.includes(c.classId)
           );
           setClasses(myClasses);
@@ -71,7 +71,7 @@ export default function DashboardPage() {
     if (session?.user) {
       loadClasses();
     }
-  }, [session?.user?.email]);
+  }, [session]);
 
   const handleSearch = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -190,10 +190,10 @@ export default function DashboardPage() {
           ) : searchResults.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 border border-dashed border-border rounded-xl bg-muted/20 text-center">
               <span className="text-4xl mb-3">🔍</span>
-              <p className="text-muted-foreground font-medium mb-4">No classes found matching "{searchQuery}".</p>
+              <p className="text-muted-foreground font-medium mb-4">{`No classes found matching "${searchQuery}".`}</p>
               <div className="flex flex-col items-center gap-2">
                 <Button disabled={pendingRequestsCount >= 6} onClick={() => setShowRequestModal(true)} variant="outline" className="border-ecu-purple text-ecu-purple hover:bg-ecu-purple/10">
-                  Can't find your class? Request it to be added
+                  Can&apos;t find your class? Request it to be added
                 </Button>
                 <span className="text-xs font-semibold text-ecu-purple bg-ecu-purple/10 px-2 py-1 rounded-md">
                   {Math.max(0, 6 - pendingRequestsCount)}/6 Requests Remaining
@@ -229,7 +229,7 @@ export default function DashboardPage() {
               {/* Request Class Banner below results */}
               <div className="bg-ecu-purple/5 border border-ecu-purple/20 rounded-xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-sm mt-4">
                 <div>
-                  <h4 className="font-bold text-ecu-purple text-lg">Didn't see what you're looking for?</h4>
+                  <h4 className="font-bold text-ecu-purple text-lg">Didn&apos;t see what you&apos;re looking for?</h4>
                   <p className="text-sm text-muted-foreground mt-1">Help us expand TheCrowsNest by requesting a new class.</p>
                 </div>
                 <div className="flex flex-col items-center sm:items-end gap-1 shrink-0">
@@ -344,7 +344,7 @@ export default function DashboardPage() {
           <div onClick={() => {
             const input = document.querySelector('input[type="search"]') as HTMLInputElement;
             if (input) input.focus();
-          }} className="bg-background/50 rounded-2xl border-2 border-dashed border-border hover:border-ecu-purple hover:bg-ecu-purple/5 flex flex-col items-center justify-center p-8 text-center text-muted-foreground hover:text-ecu-purple transition-all duration-300 cursor-pointer min-h-[240px] group">
+          }} className="bg-background/50 rounded-2xl border-2 border-dashed border-border hover:border-ecu-purple hover:bg-ecu-purple/5 flex flex-col items-center justify-center p-8 text-center text-muted-foreground hover:text-ecu-purple transition-all duration-300 cursor-pointer min-h-60 group">
             <div className="w-14 h-14 rounded-full bg-muted group-hover:bg-ecu-purple/20 flex items-center justify-center mb-4 transition-colors">
               <span className="text-3xl font-light text-foreground group-hover:text-ecu-purple">+</span>
             </div>

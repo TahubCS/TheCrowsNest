@@ -2,42 +2,134 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
+import SharedResourcesSection from "@/components/SharedResourcesSection";
+import UpgradePrompt from "@/components/UpgradePrompt";
+import QuotaIndicator from "@/components/QuotaIndicator";
+import MaterialSelectionModal from "@/components/MaterialSelectionModal";
+import { usePlan } from "@/hooks/usePlan";
+
+interface MaterialOption {
+  materialId: string;
+  fileName: string;
+  materialType?: string;
+  status?: string;
+}
 
 export default function FlashcardsPage() {
   const params = useParams();
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
 
+  const { plan, loading: planLoading } = usePlan();
   const [isGenerating, setIsGenerating] = useState(false);
-  const [focusUnit, setFocusUnit] = useState("Everything Discussed So Far");
-  const [cardCount, setCardCount] = useState(20);
-  const [style, setStyle] = useState("Concepts");
+  const [quota, setQuota] = useState<{ remaining: number; total: number } | null>(null);
+  const [materials, setMaterials] = useState<MaterialOption[]>([]);
+  const [showMaterialModal, setShowMaterialModal] = useState(false);
+  const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
 
   // Deck state
   const [flashcards, setFlashcards] = useState<{front: string; back: string}[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  const handleGenerate = async () => {
+  // Load initial quota on page load (Premium users only)
+  const loadInitialQuota = useCallback(async () => {
+    if (plan !== "premium") return;
+    try {
+      const res = await fetch(`/api/user/plan`);
+      const data = await res.json();
+      if (data.success && data.data?.quotas?.flashcards) {
+        setQuota({ remaining: data.data.quotas.flashcards.remaining, total: data.data.quotas.flashcards.total });
+      }
+    } catch (err) {
+      console.error("[Flashcards] Failed to load quota:", err);
+    }
+  }, [plan]);
+
+  useEffect(() => {
+    loadInitialQuota();
+  }, [loadInitialQuota, plan]);
+
+  useEffect(() => {
+    async function loadMaterials() {
+      try {
+        const res = await fetch(`/api/materials?classId=${classId}`);
+        const data = await res.json();
+        if (data.success) {
+          const approved = (data.data?.materials || []).filter((m: MaterialOption) => m.status === "PROCESSED");
+          setMaterials(approved);
+        }
+      } catch (err) {
+        console.error("[Flashcards] Failed to load materials:", err);
+      }
+    }
+
+    if (classId && plan === "premium") {
+      loadMaterials();
+    }
+  }, [classId, plan]);
+
+  const handleToggleMaterial = (id: string) => {
+    setSelectedMaterialIds((prev) =>
+      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+    );
+  };
+
+  const handleGeneratePersonal = async () => {
+    if (selectedMaterialIds.length === 0) {
+      toast.error("Select at least one material.");
+      return;
+    }
+
     setIsGenerating(true);
     try {
-      const res = await fetch("/api/flashcards", {
+      const res = await fetch(`/api/classes/${classId}/personal-resources`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ classId, topic: focusUnit, count: cardCount, style })
+        body: JSON.stringify({
+          resourceType: "flashcards",
+          materialIds: selectedMaterialIds,
+        }),
       });
       const data = await res.json();
-      if (data.success && data.data?.flashcards?.length > 0) {
-        setFlashcards(data.data.flashcards);
-        setCurrentIndex(0);
-        setIsFlipped(false);
-      } else {
-        toast.error(data.message || "Failed to generate flashcards.");
+
+      if (res.status === 403) {
+        toast.error("Upgrade to Premium to generate personal flashcards.");
+        return;
       }
-    } catch (e) {
-      console.error(e);
+      if (res.status === 429) {
+        toast.error(data.message || "Daily flashcard limit reached. Try again tomorrow!");
+        return;
+      }
+      if (!data.success) {
+        toast.error(data.message || "Failed to generate personal flashcards.");
+        return;
+      }
+
+      const content = data.data?.content_json ?? data.data?.contentJson ?? data.data;
+      const cards = Array.isArray(content?.flashcards)
+        ? content.flashcards
+        : Array.isArray(content)
+          ? content
+          : [];
+
+      if (cards.length === 0) {
+        toast.error("Generation completed but no flashcards were returned.");
+        return;
+      }
+
+      setFlashcards(cards);
+      setCurrentIndex(0);
+      setIsFlipped(false);
+      setSelectedMaterialIds([]);
+      setShowMaterialModal(false);
+      toast.success("Personal flashcards generated.");
+
+      await loadInitialQuota();
+    } catch (err) {
+      console.error(err);
       toast.error("Network error.");
     } finally {
       setIsGenerating(false);
@@ -78,8 +170,28 @@ export default function FlashcardsPage() {
         </div>
       </div>
 
+      {/* Shared Community Flashcards (Free for all) */}
+      <SharedResourcesSection classId={classId} resourceType="flashcards" />
+
+      {/* Quota Indicator */}
+      {quota && <QuotaIndicator remaining={quota.remaining} total={quota.total} resourceName="flashcard generations" />}
+
       {/* Main Area */}
-      {flashcards.length === 0 ? (
+      {planLoading ? (
+        <div className="flex justify-center py-16">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+        </div>
+      ) : plan === "free" && flashcards.length === 0 ? (
+        <div className="rounded-2xl border border-border bg-muted/10 p-6">
+          <h2 className="text-lg font-bold text-foreground">Personal Flashcard Generation</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Free users can use community flashcards above. Premium unlocks personal decks generated from selected materials.
+          </p>
+          <div className="mt-4">
+            <UpgradePrompt featureName="generate personal flashcard decks from selected materials" />
+          </div>
+        </div>
+      ) : flashcards.length === 0 ? (
         <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
           {/* Animated Glow Border */}
           <div className="absolute inset-0 bg-linear-to-r from-green-500 via-emerald-400 to-teal-500 opacity-20 group-hover:opacity-40 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
@@ -94,39 +206,12 @@ export default function FlashcardsPage() {
               <p className="text-muted-foreground mt-3">Select a focus area and let our AI synthesize your class notes, lectures, and syllabus into bite-sized study cards.</p>
             </div>
 
-            <div className="space-y-6 max-w-md mx-auto w-full">
-              <div className="space-y-3">
-                <label className="text-sm font-semibold text-foreground">Target Material</label>
-                <select 
-                  value={focusUnit}
-                  onChange={(e) => setFocusUnit(e.target.value)}
-                  className="w-full bg-muted/30 border border-border rounded-xl p-4 text-foreground focus:ring-2 focus:ring-green-500 focus:border-transparent transition-all outline-none appearance-none cursor-pointer"
-                >
-                  <option value="Everything Discussed So Far">Everything Discussed So Far</option>
-                  <option value="Recent Lectures">Recent Lectures</option>
-                  <option value="Midterm Review">Midterm Review</option>
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold">Card Count</label>
-                  <div className="flex bg-muted/30 rounded-xl p-1 border border-border">
-                    <button onClick={() => setCardCount(20)} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${cardCount === 20 ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>20 Cards</button>
-                    <button onClick={() => setCardCount(40)} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${cardCount === 40 ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>40 Cards</button>
-                  </div>
-                </div>
-                <div className="space-y-3">
-                  <label className="text-sm font-semibold">Style</label>
-                  <div className="flex bg-muted/30 rounded-xl p-1 border border-border">
-                    <button onClick={() => setStyle("Concepts")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${style === "Concepts" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Concepts</button>
-                    <button onClick={() => setStyle("Vocab")} className={`flex-1 py-2 text-sm font-medium rounded-lg transition-colors ${style === "Vocab" ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>Vocab</button>
-                  </div>
-                </div>
-              </div>
-
+              <div className="space-y-6 max-w-md mx-auto w-full">
+                <p className="text-sm text-muted-foreground text-center">
+                  Premium personal decks are generated from specific approved class materials.
+                </p>
               <button 
-                onClick={handleGenerate}
+                onClick={() => setShowMaterialModal(true)}
                 disabled={isGenerating}
                 className="w-full relative overflow-hidden mt-6 bg-linear-to-r from-green-500 to-emerald-600 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
               >
@@ -136,10 +221,10 @@ export default function FlashcardsPage() {
                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                      </svg>
-                    Extracting Concepts...
+                    Generating Personal Deck...
                   </span>
                 ) : (
-                  "Build Flashcards"
+                  "Select Materials & Generate"
                 )}
               </button>
             </div>
@@ -189,6 +274,20 @@ export default function FlashcardsPage() {
           </div>
         </div>
       )}
+
+      <MaterialSelectionModal
+        open={showMaterialModal}
+        title="Generate Personal Flashcards"
+        subtitle="Select approved materials to include in your personal deck."
+        materials={materials}
+        selectedIds={selectedMaterialIds}
+        submitting={isGenerating}
+        onToggle={handleToggleMaterial}
+        onClose={() => {
+          if (!isGenerating) setShowMaterialModal(false);
+        }}
+        onSubmit={handleGeneratePersonal}
+      />
     </div>
   );
 }

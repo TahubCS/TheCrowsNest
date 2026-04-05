@@ -8,6 +8,15 @@ import Link from "next/link";
 import majorClassData from "@/lib/data/major-class-map.json";
 import { ECU_MAJORS, STUDY_LEVELS, YEARS_OF_STUDY } from "@/lib/data/ecu-majors";
 
+interface RecommendedClass {
+  id: string;
+  code: string;
+  name: string;
+  credits: number;
+}
+
+type MajorClassMap = Record<string, Record<string, RecommendedClass[]>>;
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { update: updateSession } = useSession();
@@ -19,8 +28,7 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Typecasting access due to dynamic keys
-  const recommendedClasses = (majorClassData as any)[major]?.[year] || [];
+  const recommendedClasses = (majorClassData as MajorClassMap)[major]?.[year] || [];
 
   const toggleClass = (classId: string) => {
     setSelectedClasses(prev => 
@@ -147,8 +155,8 @@ export default function OnboardingPage() {
             </div>
 
             {recommendedClasses.length > 0 ? (
-              <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 rounded-xl [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
-                {recommendedClasses.map((cls: any) => (
+              <div className="space-y-3 max-h-100 overflow-y-auto pr-2 rounded-xl [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
+                {recommendedClasses.map((cls) => (
                   <div 
                     key={cls.id} 
                     onClick={() => toggleClass(cls.id)}

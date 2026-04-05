@@ -339,7 +339,7 @@ export default function SignupPage() {
 
             <div className="mt-6 text-center text-sm text-muted-foreground border-t border-border pt-6 flex flex-col gap-2">
               <div>
-                Didn't receive the email?{" "}
+                Didn&apos;t receive the email?{" "}
                 <button
                   type="button"
                   onClick={handleResendCode}

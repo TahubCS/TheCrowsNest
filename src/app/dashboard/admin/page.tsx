@@ -5,16 +5,18 @@ import { toast } from "sonner";
 
 const TABLES = ["users", "classes", "materials", "study_plans", "requests", "reports"];
 
+type DataRow = Record<string, unknown>;
+
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState(TABLES[0]);
-  const [data, setData] = useState<any[]>([]);
+  const [data, setData] = useState<DataRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   
   // Edit & Delete State
-  const [editingRow, setEditingRow] = useState<any>(null);
+  const [editingRow, setEditingRow] = useState<DataRow | null>(null);
   const [editJsonStr, setEditJsonStr] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [deletingIndex, setDeletingIndex] = useState<number | null>(null);
@@ -52,7 +54,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const getRowKeys = (table: string, row: any) => {
+  const getRowKeys = (table: string, row: DataRow) => {
     switch (table) {
       case "users": return { email: row.email };
       case "classes": return { classId: row.classId };
@@ -64,7 +66,7 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const startEdit = (row: any) => {
+  const startEdit = (row: DataRow) => {
     setEditingRow(row);
     setEditJsonStr(JSON.stringify(row, null, 2));
   };
@@ -83,21 +85,21 @@ export default function AdminDashboardPage() {
         // Update local state without re-fetching
         setData(prev => prev.map(item => {
            const keys = getRowKeys(activeTab, parsedItem);
-           const isMatch = Object.keys(keys).every(k => item[k] === (keys as Record<string, any>)[k]);
+           const isMatch = Object.keys(keys).every(k => item[k] === (keys as Record<string, unknown>)[k]);
            return isMatch ? parsedItem : item;
         }));
         setEditingRow(null);
       } else {
         toast.error("Failed to save: " + dataRes.message);
       }
-    } catch (e) {
+    } catch {
       toast.error("Invalid JSON format or network error");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeleteClick = async (row: any, index: number) => {
+  const handleDeleteClick = async (row: DataRow, index: number) => {
     if (confirmDeleteIndex === index) {
       // Execute Delete
       setDeletingIndex(index);
@@ -110,14 +112,14 @@ export default function AdminDashboardPage() {
         if (dataRes.success) {
           setData(prev => {
             const copy = [...prev];
-            const matchIdx = copy.findIndex(item => Object.keys(keys).every(k => item[k] === (keys as Record<string, any>)[k]));
+            const matchIdx = copy.findIndex(item => Object.keys(keys).every(k => item[k] === (keys as Record<string, unknown>)[k]));
             if (matchIdx !== -1) copy.splice(matchIdx, 1);
             return copy;
           });
         } else {
           toast.error("Failed to delete: " + dataRes.message);
         }
-      } catch (e) {
+      } catch {
         toast.error("Error executing delete");
       } finally {
         setDeletingIndex(null);
@@ -134,7 +136,7 @@ export default function AdminDashboardPage() {
   };
 
   return (
-    <div className="flex flex-col h-[600px] bg-background">
+    <div className="flex flex-col h-150 bg-background">
       <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 border-b border-border/60 pb-3 mb-4">
         <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
           {TABLES.map((table) => (
@@ -237,7 +239,7 @@ export default function AdminDashboardPage() {
                 {processedData.map((row, i) => (
                   <tr key={i} className="hover:bg-muted/40 transition-colors">
                     {displayedKeys.map(key => (
-                      <td key={key} className="px-6 py-3 text-muted-foreground truncate max-w-[200px]">
+                      <td key={key} className="px-6 py-3 text-muted-foreground truncate max-w-50">
                         {row[key] !== undefined && row[key] !== null 
                           ? typeof row[key] === "object" 
                             ? JSON.stringify(row[key]) 
@@ -300,7 +302,7 @@ export default function AdminDashboardPage() {
               <textarea 
                 value={editJsonStr}
                 onChange={(e) => setEditJsonStr(e.target.value)}
-                className="w-full h-[400px] font-mono text-sm p-4 bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ecu-purple/50 resize-y"
+                className="w-full h-100 font-mono text-sm p-4 bg-muted/30 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ecu-purple/50 resize-y"
                 spellCheck={false}
               />
             </div>

@@ -6,6 +6,9 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import SharedResourcesSection from "@/components/SharedResourcesSection";
+import QuotaIndicator from "@/components/QuotaIndicator";
+import { usePlan } from "@/hooks/usePlan";
 import type { StudyPlan } from "@/types";
 
 export default function ClassStudyPlansPage() {
@@ -13,8 +16,10 @@ export default function ClassStudyPlansPage() {
   const classId = params.classId as string;
   const formattedClass = classId?.toUpperCase() || "CLASS";
 
+  const { plan: userPlan } = usePlan();
   const [plans, setPlans] = useState<StudyPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const [quota, setQuota] = useState<{ remaining: number; total: number } | null>(null);
 
   // Create Plan Form State
   const [showForm, setShowForm] = useState(false);
@@ -38,9 +43,24 @@ export default function ClassStudyPlansPage() {
     }
   }, [classId]);
 
+  // Load initial quota on page load (Premium users only)
+  const loadInitialQuota = useCallback(async () => {
+    if (userPlan !== "premium") return;
+    try {
+      const res = await fetch(`/api/user/plan`);
+      const data = await res.json();
+      if (data.success && data.data?.quotas?.studyPlan) {
+        setQuota({ remaining: data.data.quotas.studyPlan.remaining, total: data.data.quotas.studyPlan.total });
+      }
+    } catch (err) {
+      console.error("[Study Plans] Failed to load quota:", err);
+    }
+  }, [userPlan]);
+
   useEffect(() => {
     loadPlans();
-  }, [loadPlans]);
+    loadInitialQuota();
+  }, [loadPlans, loadInitialQuota]);
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,7 +96,7 @@ export default function ClassStudyPlansPage() {
       toast.warning("Please enter a title for your generated plan.");
       return;
     }
-    
+
     setIsGenerating(true);
     try {
       const res = await fetch("/api/study-plans/generate", {
@@ -86,11 +106,22 @@ export default function ClassStudyPlansPage() {
       });
 
       const data = await res.json();
+      if (res.status === 403) {
+        toast.error("Upgrade to Premium to generate AI study plans.");
+        return;
+      }
+      if (res.status === 429) {
+        toast.error("Daily study plan generation limit reached. Try again tomorrow!");
+        return;
+      }
       if (data.success) {
         await loadPlans();
         setNewTitle("");
         setNewDesc("");
         setShowForm(false);
+        if (data.data?.remaining !== undefined) {
+          setQuota({ remaining: data.data.remaining, total: data.data.total ?? 5 });
+        }
       } else {
         toast.error(data.message || "Failed to generate AI plan.");
       }
@@ -146,6 +177,9 @@ export default function ClassStudyPlansPage() {
         </div>
       </div>
 
+      {/* Shared Community Study Plan (Free for all) */}
+      <SharedResourcesSection classId={classId} resourceType="studyPlan" />
+
       {/* Create Plan Form */}
       {showForm && (
         <form onSubmit={handleCreatePlan} className="bg-background rounded-2xl border border-border p-6 shadow-sm max-w-2xl animate-in slide-in-from-top-4 fade-in duration-300">
@@ -170,10 +204,17 @@ export default function ClassStudyPlansPage() {
                 className="bg-muted/50 focus-visible:ring-ecu-purple"
               />
             </div>
+            {quota && <QuotaIndicator remaining={quota.remaining} total={quota.total} resourceName="AI plan generations" />}
             <div className="flex gap-3 pt-2">
-              <Button type="button" onClick={handleGenerateAIPlan} disabled={isGenerating || isSubmitting} className="bg-linear-to-r from-ecu-purple to-purple-800 text-white font-bold px-6 border-transparent shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all">
-                {isGenerating ? "Synthesizing Canvas..." : "✨ Auto-Generate with AI"}
-              </Button>
+              {userPlan === "premium" ? (
+                <Button type="button" onClick={handleGenerateAIPlan} disabled={isGenerating || isSubmitting} className="bg-linear-to-r from-ecu-purple to-purple-800 text-white font-bold px-6 border-transparent shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all">
+                  {isGenerating ? "Synthesizing Canvas..." : "✨ Auto-Generate with AI"}
+                </Button>
+              ) : (
+                <Button type="button" disabled className="bg-muted text-muted-foreground font-bold px-6 cursor-not-allowed">
+                  👑 Premium: Auto-Generate with AI
+                </Button>
+              )}
               <Button type="submit" disabled={isSubmitting || isGenerating} className="bg-muted hover:bg-muted/80 text-foreground font-bold px-6">
                 {isSubmitting ? "Saving..." : "Create Empty Plan"}
               </Button>
