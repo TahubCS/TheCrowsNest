@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
-import SharedResourcesSection from "@/components/SharedResourcesSection";
-import UpgradePrompt from "@/components/UpgradePrompt";
-import QuotaIndicator from "@/components/QuotaIndicator";
 import MaterialSelectionModal from "@/components/MaterialSelectionModal";
+import QuotaIndicator from "@/components/QuotaIndicator";
+import UpgradePrompt from "@/components/UpgradePrompt";
 import { usePlan } from "@/hooks/usePlan";
 
 interface MaterialOption {
@@ -15,6 +14,57 @@ interface MaterialOption {
   fileName: string;
   materialType?: string;
   status?: string;
+}
+
+interface Flashcard {
+  front: string;
+  back: string;
+}
+
+interface DeckRecord {
+  id: string;
+  source: "shared" | "personal";
+  cards: Flashcard[];
+  createdAt?: string;
+  label?: string;
+}
+
+interface PersonalResourceRow {
+  id?: string;
+  resource_type?: string;
+  content_json?: unknown;
+  contentJson?: unknown;
+  created_at?: string;
+}
+
+function normalizeCards(input: unknown): Flashcard[] {
+  const source = Array.isArray((input as { flashcards?: unknown[] })?.flashcards)
+    ? (input as { flashcards: unknown[] }).flashcards
+    : Array.isArray(input)
+      ? input
+      : [];
+
+  return source.flatMap((entry) => {
+    if (!entry || typeof entry !== "object") {
+      return [];
+    }
+
+    const row = entry as { front?: unknown; back?: unknown };
+    const front = typeof row.front === "string" ? row.front.trim() : "";
+    const back = typeof row.back === "string" ? row.back.trim() : "";
+
+    if (!front || !back) {
+      return [];
+    }
+
+    return [{ front, back }];
+  });
+}
+
+function formatDeckLabel(deck: DeckRecord) {
+  const when = deck.createdAt ? new Date(deck.createdAt).toLocaleString() : "Recently";
+  const mode = deck.source === "shared" ? "Shared" : "Personal";
+  return `${mode} deck, ${deck.cards.length} cards, ${when}`;
 }
 
 export default function FlashcardsPage() {
@@ -28,29 +78,91 @@ export default function FlashcardsPage() {
   const [materials, setMaterials] = useState<MaterialOption[]>([]);
   const [showMaterialModal, setShowMaterialModal] = useState(false);
   const [selectedMaterialIds, setSelectedMaterialIds] = useState<string[]>([]);
+  const [deckSize, setDeckSize] = useState(20);
 
-  // Deck state
-  const [flashcards, setFlashcards] = useState<{front: string; back: string}[]>([]);
+  const [loadingDecks, setLoadingDecks] = useState(true);
+  const [sharedDeck, setSharedDeck] = useState<DeckRecord | null>(null);
+  const [personalDecks, setPersonalDecks] = useState<DeckRecord[]>([]);
+  const [activeDeck, setActiveDeck] = useState<DeckRecord | null>(null);
+
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
 
-  // Load initial quota on page load (Premium users only)
   const loadInitialQuota = useCallback(async () => {
-    if (plan !== "premium") return;
+    if (plan !== "premium") {
+      return;
+    }
+
     try {
-      const res = await fetch(`/api/user/plan`);
+      const res = await fetch("/api/user/plan");
       const data = await res.json();
       if (data.success && data.data?.quotas?.flashcards) {
-        setQuota({ remaining: data.data.quotas.flashcards.remaining, total: data.data.quotas.flashcards.total });
+        setQuota({
+          remaining: data.data.quotas.flashcards.remaining,
+          total: data.data.quotas.flashcards.total,
+        });
       }
-    } catch (err) {
-      console.error("[Flashcards] Failed to load quota:", err);
+    } catch (error) {
+      console.error("[Flashcards] Failed to load quota:", error);
     }
   }, [plan]);
 
+  const loadDecks = useCallback(async () => {
+    setLoadingDecks(true);
+    try {
+      const [sharedRes, personalRes] = await Promise.all([
+        fetch(`/api/classes/${classId}/shared-resources`),
+        fetch(`/api/classes/${classId}/personal-resources`),
+      ]);
+
+      const sharedJson = await sharedRes.json();
+      if (sharedJson.success) {
+        const cards = normalizeCards(sharedJson.data?.flashcards);
+        setSharedDeck(cards.length > 0 ? {
+          id: `shared-${classId}`,
+          source: "shared",
+          cards,
+          createdAt: sharedJson.data?.updatedAt,
+          label: "Community Flashcard Deck",
+        } : null);
+      }
+
+      const personalJson = await personalRes.json();
+      if (personalJson.success && Array.isArray(personalJson.data)) {
+        const decks = (personalJson.data as PersonalResourceRow[])
+          .filter((row) => row.resource_type === "flashcards")
+          .flatMap((row) => {
+            const cards = normalizeCards(row.content_json ?? row.contentJson);
+            if (cards.length === 0) {
+              return [];
+            }
+            return [{
+              id: row.id ?? `personal-${row.created_at ?? Date.now()}`,
+              source: "personal" as const,
+              cards,
+              createdAt: row.created_at,
+              label: "Saved Personal Deck",
+            }];
+          });
+
+        setPersonalDecks(decks);
+      }
+    } catch (error) {
+      console.error("[Flashcards] Failed to load decks:", error);
+    } finally {
+      setLoadingDecks(false);
+    }
+  }, [classId]);
+
   useEffect(() => {
     loadInitialQuota();
-  }, [loadInitialQuota, plan]);
+  }, [loadInitialQuota]);
+
+  useEffect(() => {
+    if (classId) {
+      void loadDecks();
+    }
+  }, [classId, loadDecks]);
 
   useEffect(() => {
     async function loadMaterials() {
@@ -58,22 +170,33 @@ export default function FlashcardsPage() {
         const res = await fetch(`/api/materials?classId=${classId}`);
         const data = await res.json();
         if (data.success) {
-          const approved = (data.data?.materials || []).filter((m: MaterialOption) => m.status === "PROCESSED");
+          const approved = (data.data?.materials || []).filter((material: MaterialOption) => material.status === "PROCESSED");
           setMaterials(approved);
         }
-      } catch (err) {
-        console.error("[Flashcards] Failed to load materials:", err);
+      } catch (error) {
+        console.error("[Flashcards] Failed to load materials:", error);
       }
     }
 
     if (classId && plan === "premium") {
-      loadMaterials();
+      void loadMaterials();
     }
   }, [classId, plan]);
 
-  const handleToggleMaterial = (id: string) => {
+  const launchDeck = (deck: DeckRecord) => {
+    if (deck.cards.length === 0) {
+      toast.error("This deck has no cards.");
+      return;
+    }
+
+    setActiveDeck(deck);
+    setCurrentIndex(0);
+    setIsFlipped(false);
+  };
+
+  const handleToggleMaterial = (materialId: string) => {
     setSelectedMaterialIds((prev) =>
-      prev.includes(id) ? prev.filter((m) => m !== id) : [...prev, id]
+      prev.includes(materialId) ? prev.filter((id) => id !== materialId) : [...prev, materialId]
     );
   };
 
@@ -91,10 +214,11 @@ export default function FlashcardsPage() {
         body: JSON.stringify({
           resourceType: "flashcards",
           materialIds: selectedMaterialIds,
+          questionCount: Math.min(30, Math.max(5, Math.trunc(deckSize))),
         }),
       });
-      const data = await res.json();
 
+      const data = await res.json();
       if (res.status === 403) {
         toast.error("Upgrade to Premium to generate personal flashcards.");
         return;
@@ -108,51 +232,42 @@ export default function FlashcardsPage() {
         return;
       }
 
-      const content = data.data?.content_json ?? data.data?.contentJson ?? data.data;
-      const cards = Array.isArray(content?.flashcards)
-        ? content.flashcards
-        : Array.isArray(content)
-          ? content
-          : [];
-
+      const cards = normalizeCards(data.data?.content_json ?? data.data?.contentJson ?? data.data);
       if (cards.length === 0) {
         toast.error("Generation completed but no flashcards were returned.");
         return;
       }
 
-      setFlashcards(cards);
-      setCurrentIndex(0);
-      setIsFlipped(false);
+      const generatedDeck: DeckRecord = {
+        id: data.data?.id ?? `personal-${Date.now()}`,
+        source: "personal",
+        cards,
+        createdAt: data.data?.created_at,
+        label: "Saved Personal Deck",
+      };
+
+      setPersonalDecks((prev) => [generatedDeck, ...prev.filter((deck) => deck.id !== generatedDeck.id)]);
+      launchDeck(generatedDeck);
+
       setSelectedMaterialIds([]);
       setShowMaterialModal(false);
-      toast.success("Personal flashcards generated.");
+      toast.success("Personal flashcard deck generated.");
 
       await loadInitialQuota();
-    } catch (err) {
-      console.error(err);
+      await loadDecks();
+    } catch (error) {
+      console.error(error);
       toast.error("Network error.");
     } finally {
       setIsGenerating(false);
     }
   };
 
-  const nextCard = () => {
-    setIsFlipped(false);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev + 1) % flashcards.length);
-    }, 150); // slight delay to allow flip back animation
-  };
-
-  const prevCard = () => {
-    setIsFlipped(false);
-    setTimeout(() => {
-      setCurrentIndex((prev) => (prev - 1 + flashcards.length) % flashcards.length);
-    }, 150);
-  };
+  const activeCards = activeDeck?.cards ?? [];
+  const currentCard = activeCards[currentIndex];
 
   return (
     <div className="max-w-3xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      {/* Header */}
       <div>
         <Link href={`/dashboard/classes/${classId}`} className="text-sm font-medium text-muted-foreground hover:text-green-500 inline-flex items-center gap-1 mb-4 transition-colors">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
@@ -164,115 +279,216 @@ export default function FlashcardsPage() {
               Flashcard Studio
             </h1>
             <p className="text-muted-foreground mt-2 text-lg max-w-2xl">
-              Master {formattedClass} concepts instantly with AI-generated smart flashcard decks based on your uploaded materials.
+              Launch shared flashcards or build personal decks from selected materials.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Shared Community Flashcards (Free for all) */}
-      <SharedResourcesSection classId={classId} resourceType="flashcards" />
-
-      {/* Quota Indicator */}
-      {quota && <QuotaIndicator remaining={quota.remaining} total={quota.total} resourceName="flashcard generations" />}
-
-      {/* Main Area */}
-      {planLoading ? (
-        <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
-        </div>
-      ) : plan === "free" && flashcards.length === 0 ? (
-        <div className="rounded-2xl border border-border bg-muted/10 p-6">
-          <h2 className="text-lg font-bold text-foreground">Personal Flashcard Generation</h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            Free users can use community flashcards above. Premium unlocks personal decks generated from selected materials.
-          </p>
-          <div className="mt-4">
-            <UpgradePrompt featureName="generate personal flashcard decks from selected materials" />
+      {activeDeck ? (
+        <div className="rounded-3xl border border-border bg-background p-6 shadow-xl">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between mb-6">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">
+                {activeDeck.source === "shared" ? "Shared deck" : "Personal deck"}
+              </p>
+              <h2 className="text-2xl font-bold mt-1">
+                {activeDeck.label ?? "Flashcard Deck"}
+              </h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {formatDeckLabel(activeDeck)}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                setActiveDeck(null);
+                setCurrentIndex(0);
+                setIsFlipped(false);
+              }}
+              className="px-4 py-2 rounded-lg border border-border text-sm font-semibold hover:bg-muted/50"
+            >
+              Back to decks
+            </button>
           </div>
-        </div>
-      ) : flashcards.length === 0 ? (
-        <div className="relative group overflow-hidden rounded-3xl p-1 pointer-events-none">
-          {/* Animated Glow Border */}
-          <div className="absolute inset-0 bg-linear-to-r from-green-500 via-emerald-400 to-teal-500 opacity-20 group-hover:opacity-40 blur-xl transition-opacity duration-500 rounded-3xl animate-pulse"></div>
-          
-          <div className="relative bg-background/80 backdrop-blur-xl border border-border rounded-3xl p-8 shadow-2xl pointer-events-auto min-h-100 flex flex-col justify-center">
-            
-            <div className="text-center max-w-lg mx-auto mb-10">
-              <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-green-500/20">
-                <svg className="w-10 h-10 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+
+          {currentCard && (
+            <div className="flex flex-col items-center">
+              <div className="flex justify-between w-full mb-6 items-center">
+                <span className="text-sm font-bold text-muted-foreground">CARD {currentIndex + 1} OF {activeCards.length}</span>
+                <button
+                  onClick={() => {
+                    setActiveDeck(null);
+                    setCurrentIndex(0);
+                    setIsFlipped(false);
+                  }}
+                  className="text-sm text-muted-foreground hover:text-red-500 font-semibold transition-colors"
+                >
+                  Exit Deck
+                </button>
               </div>
-              <h2 className="text-3xl font-bold bg-clip-text text-transparent bg-linear-to-r from-foreground to-muted-foreground">Generate New Deck</h2>
-              <p className="text-muted-foreground mt-3">Select a focus area and let our AI synthesize your class notes, lectures, and syllabus into bite-sized study cards.</p>
-            </div>
 
-              <div className="space-y-6 max-w-md mx-auto w-full">
-                <p className="text-sm text-muted-foreground text-center">
-                  Premium personal decks are generated from specific approved class materials.
-                </p>
-              <button 
-                onClick={() => setShowMaterialModal(true)}
-                disabled={isGenerating}
-                className="w-full relative overflow-hidden mt-6 bg-linear-to-r from-green-500 to-emerald-600 text-white font-bold text-lg py-4 rounded-xl shadow-[0_0_20px_rgba(34,197,94,0.3)] hover:shadow-[0_0_30px_rgba(34,197,94,0.5)] transition-all duration-300 transform hover:-translate-y-0.5 disabled:opacity-70 disabled:cursor-not-allowed disabled:transform-none"
-              >
-                {isGenerating ? (
-                  <span className="flex items-center justify-center gap-2">
-                     <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                     </svg>
-                    Generating Personal Deck...
-                  </span>
-                ) : (
-                  "Select Materials & Generate"
-                )}
-              </button>
+              <div className="w-full aspect-4/3 md:aspect-video cursor-pointer group" style={{ perspective: "1000px" }} onClick={() => setIsFlipped((prev) => !prev)}>
+                <div
+                  className="relative w-full h-full transition-transform duration-500"
+                  style={{
+                    transformStyle: "preserve-3d",
+                    transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
+                  }}
+                >
+                  <div className="absolute inset-0 bg-background border border-border rounded-3xl shadow-xl flex items-center justify-center p-8 md:p-12 text-center overflow-hidden" style={{ backfaceVisibility: "hidden" }}>
+                    <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-green-400 to-emerald-500" />
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Question</p>
+                      <h3 className="text-2xl md:text-4xl font-bold leading-tight text-foreground">{currentCard.front}</h3>
+                    </div>
+                    <div className="absolute bottom-6 right-8 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">Click to flip</div>
+                  </div>
+
+                  <div className="absolute inset-0 bg-green-500/5 border border-green-500/20 rounded-3xl shadow-xl flex items-center justify-center p-8 md:p-12 text-center" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
+                    <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-teal-400 to-green-500" />
+                    <div>
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Answer</p>
+                      <p className="text-xl md:text-3xl font-medium leading-relaxed text-foreground">{currentCard.back}</p>
+                    </div>
+                    <div className="absolute bottom-6 left-8 text-green-500/50 opacity-0 group-hover:opacity-100 transition-opacity">Click to unflip</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex gap-4 mt-8 w-full">
+                <button
+                  onClick={() => {
+                    setIsFlipped(false);
+                    setTimeout(() => setCurrentIndex((prev) => (prev - 1 + activeCards.length) % activeCards.length), 150);
+                  }}
+                  className="flex-1 py-4 bg-background border border-border rounded-xl font-bold hover:bg-muted/50 transition-colors shadow-sm"
+                >
+                  Previous
+                </button>
+                <button
+                  onClick={() => {
+                    setIsFlipped(false);
+                    setTimeout(() => setCurrentIndex((prev) => (prev + 1) % activeCards.length), 150);
+                  }}
+                  className="flex-1 py-4 bg-linear-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/20 transition-all"
+                >
+                  Next
+                </button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       ) : (
-        <div className="flex flex-col items-center">
-          <div className="flex justify-between w-full mb-6 items-center px-4">
-            <span className="text-sm font-bold text-muted-foreground">CARD {currentIndex + 1} OF {flashcards.length}</span>
-            <button onClick={() => setFlashcards([])} className="text-sm text-muted-foreground hover:text-red-500 font-semibold transition-colors">Start Over</button>
-          </div>
-          
-          {/* 3D Card Container */}
-          <div 
-            className="w-full aspect-4/3 md:aspect-video perspective-1000 cursor-pointer group"
-            onClick={() => setIsFlipped(!isFlipped)}
-          >
-            <div className={`relative w-full h-full transition-transform duration-500 transform-style-3d ${isFlipped ? 'rotate-y-180' : ''}`}>
-              
-              {/* Front side */}
-              <div className="absolute inset-0 backface-hidden bg-background border border-border rounded-3xl shadow-xl flex items-center justify-center p-8 md:p-12 text-center overflow-hidden">
-                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-green-400 to-emerald-500"></div>
-                <h3 className="text-2xl md:text-4xl font-bold leading-tight text-foreground">{flashcards[currentIndex].front}</h3>
-                <div className="absolute bottom-6 right-8 text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">Click to flip ⤵</div>
+        <>
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
+            <div className="h-fit rounded-3xl border border-border bg-background p-6 shadow-xl self-start">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Shared deck</p>
+                  <h2 className="text-2xl font-bold mt-1">Community Flashcards</h2>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-500/15 text-green-600">FREE</span>
               </div>
 
-              {/* Back side */}
-              <div className="absolute inset-0 backface-hidden rotate-y-180 bg-green-500/5 border border-green-500/20 rounded-3xl shadow-xl flex items-center justify-center p-8 md:p-12 text-center">
-                <div className="absolute top-0 left-0 w-full h-2 bg-linear-to-r from-teal-400 to-green-500"></div>
-                <p className="text-xl md:text-3xl font-medium leading-relaxed text-foreground">{flashcards[currentIndex].back}</p>
-                <div className="absolute bottom-6 left-8 text-green-500/50 opacity-0 group-hover:opacity-100 transition-opacity">⤴ Click to unflip</div>
+              {loadingDecks ? (
+                <div className="flex items-center gap-2 py-4 text-sm text-muted-foreground">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-green-500" />
+                  Loading flashcard decks...
+                </div>
+              ) : sharedDeck ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Launch the latest shared deck built from approved class materials.
+                  </p>
+                  <button
+                    onClick={() => launchDeck(sharedDeck)}
+                    className="w-full rounded-xl bg-green-600 px-4 py-3 text-white font-bold hover:bg-green-700 transition-colors"
+                  >
+                    Launch Shared Deck
+                  </button>
+                  <p className="mt-3 text-xs text-muted-foreground">{sharedDeck.cards.length} cards available.</p>
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Shared flashcards are not ready yet. They are generated automatically after approved materials are processed.
+                </p>
+              )}
+            </div>
+
+            <div className="h-fit rounded-3xl border border-border bg-background p-6 shadow-xl self-start">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Personal decks</p>
+                  <h2 className="text-2xl font-bold mt-1">Saved Premium Decks</h2>
+                </div>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600">PREMIUM</span>
               </div>
 
+              {plan === "premium" ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Generate a personal deck from selected materials and reopen it anytime.
+                  </p>
+                  <label className="space-y-2 text-sm font-medium text-foreground block mb-4">
+                    <span>Deck size</span>
+                    <input
+                      type="number"
+                      min={5}
+                      max={30}
+                      value={deckSize}
+                      onChange={(event) => setDeckSize(Number(event.target.value))}
+                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <button
+                    onClick={() => setShowMaterialModal(true)}
+                    disabled={isGenerating}
+                    className="w-full rounded-xl bg-linear-to-r from-green-500 to-emerald-600 px-4 py-3 text-white font-bold hover:opacity-95 disabled:opacity-70"
+                  >
+                    {isGenerating ? "Generating Personal Deck..." : "Select Materials & Generate"}
+                  </button>
+
+                  <div className="mt-5 space-y-3">
+                    {personalDecks.length > 0 ? personalDecks.map((deck) => (
+                      <button
+                        key={deck.id}
+                        onClick={() => launchDeck(deck)}
+                        className="w-full rounded-2xl border border-border bg-muted/20 px-4 py-3 text-left hover:border-green-500 hover:bg-green-500/5 transition-colors"
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <p className="font-semibold text-foreground">Saved deck</p>
+                            <p className="text-xs text-muted-foreground mt-1">{formatDeckLabel(deck)}</p>
+                          </div>
+                          <span className="text-xs font-bold text-green-700">Open</span>
+                        </div>
+                      </button>
+                    )) : (
+                      <p className="text-sm text-muted-foreground">No saved personal decks yet.</p>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-muted-foreground">
+                    Premium unlocks personal flashcard generation from selected materials.
+                  </p>
+                  <div className="mt-4">
+                    <UpgradePrompt featureName="generate personal flashcard decks from selected materials" />
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Controls */}
-          <div className="flex gap-4 mt-8 w-full">
-            <button onClick={prevCard} className="flex-1 py-4 bg-background border border-border rounded-xl font-bold hover:bg-muted/50 transition-colors shadow-sm flex items-center justify-center gap-2">
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7"/></svg>
-              Previous
-            </button>
-            <button onClick={nextCard} className="flex-1 py-4 bg-linear-to-r from-green-500 to-emerald-500 text-white border-transparent rounded-xl font-bold hover:shadow-lg hover:shadow-green-500/20 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2">
-              Next
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
-            </button>
-          </div>
-        </div>
+          {quota && <QuotaIndicator remaining={quota.remaining} total={quota.total} resourceName="flashcard generations" />}
+
+          {planLoading ? (
+            <div className="flex justify-center py-16">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500" />
+            </div>
+          ) : null}
+        </>
       )}
 
       <MaterialSelectionModal
@@ -284,7 +500,9 @@ export default function FlashcardsPage() {
         submitting={isGenerating}
         onToggle={handleToggleMaterial}
         onClose={() => {
-          if (!isGenerating) setShowMaterialModal(false);
+          if (!isGenerating) {
+            setShowMaterialModal(false);
+          }
         }}
         onSubmit={handleGeneratePersonal}
       />

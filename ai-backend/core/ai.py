@@ -164,6 +164,59 @@ Format:
     normalized = _normalize_flashcards(parsed)
     return normalized[:count]
 
+
+def generate_personal_flashcards_from_materials(
+    class_id: str,
+    material_ids: list[str],
+    count: int = 20,
+) -> list[dict]:
+    context = query_documents_for_materials(
+        class_id,
+        material_ids,
+        query="Most important and difficult concepts for personal study flashcards",
+        n_results=50,
+    )
+
+    if not context.strip():
+        return []
+
+    prompt = f"""You are creating a personal flashcard deck for class {class_id}.
+Use ONLY the provided context from the student's selected materials.
+
+Context:
+<context>
+{context}
+</context>
+
+Requirements:
+1) Return EXACTLY {count} flashcards.
+2) Focus on high-value and difficult concepts likely to cause mistakes.
+3) `front` must be a direct study question.
+4) `back` must directly answer the question concisely (1-3 sentences).
+5) Avoid duplicates and trivial definitions.
+
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN OR EXTRA TEXT.
+Format:
+[
+  {{"front": "Question?", "back": "Answer."}}
+]"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        )
+    )
+
+    try:
+        parsed = json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+    normalized = _normalize_flashcards(parsed)
+    return normalized[:count]
+
 def generate_study_plan(class_id: str, timeframe: str) -> list[dict]:
     context = get_context_for_class(class_id, f"Study guide and syllabus schedule for {timeframe}")
     prompt = f"""Generate a structured weekly study plan for class {class_id}.
@@ -235,6 +288,79 @@ Format exactly like this:
         return json.loads(response.text)
     except json.JSONDecodeError:
         return {"title": "Error generating exam", "questions": []}
+
+
+def generate_personal_practice_exam_from_materials(
+    class_id: str,
+    material_ids: list[str],
+    topic: str,
+    difficulty: str,
+    count: int,
+) -> dict:
+    context = query_documents_for_materials(
+        class_id,
+        material_ids,
+        query=f"High-yield exam questions for {topic} at {difficulty} difficulty",
+        n_results=60,
+    )
+
+    if not context.strip():
+        return {"title": f"Practice Exam: {topic}", "questions": []}
+
+    prompt = f"""Generate a personal practice exam with exactly {count} multiple-choice questions.
+Class ID: {class_id}
+Topic: {topic}
+Difficulty: {difficulty}
+
+IMPORTANT:
+- Use ONLY the provided context from the student's selected materials.
+- Do NOT use general class context outside these selected materials.
+- Focus on difficult/high-yield concepts.
+
+Context:
+<context>
+{context}
+</context>
+
+RETURN ONLY A VALID JSON OBJECT. NO MARKDOWN, NO EXTRA TEXT.
+Format exactly:
+{{
+  "title": "Practice Exam: {topic}",
+  "questions": [
+    {{
+      "id": "q1",
+      "text": "Question text?",
+      "options": ["A", "B", "C", "D"],
+      "correctAnswer": 0,
+      "explanation": "Why this is correct"
+    }}
+  ]
+}}"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        )
+    )
+
+    try:
+        parsed = json.loads(response.text)
+    except json.JSONDecodeError:
+        return {"title": f"Practice Exam: {topic}", "questions": []}
+
+    if not isinstance(parsed, dict):
+        return {"title": f"Practice Exam: {topic}", "questions": []}
+
+    questions = parsed.get("questions", [])
+    if not isinstance(questions, list):
+        questions = []
+
+    return {
+        "title": str(parsed.get("title", f"Practice Exam: {topic}")),
+        "questions": questions[:count],
+    }
 
 def chat_with_tutor(class_id: str, messages: list[dict]) -> str:
     # Get context based on the user's latest message

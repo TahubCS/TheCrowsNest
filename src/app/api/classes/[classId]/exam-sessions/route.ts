@@ -254,7 +254,7 @@ export async function POST(
     const res = await fetch("http://localhost:8000/generate/practice-exam", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ classId, topic, difficulty, count: questionCount }),
+      body: JSON.stringify({ classId, topic, difficulty, count: questionCount, materialIds }),
     });
 
     if (!res.ok) {

@@ -106,15 +106,22 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
         </div>
 
         <div
-          className="relative w-full min-h-40 cursor-pointer perspective-1000 group mb-4"
+          className="relative w-full min-h-40 cursor-pointer group mb-4"
+          style={{ perspective: "1000px" }}
           onClick={() => setFlipped(!flipped)}
         >
-          <div className={`relative w-full min-h-40 transition-transform duration-500 transform-style-3d ${flipped ? "rotate-y-180" : ""}`}>
-            <div className="absolute inset-0 backface-hidden bg-background border border-border rounded-xl flex items-center justify-center p-6 text-center">
+          <div
+            className="relative w-full min-h-40 transition-transform duration-500"
+            style={{
+              transformStyle: "preserve-3d",
+              transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            }}
+          >
+            <div className="absolute inset-0 bg-background border border-border rounded-xl flex items-center justify-center p-6 text-center" style={{ backfaceVisibility: "hidden" }}>
               <p className="text-lg font-semibold text-foreground">{cards[cardIndex].front}</p>
               <span className="absolute bottom-3 right-4 text-xs text-muted-foreground/50 opacity-0 group-hover:opacity-100 transition-opacity">Click to flip</span>
             </div>
-            <div className="absolute inset-0 backface-hidden rotate-y-180 bg-green-500/5 border border-green-500/20 rounded-xl flex items-center justify-center p-6 text-center">
+            <div className="absolute inset-0 bg-green-500/5 border border-green-500/20 rounded-xl flex items-center justify-center p-6 text-center" style={{ backfaceVisibility: "hidden", transform: "rotateY(180deg)" }}>
               <p className="text-base text-foreground">{cards[cardIndex].back}</p>
             </div>
           </div>

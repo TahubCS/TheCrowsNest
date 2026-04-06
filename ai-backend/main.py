@@ -12,6 +12,8 @@ import uvicorn
 from core.ingest import process_material, _update_parser_status, _supabase, STORAGE_BUCKET
 from core.ai import (
     generate_flashcards,
+    generate_personal_flashcards_from_materials,
+    generate_personal_practice_exam_from_materials,
     generate_shared_flashcards_from_materials,
     generate_study_plan,
     generate_practice_exam,
@@ -453,10 +455,30 @@ class FlashcardsReq(BaseModel):
     topic: str = "Key core concepts"
     count: int = 20
     style: str = "Concepts"
+    materialIds: list[str] = []
+    questionCount: int | None = None
+
+
+def _clamp_flashcard_count(value: int | None, default: int = 20) -> int:
+    try:
+        parsed = int(value) if value is not None else default
+    except (TypeError, ValueError):
+        parsed = default
+    return max(5, min(30, parsed))
 
 @app.post("/generate/flashcards")
 async def flashcards(req: FlashcardsReq):
-    cards = generate_flashcards(req.classId, req.topic, req.count, req.style)
+    target_count = _clamp_flashcard_count(req.questionCount if req.questionCount is not None else req.count, default=20)
+
+    if req.materialIds:
+        cards = generate_personal_flashcards_from_materials(
+            req.classId,
+            req.materialIds,
+            count=target_count,
+        )
+    else:
+        cards = generate_flashcards(req.classId, req.topic, target_count, req.style)
+
     return {"success": True, "data": {"flashcards": cards}}
 
 class StudyPlanReq(BaseModel):
@@ -473,10 +495,20 @@ class PracticeExamReq(BaseModel):
     topic: str = "General"
     difficulty: str = "Medium"
     count: int = 10
+    materialIds: list[str] = []
 
 @app.post("/generate/practice-exam")
 async def practice_exam(req: PracticeExamReq):
-    exam = generate_practice_exam(req.classId, req.topic, req.difficulty, req.count)
+    if req.materialIds:
+        exam = generate_personal_practice_exam_from_materials(
+            req.classId,
+            req.materialIds,
+            topic=req.topic,
+            difficulty=req.difficulty,
+            count=req.count,
+        )
+    else:
+        exam = generate_practice_exam(req.classId, req.topic, req.difficulty, req.count)
     return {"success": True, "data": {"practiceExam": exam}}
 
 class ChatReq(BaseModel):
