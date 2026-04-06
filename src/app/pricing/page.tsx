@@ -30,7 +30,7 @@ const PREMIUM_FEATURES = [
 ];
 
 export default function PricingPage() {
-  const { plan, loading } = usePlan();
+  const { plan, loading, refetch } = usePlan();
   const searchParams = useSearchParams();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
   const [upgrading, setUpgrading] = useState(false);
@@ -39,10 +39,13 @@ export default function PricingPage() {
     const checkout = searchParams.get("checkout");
     if (checkout === "pending") {
       toast.info("Stripe checkout is not yet configured. This is a placeholder.");
+    } else if (checkout === "success") {
+      toast.success("Payment received. Updating your plan...");
+      void refetch();
     } else if (checkout === "cancelled") {
       toast.error("Checkout was cancelled.");
     }
-  }, [searchParams]);
+  }, [refetch, searchParams]);
 
   const handleUpgrade = async () => {
     setUpgrading(true);

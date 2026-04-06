@@ -1,14 +1,6 @@
-/**
- * POST /api/subscription/create-session
- *
- * Creates a Stripe Checkout Session for the selected plan.
- *
- * TODO: Replace with real Stripe SDK when Stripe is configured.
- * This is a DUMMY placeholder that returns a mock response.
- */
-
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { getAppUrl, getStripeClient, getStripePriceId } from "@/lib/stripe";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -30,36 +22,49 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // ─── DUMMY IMPLEMENTATION ───────────────────────────────────
-    // Replace this block with real Stripe Checkout Session creation:
-    //
-    //   import Stripe from 'stripe';
-    //   const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-    //   const checkoutSession = await stripe.checkout.sessions.create({
-    //     mode: 'subscription',
-    //     customer_email: session.user.email,
-    //     line_items: [{ price: priceId, quantity: 1 }],
-    //     success_url: `${process.env.NEXT_PUBLIC_URL}/account?checkout=success`,
-    //     cancel_url: `${process.env.NEXT_PUBLIC_URL}/pricing?checkout=cancelled`,
-    //   });
-    //   return NextResponse.json({ success: true, url: checkoutSession.url });
-    //
-    // ────────────────────────────────────────────────────────────
+    const stripe = getStripeClient();
+    const priceId = getStripePriceId(plan);
+    const appUrl = getAppUrl(request.url);
+    const successUrl = new URL("/pricing?checkout=success", appUrl).toString();
+    const cancelUrl = new URL(`/pricing?checkout=cancelled&plan=${plan}`, appUrl).toString();
 
-    console.warn("[Stripe] DUMMY — create-session called, no real Stripe configured yet.");
+    const checkoutSession = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer_email: session.user.email,
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      subscription_data: {
+        metadata: {
+          email: session.user.email.toLowerCase(),
+          plan,
+        },
+      },
+      metadata: {
+        email: session.user.email.toLowerCase(),
+        plan,
+      },
+    });
+
+    if (!checkoutSession.url) {
+      throw new Error("Stripe did not return a checkout URL.");
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,
-      message: "DUMMY — Stripe not yet configured. This would redirect to checkout.",
+      message: "Checkout session created.",
       data: {
-        url: `/pricing?checkout=pending&plan=${plan}`,
-        _note: "Replace with real Stripe Checkout Session URL.",
+        url: checkoutSession.url,
+        sessionId: checkoutSession.id,
       },
     });
   } catch (error) {
     console.error("[Subscription Create Error]", error);
     return NextResponse.json<ApiResponse>(
-      { success: false, message: "Failed to create checkout session." },
+      {
+        success: false,
+        message: error instanceof Error ? error.message : "Failed to create checkout session.",
+      },
       { status: 500 }
     );
   }
