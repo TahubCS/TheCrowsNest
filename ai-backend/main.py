@@ -12,6 +12,7 @@ import uvicorn
 from core.ingest import process_material, _update_parser_status, _supabase, STORAGE_BUCKET
 from core.ai import (
     generate_flashcards,
+    generate_shared_flashcards_from_materials,
     generate_study_plan,
     generate_practice_exam,
     chat_with_tutor,
@@ -123,7 +124,61 @@ def _count_exam_questions(exam_payload: object) -> int:
 
     return len(questions) if isinstance(questions, list) else 0
 
-def _generate_shared_resources(class_id: str):
+
+def _normalize_flashcards(cards: object) -> list[dict]:
+    if not isinstance(cards, list):
+        return []
+
+    normalized: list[dict] = []
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        front = str(card.get("front", "")).strip()
+        back = str(card.get("back", "")).strip()
+        if not front or not back:
+            continue
+        normalized.append({"front": front, "back": back})
+    return normalized
+
+
+def _dedupe_flashcards(cards: list[dict]) -> list[dict]:
+    seen: set[str] = set()
+    deduped: list[dict] = []
+    for card in cards:
+        front = str(card.get("front", "")).strip().lower()
+        key = " ".join(front.split())
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        deduped.append(card)
+    return deduped
+
+
+def _get_unprocessed_material_ids_for_flashcards(class_id: str) -> list[str]:
+    materials_res = _supabase.table("materials").select("material_id").eq("class_id", class_id).eq("status", "PROCESSED").execute()
+    processed_res = _supabase.table("shared_flashcard_material_coverage").select("material_id").eq("class_id", class_id).execute()
+
+    all_ids = [row.get("material_id") for row in (materials_res.data or []) if row.get("material_id")]
+    covered_ids = {row.get("material_id") for row in (processed_res.data or []) if row.get("material_id")}
+    return [material_id for material_id in all_ids if material_id not in covered_ids]
+
+
+def _record_flashcard_material_coverage(class_id: str, material_ids: list[str], trigger_material_id: str | None):
+    rows = [
+        {
+            "class_id": class_id,
+            "material_id": material_id,
+            "generation_trigger_material_id": trigger_material_id,
+        }
+        for material_id in material_ids
+    ]
+    if not rows:
+        return
+
+    _supabase.table("shared_flashcard_material_coverage").upsert(rows, on_conflict="class_id,material_id").execute()
+
+
+def _generate_shared_resources(class_id: str, trigger_material_id: str | None = None):
     """Regenerate shared exam/study-plan/flashcards for a class.
     Called after a high-context material is embedded."""
     try:
@@ -135,6 +190,9 @@ def _generate_shared_resources(class_id: str):
 
         print(f"[SHARED] Generating shared resources for class {class_id}...")
 
+        existing_shared_res = _supabase.table("shared_resources").select("flashcards_json").eq("class_id", class_id).maybe_single().execute()
+        existing_shared_cards = _normalize_flashcards((existing_shared_res.data or {}).get("flashcards_json"))
+
         suggested_exam_count = suggest_practice_exam_question_count(class_id, topic="Core class concepts")
 
         # Generate each resource type using existing AI functions.
@@ -145,16 +203,20 @@ def _generate_shared_resources(class_id: str):
             difficulty="Medium",
             count=suggested_exam_count,
         )
-        flashcards_result = generate_flashcards(
-            class_id,
-            topic="Core class concepts",
-            count=20,
-            style="Concepts",
-        )
+        unprocessed_material_ids = _get_unprocessed_material_ids_for_flashcards(class_id)
+        flashcards_result: list[dict] = []
+        if unprocessed_material_ids:
+            flashcards_result = generate_shared_flashcards_from_materials(
+                class_id,
+                unprocessed_material_ids,
+                count=5,
+            )
         study_plan_result = generate_study_plan(
             class_id,
             timeframe="Current semester",
         )
+
+        merged_flashcards = _dedupe_flashcards(existing_shared_cards + _normalize_flashcards(flashcards_result))
 
         exam_questions = exam_result.get("questions", []) if isinstance(exam_result, dict) else []
         exam_question_count = _count_exam_questions(exam_result)
@@ -184,11 +246,14 @@ def _generate_shared_resources(class_id: str):
             "shared_exam_session_id": shared_session_id,
             "shared_exam_question_count": exam_question_count or suggested_exam_count,
             "shared_exam_updated_at": datetime.now(timezone.utc).isoformat(),
-            "flashcards_json": flashcards_result if flashcards_result else None,
+            "flashcards_json": merged_flashcards if merged_flashcards else None,
             "study_plan_json": study_plan_result if study_plan_result else None,
             "generation_status": "ready",
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }, on_conflict="class_id").execute()
+
+        if unprocessed_material_ids and flashcards_result:
+            _record_flashcard_material_coverage(class_id, unprocessed_material_ids, trigger_material_id)
 
         print(f"[SHARED] Shared resources ready for class {class_id}")
     except Exception as e:
@@ -316,7 +381,7 @@ def evaluate_and_ingest(req: EvalIngestReq, background_tasks: BackgroundTasks):
                     # If this was a high-context material, regenerate shared resources
                     if high_context:
                         print(f"[EMBED] High-context material — triggering shared resource generation...")
-                        _generate_shared_resources(req.classId)
+                        _generate_shared_resources(req.classId, req.materialId)
 
                 except (ChunkCapExceededError, EmbeddingExhaustedError) as e:
                     print(f"[EMBED ERROR] {req.materialId}: {e}")

@@ -160,3 +160,34 @@ def query_documents(class_id: str, query: str, n_results: int = 15) -> str:
             
         documents = [row['content'] for row in results]
         return "\n\n---\n\n".join(documents)
+
+
+def query_documents_for_materials(class_id: str, material_ids: list[str], query: str, n_results: int = 30) -> str:
+    """
+    Query only the selected materials for a class using vector similarity.
+    Used by incremental shared-flashcard generation so we only process
+    approved materials that have not been covered yet.
+    """
+    if not material_ids:
+        return ""
+
+    query_embedding = get_embedding(query)
+
+    with pool.connection() as conn:
+        results = conn.execute(
+            """
+            SELECT content
+            FROM embeddings
+            WHERE content ILIKE %s
+              AND document_id = ANY(%s)
+            ORDER BY embedding <=> %s::vector
+            LIMIT %s
+            """,
+            (f"%[Class: {class_id}]%", material_ids, query_embedding, n_results)
+        ).fetchall()
+
+        if not results:
+            return ""
+
+        documents = [row["content"] for row in results]
+        return "\n\n---\n\n".join(documents)

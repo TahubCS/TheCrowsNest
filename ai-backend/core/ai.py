@@ -2,7 +2,7 @@ import json
 from google import genai
 from google.genai import types
 from .config import settings
-from .vector_store import query_documents
+from .vector_store import query_documents, query_documents_for_materials
 
 # Initialize Gemini Client
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -94,6 +94,75 @@ Format exactly like this strictly:
         return json.loads(response.text)
     except json.JSONDecodeError:
         return []
+
+
+def _normalize_flashcards(cards: object) -> list[dict]:
+    if not isinstance(cards, list):
+        return []
+
+    normalized: list[dict] = []
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        front = str(card.get("front", "")).strip()
+        back = str(card.get("back", "")).strip()
+        if not front or not back:
+            continue
+        normalized.append({"front": front, "back": back})
+    return normalized
+
+
+def generate_shared_flashcards_from_materials(
+    class_id: str,
+    material_ids: list[str],
+    count: int = 5,
+) -> list[dict]:
+    context = query_documents_for_materials(
+        class_id,
+        material_ids,
+        query="Hard concepts, misconceptions, difficult exam points, prerequisite gaps",
+        n_results=40,
+    )
+
+    if not context.strip():
+        return []
+
+    prompt = f"""You are generating shared class flashcards for class {class_id}.
+You MUST analyze ONLY the provided context and pick the hardest/highest-yield concepts students struggle with.
+
+Context from newly eligible class materials:
+<context>
+{context}
+</context>
+
+Rules:
+1) Return EXACTLY {count} flashcards.
+2) Each `front` MUST be a direct study question (not a label).
+3) Each `back` MUST directly answer the question in 1-3 concise sentences.
+4) Prioritize concepts that are difficult, foundational, or frequently misunderstood.
+5) Avoid duplicates or trivial facts.
+
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
+Format:
+[
+  {{"front": "Question?", "back": "Answer."}}
+]"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        )
+    )
+
+    try:
+        parsed = json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+    normalized = _normalize_flashcards(parsed)
+    return normalized[:count]
 
 def generate_study_plan(class_id: str, timeframe: str) -> list[dict]:
     context = get_context_for_class(class_id, f"Study guide and syllabus schedule for {timeframe}")
