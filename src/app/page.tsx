@@ -1,13 +1,16 @@
 import Link from "next/link";
+import LandingAnimation from "@/components/LandingAnimation";
+import StudyToolPreview from "@/components/StudyToolPreview";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-linear-to-br from-background via-background to-ecu-purple/10 relative overflow-hidden">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-[#05050A] relative overflow-hidden">
 
-      {/* Decorative background blobs */}
-      <div className="absolute top-0 left-0 w-96 h-96 bg-ecu-purple/5 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob"></div>
-      <div className="absolute top-0 right-0 w-96 h-96 bg-ecu-gold/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-2000"></div>
-      <div className="absolute -bottom-8 left-20 w-96 h-96 bg-ecu-purple/10 rounded-full mix-blend-multiply filter blur-3xl opacity-70 animate-blob animation-delay-4000"></div>
+      {/* 3D Infinity Tunnel Background */}
+      <LandingAnimation />
+
+      {/* Floating study tool preview cards */}
+      <StudyToolPreview />
 
       <main className="z-10 flex flex-col items-center text-center space-y-12 p-8 max-w-3xl w-full">
         <div className="space-y-6">
