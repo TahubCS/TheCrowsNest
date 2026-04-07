@@ -599,6 +599,7 @@ Context:
     last_error = None
     for model_name in models:
         try:
+            last_chunk = None
             for chunk in client.models.generate_content_stream(
                 model=model_name,
                 contents=formatted_messages,
@@ -606,6 +607,24 @@ Context:
             ):
                 if chunk.text:
                     yield chunk.text
+                last_chunk = chunk
+
+            # The final chunk carries usage_metadata for the full stream
+            try:
+                usage = getattr(last_chunk, 'usage_metadata', None) if last_chunk else None
+                if usage:
+                    in_tokens  = getattr(usage, 'prompt_token_count',     0) or 0
+                    out_tokens = getattr(usage, 'candidates_token_count', 0) or 0
+                    print(f"--- [AI TUTOR STREAM LOG] ---")
+                    print(f"Model used   : {model_name}")
+                    print(f"Input tokens : {in_tokens}")
+                    print(f"Output tokens: {out_tokens}")
+                    print(f"-----------------------------")
+                    log_usage(model=model_name, input_tokens=in_tokens, output_tokens=out_tokens)
+                else:
+                    print(f"[AI TUTOR STREAM LOG] Model: {model_name} | Usage metadata unavailable in final chunk")
+            except Exception as log_err:
+                print(f"[AI TUTOR STREAM LOG] Usage parse error: {log_err}")
             return
         except Exception as e:
             print(f"Warning: Stream model {model_name} failed: {e}. Trying fallback...")
