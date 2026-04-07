@@ -3,6 +3,7 @@ from google import genai
 from google.genai import types
 from .config import settings
 from .vector_store import query_documents, query_documents_for_materials
+from .usage_tracking import log_usage
 
 # Initialize Gemini Client
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
@@ -21,13 +22,14 @@ def generate_content_with_fallback(contents, config):
             try:
                 usage = getattr(response, 'usage_metadata', None)
                 if usage:
-                    in_tokens = getattr(usage, 'prompt_token_count', 'Unknown')
-                    out_tokens = getattr(usage, 'candidates_token_count', 'Unknown')
+                    in_tokens = getattr(usage, 'prompt_token_count', 0) or 0
+                    out_tokens = getattr(usage, 'candidates_token_count', 0) or 0
                     print(f"--- [AI GENERATION LOG] ---")
                     print(f"Model used: {model_name}")
                     print(f"Input tokens : {in_tokens}")
                     print(f"Output tokens: {out_tokens}")
                     print(f"---------------------------")
+                    log_usage(model=model_name, input_tokens=in_tokens, output_tokens=out_tokens)
                 else:
                     print(f"[AI GENERATION LOG] Model: {model_name} | Usage metadata unavailable")
             except Exception as e:

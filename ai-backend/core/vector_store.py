@@ -4,6 +4,7 @@ from psycopg_pool import ConnectionPool
 from psycopg.rows import dict_row
 import time
 from .config import settings
+from .usage_tracking import log_usage
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY)
 
@@ -38,14 +39,17 @@ def get_embedding(text: str) -> list[float]:
         # Some SDK versions or models don't expose explicit usage_metadata for embeddings yet.
         usage = getattr(response, 'usage_metadata', None)
         if usage:
-            in_tokens = getattr(usage, 'prompt_token_count', 'Unknown')
+            in_tokens = getattr(usage, 'prompt_token_count', 0) or 0
             print(f"--- [AI EMBEDDING LOG] ---")
             print(f"Tokens embedded: {in_tokens}")
             print(f"--------------------------")
+            log_usage(model="gemini-embedding-001", input_tokens=in_tokens, output_tokens=0)
         else:
+            estimated = len(text) // 4
             print(f"--- [AI EMBEDDING LOG] ---")
-            print(f"Tokens embedded: ~{len(text)//4} (Estimated from character count)")
+            print(f"Tokens embedded: ~{estimated} (Estimated from character count)")
             print(f"--------------------------")
+            log_usage(model="gemini-embedding-001", input_tokens=estimated, output_tokens=0)
     except Exception as e:
         print(f"[AI EMBEDDING LOG] Parse error: {e}")
         
