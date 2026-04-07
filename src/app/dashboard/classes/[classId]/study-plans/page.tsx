@@ -69,7 +69,7 @@ export default function ClassStudyPlansPage() {
 
   const loadMaterials = useCallback(async () => {
     try {
-      const res = await fetch(`/api/classes/${classId}/materials`);
+      const res = await fetch(`/api/materials?classId=${classId}`);
       if (res.ok) {
         const data = await res.json();
         const approved = (data.data?.materials ?? []).filter(
