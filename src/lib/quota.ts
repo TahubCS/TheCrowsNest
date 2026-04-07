@@ -9,6 +9,7 @@
  */
 
 import { supabase } from "@/lib/supabase";
+import { isAdmin } from "@/lib/admin";
 
 export type QuotaApiType = "chat" | "exam" | "study_plan" | "flashcards";
 
@@ -26,6 +27,11 @@ export async function checkQuota(
   plan: "free" | "premium",
   apiType: QuotaApiType
 ): Promise<QuotaResult> {
+  const isUserAdmin = await isAdmin(userEmail);
+  if (isUserAdmin) {
+    return { allowed: true, remaining: 9999, limit: 9999 };
+  }
+
   // 1. Get the daily limit for this plan + api type
   const { data: config } = await supabase
     .from("quota_config")

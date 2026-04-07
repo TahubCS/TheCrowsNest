@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import ReferenceModal from "@/components/ui/ReferenceModal";
+import type { SourceReference } from "@/types";
 
 interface SharedResourcesProps {
   classId: string;
@@ -21,6 +23,7 @@ type StudyPlanItem = {
   type?: string;
   status?: string;
   classId?: string;
+  references?: SourceReference[];
 };
 
 const STUDY_PLAN_TYPE_ICON: Record<string, string> = {
@@ -51,6 +54,7 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
 
   // Study plan expand state
   const [expandedPlan, setExpandedPlan] = useState(false);
+  const [activeReference, setActiveReference] = useState<SourceReference | null>(null);
 
   useEffect(() => {
     fetch(`/api/classes/${classId}/shared-resources`)
@@ -279,7 +283,24 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
                 <span className="text-base shrink-0">{icon}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground leading-snug">{item.title}</p>
-                  {item.type && <p className="text-xs text-muted-foreground mt-0.5">{item.type}</p>}
+                  <div className="flex flex-col gap-1.5 mt-0.5">
+                    {item.type && <p className="text-xs text-muted-foreground mt-0.5">{item.type}</p>}
+                    {item.references && item.references.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {item.references.map((ref, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => setActiveReference(ref)}
+                            className="text-[10px] font-semibold px-2 py-1 bg-purple-500/10 text-purple-700 border border-purple-500/20 rounded-md hover:bg-purple-500/20 transition-colors flex items-center gap-1.5"
+                          >
+                            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <span className="truncate max-w-[150px]">{ref.fileName}</span>
+                            {ref.page && <span className="opacity-75">(Pg {ref.page})</span>}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
                   {item.status ?? "PLANNED"}
@@ -291,6 +312,12 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
             <div className="absolute bottom-0 inset-x-0 h-16 bg-linear-to-t from-purple-500/5 to-transparent pointer-events-none" />
           )}
         </div>
+        
+        <ReferenceModal 
+          isOpen={!!activeReference} 
+          reference={activeReference} 
+          onClose={() => setActiveReference(null)} 
+        />
       </div>
     );
   }

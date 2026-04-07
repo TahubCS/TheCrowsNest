@@ -7,8 +7,9 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import SharedResourcesSection from "@/components/SharedResourcesSection";
 import QuotaIndicator from "@/components/QuotaIndicator";
+import ReferenceModal from "@/components/ui/ReferenceModal";
 import { usePlan } from "@/hooks/usePlan";
-import type { StudyPlan, StudyPlanItem, Material } from "@/types";
+import type { StudyPlan, StudyPlanItem, Material, SourceReference } from "@/types";
 
 const STATUS_LABELS: Record<string, string> = {
   PLANNED: "Planned",
@@ -52,6 +53,9 @@ export default function ClassStudyPlansPage() {
 
   // Optimistic status update tracking
   const [updatingItemId, setUpdatingItemId] = useState<string | null>(null);
+  
+  // Reference modal state
+  const [activeReference, setActiveReference] = useState<SourceReference | null>(null);
 
   const loadPlans = useCallback(async () => {
     try {
@@ -135,13 +139,14 @@ export default function ClassStudyPlansPage() {
       if (!data.success) { toast.error(data.message || "Failed to generate AI plan."); return; }
 
       // Save as a named study plan
-      const items: StudyPlanItem[] = ((data.data?.content_json as { title?: string; type?: string }[]) ?? []).map((item, i) => ({
+      const items: StudyPlanItem[] = ((data.data?.content_json as { title?: string; type?: string; references?: SourceReference[] }[]) ?? []).map((item, i) => ({
         itemId: crypto.randomUUID(),
         classId,
         semester: "",
         title: item.title ?? `Task ${i + 1}`,
         type: item.type ?? "Study",
         status: "PLANNED",
+        references: item.references ?? [],
       }));
 
       const saveRes = await fetch("/api/study-plans", {
@@ -197,14 +202,31 @@ export default function ClassStudyPlansPage() {
     }
   };
 
-  const handleDelete = async (planId: string) => {
-    if (!confirm("Delete this study plan?")) return;
+  const performDelete = async (planId: string) => {
     try {
       const res = await fetch(`/api/study-plans?id=${planId}`, { method: "DELETE" });
-      if (res.ok) setPlans(prev => prev.filter(p => p.planId !== planId));
+      if (res.ok) {
+        setPlans(prev => prev.filter(p => p.planId !== planId));
+        toast.success("Study plan deleted");
+      }
     } catch (e) {
       console.error(e);
+      toast.error("Failed to delete study plan");
     }
+  };
+
+  const handleDelete = (planId: string) => {
+    toast("Delete this study plan?", {
+      description: "This action cannot be undone.",
+      action: {
+        label: "Delete",
+        onClick: () => performDelete(planId),
+      },
+      cancel: {
+        label: "Cancel",
+        onClick: () => {},
+      },
+    });
   };
 
   return (
@@ -392,7 +414,24 @@ export default function ClassStudyPlansPage() {
                               <span className="text-base shrink-0">{icon}</span>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-foreground leading-snug">{item.title}</p>
-                                {item.type && <p className="text-xs text-muted-foreground">{item.type}</p>}
+                                <div className="flex flex-col gap-1.5 mt-0.5">
+                                  {item.type && <p className="text-xs text-muted-foreground">{item.type}</p>}
+                                  {item.references && item.references.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-1">
+                                      {item.references.map((ref, i) => (
+                                        <button
+                                          key={i}
+                                          onClick={() => setActiveReference(ref)}
+                                          className="text-[10px] sm:text-xs font-semibold px-2 py-1 bg-ecu-purple/10 text-ecu-purple border border-ecu-purple/20 rounded-md hover:bg-ecu-purple/20 transition-colors flex items-center gap-1.5"
+                                        >
+                                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                          <span className="truncate max-w-[150px]">{ref.fileName}</span>
+                                          {ref.page && <span className="opacity-75">(Pg {ref.page})</span>}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
                               </div>
                               <select
                                 value={item.status ?? "PLANNED"}
@@ -416,6 +455,12 @@ export default function ClassStudyPlansPage() {
           </div>
         )}
       </div>
+
+      <ReferenceModal 
+        isOpen={!!activeReference} 
+        reference={activeReference} 
+        onClose={() => setActiveReference(null)} 
+      />
     </div>
   );
 }

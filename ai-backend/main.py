@@ -15,11 +15,9 @@ from core.ai import (
     generate_flashcards,
     generate_personal_flashcards_from_materials,
     generate_personal_practice_exam_from_materials,
-    generate_personal_study_plan_from_materials,
     generate_shared_flashcards_from_materials,
     generate_shared_practice_exam_from_materials,
-    generate_shared_study_plan_from_materials,
-    generate_study_plan,
+    generate_study_plan_from_context,
     generate_practice_exam,
     chat_with_tutor,
     stream_chat_with_tutor,
@@ -332,7 +330,7 @@ def _generate_shared_resources(class_id: str, trigger_material_id: str | None = 
 
             if qualifying_ids:
                 print(f"[SHARED] Generating study plan items from {len(qualifying_ids)} qualifying material(s)...")
-                new_items = generate_shared_study_plan_from_materials(class_id, qualifying_ids, count=5)
+                new_items = generate_study_plan_from_context(class_id, material_ids=qualifying_ids)
                 if new_items:
                     existing_items: list[dict] = existing_data.get("study_plan_json") or []
                     if not isinstance(existing_items, list):
@@ -588,10 +586,11 @@ class StudyPlanReq(BaseModel):
 
 @app.post("/generate/study-plan")
 async def study_plan(req: StudyPlanReq):
-    if req.materialIds:
-        plan = generate_personal_study_plan_from_materials(req.classId, req.materialIds)
-    else:
-        plan = generate_study_plan(req.classId, req.timeframe)
+    plan = generate_study_plan_from_context(
+        req.classId, 
+        material_ids=req.materialIds if req.materialIds else None, 
+        timeframe=req.timeframe
+    )
     return {"success": True, "data": {"studyPlan": plan}}
 
 class PracticeExamReq(BaseModel):

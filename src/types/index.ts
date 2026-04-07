@@ -137,6 +137,12 @@ export interface MaterialUploadEvent {
 // Study Plans
 // ============================================================
 
+export interface SourceReference {
+  fileName: string;
+  page?: number | string;
+  snippet: string;
+}
+
 export interface StudyPlanItem {
   classId: string;
   semester: string; // e.g., "Fall 2026"
@@ -144,6 +150,7 @@ export interface StudyPlanItem {
   itemId?: string;
   title?: string;
   type?: string;
+  references?: SourceReference[];
 }
 
 export interface StudyPlan {

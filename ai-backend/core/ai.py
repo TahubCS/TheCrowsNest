@@ -294,53 +294,9 @@ Format:
     return normalized[:count]
 
 
-def generate_shared_study_plan_from_materials(
-    class_id: str,
-    material_ids: list[str],
-    count: int = 5,
-) -> list[dict]:
-    """Generate new study plan items from specific materials (for incremental shared plan growth)."""
-    context = query_documents_for_materials(
-        class_id,
-        material_ids,
-        query="Key topics, learning objectives, important concepts students should study",
-        n_results=30,
-    )
-
-    if not context.strip():
-        return []
-
-    prompt = f"""You are generating study plan items for class {class_id}.
-Analyze the provided context and create exactly {count} actionable study tasks grounded in the material.
-
-Context from newly processed class materials:
-<context>
-{context}
-</context>
-
-Rules:
-1) Return EXACTLY {count} items.
-2) Each title must be a specific, actionable task (e.g. "Review Newton's third law and solve 3 force-balance problems").
-3) type must be one of: Reading, Practice, Review, Study.
-4) status must always be "PLANNED".
-5) Do not produce generic tasks like "Study for exam" — be specific to the content.
-
-RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
-Format:
-[
-  {{"title": "Specific actionable task", "type": "Practice", "status": "PLANNED"}}
-]"""
-
-    response = generate_content_with_fallback(
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.3,
-        )
-    )
-
+def _parse_study_plan_response(response_text: str, count: int) -> list[dict]:
     try:
-        parsed = json.loads(response.text)
+        parsed = json.loads(response_text)
     except json.JSONDecodeError:
         return []
 
@@ -354,102 +310,93 @@ Format:
         title = str(item.get("title", "")).strip()
         if not title:
             continue
+            
+        refs = item.get("references", [])
+        if not isinstance(refs, list):
+            refs = []
+            
         normalized.append({
             "title": title,
             "type": str(item.get("type", "Study")).strip(),
             "status": "PLANNED",
+            "references": refs,
         })
 
-    return normalized[:count]
+    return normalized[:count] if count > 0 else normalized
 
 
-def generate_personal_study_plan_from_materials(
-    class_id: str,
-    material_ids: list[str],
-    count: int = 5,
+def suggest_study_plan_item_count(context: str, default: int = 5, maximum: int = 15) -> int:
+    if not context.strip():
+        return default
+
+    word_count = len(context.split())
+    if word_count < 250:
+        suggested = 3
+    elif word_count < 600:
+        suggested = 5
+    elif word_count < 1200:
+        suggested = 8
+    elif word_count < 2000:
+        suggested = 10
+    elif word_count < 3000:
+        suggested = 12
+    else:
+        suggested = maximum
+        
+    return min(maximum, suggested)
+
+
+def generate_study_plan_from_context(
+    class_id: str, 
+    material_ids: list[str] | None = None, 
+    timeframe: str | None = None
 ) -> list[dict]:
-    """Generate a personal study plan from user-selected materials."""
-    context = query_documents_for_materials(
-        class_id,
-        material_ids,
-        query="Most important topics, difficult concepts, and key learning objectives for personal study",
-        n_results=40,
-    )
+    """Unified study plan generator that dynamically sets the task count based on context size."""
+    if material_ids:
+        objective = "Specific, actionable study tasks grounded in the selected materials"
+        context = query_documents_for_materials(
+            class_id,
+            material_ids,
+            query="Most important topics, difficult concepts, and key learning objectives for personal study",
+            n_results=40,
+        )
+    else:
+        t_frame = timeframe or "Current semester"
+        objective = f"Structured weekly study plan for {t_frame}"
+        context = get_context_for_class(class_id, f"Study guide and syllabus schedule for {t_frame}")
 
     if not context.strip():
         return []
 
-    prompt = f"""You are creating a personal study plan for a student in class {class_id}.
-Use ONLY the provided context from the student's selected materials to generate specific, actionable study tasks.
+    count = suggest_study_plan_item_count(context)
 
-Context from selected materials:
-<context>
-{context}
-</context>
-
-Requirements:
-1) Return EXACTLY {count} study tasks.
-2) Each task must be directly tied to concepts in the provided context.
-3) type must be one of: Reading, Practice, Review, Study.
-4) status must always be "PLANNED".
-5) Be specific — reference actual topics, formulas, or problem types from the materials.
-
-RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
-Format:
-[
-  {{"title": "Specific actionable task", "type": "Practice", "status": "PLANNED"}}
-]"""
-
-    response = generate_content_with_fallback(
-        contents=prompt,
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json",
-            temperature=0.3,
-        )
-    )
-
-    try:
-        parsed = json.loads(response.text)
-    except json.JSONDecodeError:
-        return []
-
-    if not isinstance(parsed, list):
-        return []
-
-    normalized = []
-    for item in parsed:
-        if not isinstance(item, dict):
-            continue
-        title = str(item.get("title", "")).strip()
-        if not title:
-            continue
-        normalized.append({
-            "title": title,
-            "type": str(item.get("type", "Study")).strip(),
-            "status": "PLANNED",
-        })
-
-    return normalized[:count]
-
-
-def generate_study_plan(class_id: str, timeframe: str) -> list[dict]:
-    context = get_context_for_class(class_id, f"Study guide and syllabus schedule for {timeframe}")
-    prompt = f"""Generate a structured weekly study plan for class {class_id}.
-Timeframe: {timeframe}
+    prompt = f"""You are generating a study plan for class {class_id}.
+Objective: {objective}
 
 Context from class materials:
 <context>
 {context}
 </context>
 
-The study plan should have exactly 5 important tasks extracted from the syllabus or course materials.
-RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO OTHER TEXT. 
+Rules:
+1) Return EXACTLY {count} study tasks.
+2) Each task must be directly tied to concepts in the provided context.
+3) type must be one of: Reading, Practice, Review, Study.
+4) status must always be "PLANNED".
+5) Be specific — reference actual topics, formulas, or problem types from the materials.
+6) Include an array of `references` citing the exact fileName, page, and a short 1-2 sentence exact text snippet from the material to review.
+Ensure you use the [File: X, Page: Y] markers inside the context to accurately cite your sources.
+
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
 Format exactly like this strictly:
 [
   {{ 
-    "title": "Read Chapter 1", 
-    "type": "Reading", 
-    "status": "PLANNED" 
+    "title": "Specific actionable task", 
+    "type": "Practice", 
+    "status": "PLANNED",
+    "references": [
+      {{"fileName": "lecture-1.pdf", "page": 8, "snippet": "Text excerpt..."}}
+    ]
   }}
 ]"""
 
@@ -457,13 +404,11 @@ Format exactly like this strictly:
         contents=prompt,
         config=types.GenerateContentConfig(
             response_mime_type="application/json",
-            temperature=0.4
+            temperature=0.3,
         )
     )
-    try:
-        return json.loads(response.text)
-    except json.JSONDecodeError:
-        return []
+
+    return _parse_study_plan_response(response.text, count)
 
 def generate_practice_exam(class_id: str, topic: str, difficulty: str, count: int) -> dict:
     context = get_context_for_class(class_id, f"Practice questions for {topic}")
