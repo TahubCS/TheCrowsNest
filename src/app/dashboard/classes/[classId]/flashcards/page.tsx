@@ -450,19 +450,51 @@ export default function FlashcardsPage() {
 
                   <div className="mt-5 space-y-3">
                     {personalDecks.length > 0 ? personalDecks.map((deck) => (
-                      <button
-                        key={deck.id}
-                        onClick={() => launchDeck(deck)}
-                        className="w-full rounded-2xl border border-border bg-muted/20 px-4 py-3 text-left hover:border-green-500 hover:bg-green-500/5 transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <p className="font-semibold text-foreground">Saved deck</p>
-                            <p className="text-xs text-muted-foreground mt-1">{formatDeckLabel(deck)}</p>
+                      <div key={deck.id} className="relative group">
+                        <button
+                          onClick={() => launchDeck(deck)}
+                          className="w-full rounded-2xl border border-border bg-muted/20 px-4 py-3 text-left hover:border-green-500 hover:bg-green-500/5 transition-colors pr-14"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className="font-semibold text-foreground">Saved deck</p>
+                              <p className="text-xs text-muted-foreground mt-1">{formatDeckLabel(deck)}</p>
+                            </div>
+                            <span className="text-xs font-bold text-green-700">Open</span>
                           </div>
-                          <span className="text-xs font-bold text-green-700">Open</span>
-                        </div>
-                      </button>
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toast("Delete this personal deck?", {
+                              description: "This action cannot be undone.",
+                              action: {
+                                label: "Delete",
+                                onClick: async () => {
+                                  try {
+                                    const res = await fetch(`/api/classes/${classId}/personal-resources?id=${deck.id}`, { method: "DELETE" });
+                                    if (res.ok) {
+                                      setPersonalDecks(prev => prev.filter(d => d.id !== deck.id));
+                                      toast.success("Deck deleted.");
+                                    } else {
+                                      toast.error("Failed to delete deck.");
+                                    }
+                                  } catch (error) {
+                                    toast.error("Network error.");
+                                  }
+                                }
+                              },
+                              cancel: { label: "Cancel", onClick: () => {} }
+                            });
+                          }}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                          title="Delete deck"
+                        >
+                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
                     )) : (
                       <p className="text-sm text-muted-foreground">No saved personal decks yet.</p>
                     )}

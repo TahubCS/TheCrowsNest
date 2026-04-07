@@ -231,3 +231,54 @@ export async function POST(
     );
   }
 }
+
+/**
+ * DELETE — delete a specific personal resource
+ * DELETE /api/classes/[classId]/personal-resources?id=...
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ classId: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "Not authenticated." },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const { classId } = await params;
+
+    const { error } = await supabase
+      .from("personal_resources")
+      .delete()
+      .eq("id", id)
+      .eq("user_email", session.user.email.toLowerCase())
+      .eq("class_id", classId);
+
+    if (error) throw new Error(error.message);
+
+    return NextResponse.json<ApiResponse>({
+      success: true,
+      message: "Personal resource deleted.",
+    });
+  } catch (error) {
+    console.error("[Personal Resources DELETE Error]", error);
+    return NextResponse.json<ApiResponse>(
+      { success: false, message: "Failed to delete resource." },
+      { status: 500 }
+    );
+  }
+}

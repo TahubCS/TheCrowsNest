@@ -335,3 +335,68 @@ export async function POST(
     );
   }
 }
+
+/**
+ * DELETE — delete a specific personal exam session
+ * DELETE /api/classes/[classId]/exam-sessions?id=...
+ */
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ classId: string }> }
+) {
+  try {
+    const session = await auth();
+    if (!session?.user?.email) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "Not authenticated." },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+
+    if (!id) {
+      return NextResponse.json<ApiResponse>(
+        { success: false, message: "ID is required." },
+        { status: 400 }
+      );
+    }
+
+    const { classId } = await params;
+
+    // We attempt to delete from both tables consecutively since legacy exams might be linked across boundaries
+    await supabase
+      .from("exam_sessions")
+      .delete()
+      .eq("id", id)
+      .eq("user_email", session.user.email.toLowerCase())
+      .eq("class_id", classId);
+
+    await supabase
+      .from("personal_resources")
+      .delete()
+      .eq("id", id)
+      .eq("user_email", session.user.email.toLowerCase())
+      .eq("class_id", classId);
+
+    // Some legacy resources might use exam_session_id = id
+    await supabase
+      .from("personal_resources")
+      .delete()
+      .eq("exam_session_id", id)
+      .eq("user_email", session.user.email.toLowerCase())
+      .eq("class_id", classId);
+
+    return NextResponse.json<ApiResponse>({
+      success: true,
+      message: "Exam session deleted.",
+    });
+  } catch (error) {
+    console.error("[Exam Sessions DELETE Error]", error);
+    return NextResponse.json<ApiResponse>(
+      { success: false, message: "Failed to delete exam session." },
+      { status: 500 }
+    );
+  }
+}
