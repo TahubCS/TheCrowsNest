@@ -7,23 +7,6 @@ datasource db {
   provider   = "postgresql"
   extensions = [vector]
 }
-model admin_dev_mode {
-  admin_email String @id
-  active_plan String
-  updated_at DateTime? @default(now())
-
-  @@map("admin_dev_mode")
-}
-
-model admins {
-  id String @id @default(uuid())
-  email String
-  added_at DateTime? @default(now())
-  added_by String?
-
-  @@map("admins")
-}
-
 model classes {
   class_id String @id
   course_code String
@@ -131,16 +114,6 @@ model materials {
   @@map("materials")
 }
 
-model pending_verifications {
-  email String @id
-  name String
-  password_hash String
-  verification_code String
-  expires_at BigInt
-
-  @@map("pending_verifications")
-}
-
 model personal_resources {
   id String @id @default(uuid())
   user_email String
@@ -155,17 +128,6 @@ model personal_resources {
   difficulty String?
 
   @@map("personal_resources")
-}
-
-model profiles {
-  email String @id
-  subscription_plan String
-  stripe_customer_id String?
-  stripe_subscription_id String?
-  plan_expires_at DateTime?
-  created_at DateTime? @default(now())
-
-  @@map("profiles")
 }
 
 model quota_config {
@@ -248,18 +210,25 @@ model study_plans {
 }
 
 model users {
-  email               String    @id
-  id                  String?   @default(uuid())
-  name                String
-  password_hash       String
-  pirate_id           String?
-  level               String?
-  major               String?
-  year_of_study       String?
-  enrolled_classes    String[]
-  onboarding_complete Boolean?
-  is_admin            Boolean?
-  created_at          DateTime? @default(now())
+  email                   String    @id
+  id                      String?   @default(uuid())
+  name                    String
+  password_hash           String
+  pirate_id               String?
+  level                   String?
+  major                   String?
+  year_of_study           String?
+  enrolled_classes        String[]
+  onboarding_complete     Boolean?
+  is_admin                Boolean?  @default(false)
+  created_at              DateTime? @default(now())
+  // Subscription (merged from profiles)
+  subscription_plan       String    @default("free")
+  stripe_customer_id      String?
+  stripe_subscription_id  String?
+  plan_expires_at         DateTime?
+  // Admin dev-mode (merged from admin_dev_mode)
+  dev_mode_plan           String?
 
   @@map("users")
 }

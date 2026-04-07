@@ -18,6 +18,13 @@ export interface User {
   onboardingComplete: boolean;
   isAdmin: boolean;
   createdAt: string;
+  // Subscription fields (merged from profiles table)
+  subscriptionPlan?: string; // 'free' | 'premium'
+  stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
+  planExpiresAt?: string;
+  // Admin dev-mode (merged from admin_dev_mode table)
+  devModePlan?: string; // 'free' | 'premium' | null (admin-only testing override)
 }
 
 // ============================================================

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
-import { supabase } from "@/lib/supabase";
 import { getStripeClient } from "@/lib/stripe";
+import { updateUserSubscription } from "@/lib/db";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,22 +21,19 @@ function getPlanFromSubscription(subscription: { metadata?: Record<string, strin
   return "free";
 }
 
-async function upsertProfile(email: string, plan: StripePlan, customerId?: string | null, subscriptionId?: string | null, expiresAt?: number | null) {
-  const payload: Record<string, unknown> = {
-    email: email.toLowerCase(),
-    subscription_plan: plan === "free" ? "free" : "premium",
-    stripe_customer_id: customerId ?? null,
-    stripe_subscription_id: subscriptionId ?? null,
-    plan_expires_at: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
-  };
-
-  const { error } = await supabase
-    .from("profiles")
-    .upsert(payload, { onConflict: "email" });
-
-  if (error) {
-    throw new Error(error.message);
-  }
+async function applySubscription(
+  email: string,
+  plan: StripePlan,
+  customerId?: string | null,
+  subscriptionId?: string | null,
+  expiresAt?: number | null
+) {
+  await updateUserSubscription(email, {
+    subscriptionPlan: plan === "free" ? "free" : "premium",
+    stripeCustomerId: customerId ?? null,
+    stripeSubscriptionId: subscriptionId ?? null,
+    planExpiresAt: expiresAt ? new Date(expiresAt * 1000).toISOString() : null,
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -82,7 +79,7 @@ export async function POST(request: NextRequest) {
           plan = getPlanFromSubscription(subscription);
         }
 
-        await upsertProfile(email, plan, customerId, subscriptionId, expiresAt);
+        await applySubscription(email, plan, customerId, subscriptionId, expiresAt);
         break;
       }
 
@@ -104,7 +101,7 @@ export async function POST(request: NextRequest) {
         const plan = event.type === "customer.subscription.deleted" ? "free" : getPlanFromSubscription(subscription);
         const customerId = typeof subscription.customer === "string" ? subscription.customer : null;
         const periodEnd = (subscription as Stripe.Subscription & { current_period_end?: number }).current_period_end ?? null;
-        await upsertProfile(email, plan, customerId, subscription.id, plan === "free" ? null : periodEnd);
+        await applySubscription(email, plan, customerId, subscription.id, plan === "free" ? null : periodEnd);
         break;
       }
 

@@ -2,7 +2,17 @@
   "permissions": {
     "allow": [
       "Bash(node --env-file=.env.local -e ':*)",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Read(//c/Users/muhammad/ tahub/Downloads/Projects/TheCrowsNest/**)",
+      "Bash(ls -la \"c:/Users/muhammad tahub/Downloads/Projects/TheCrowsNest/\"*.js \"c:/Users/muhammad tahub/Downloads/Projects/TheCrowsNest/\"*.txt \"c:/Users/muhammad tahub/Downloads/Projects/TheCrowsNest/\"*.mjs)",
+      "Bash(ls \"c:/Users/muhammad tahub/Downloads/Projects/TheCrowsNest/.env\"*)",
+      "Bash(node -e \"try { require.resolve\\('dotenv'\\); console.log\\('dotenv: installed'\\) } catch { console.log\\('dotenv: NOT installed'\\) }\")",
+      "Bash(npx prisma:*)",
+      "Bash(node ./node_modules/.bin/prisma validate)",
+      "Bash(node node_modules/prisma/build/index.js validate)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\muhammad tahub\\Downloads\\Projects\\TheCrowsNest"
     ]
   }
 }

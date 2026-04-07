@@ -9,7 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
-import { supabase } from "@/lib/supabase";
+import { getUserByEmail, updateUserDevMode } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 export async function GET(_request: NextRequest) {
@@ -22,16 +22,12 @@ export async function GET(_request: NextRequest) {
       );
     }
 
-    const { data } = await supabase
-      .from("admin_dev_mode")
-      .select("active_plan")
-      .eq("admin_email", session.user.email.toLowerCase())
-      .maybeSingle();
+    const user = await getUserByEmail(session.user.email);
 
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Dev mode status.",
-      data: { activePlan: data?.active_plan ?? "premium" },
+      data: { activePlan: user?.devModePlan ?? "premium" },
     });
   } catch (error) {
     console.error("[Admin Dev-Mode GET Error]", error);
@@ -61,18 +57,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { error } = await supabase
-      .from("admin_dev_mode")
-      .upsert(
-        {
-          admin_email: session.user.email.toLowerCase(),
-          active_plan: plan,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "admin_email" }
-      );
-
-    if (error) throw new Error(error.message);
+    await updateUserDevMode(session.user.email, plan as "free" | "premium");
 
     return NextResponse.json<ApiResponse>({
       success: true,

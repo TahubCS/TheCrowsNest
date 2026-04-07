@@ -8,7 +8,6 @@
  * - study_plans     (PK: plan_id)
  * - requests        (PK: request_id)
  * - reports         (PK: report_id)
- * - pending_verifications (PK: email)
  */
 
 import postgres from "postgres";
@@ -536,42 +535,33 @@ export async function updateReportStatus(
 }
 
 // ============================================================
-// Pending Email Verification Operations
+// Subscription Operations
 // ============================================================
 
-export interface PendingVerification {
-  email: string;
-  name: string;
-  passwordHash: string;
-  verificationCode: string;
-  expiresAt: number; // Unix timestamp — manually checked, no auto-TTL in Postgres
+export async function updateUserSubscription(
+  email: string,
+  update: {
+    subscriptionPlan: string;
+    stripeCustomerId?: string | null;
+    stripeSubscriptionId?: string | null;
+    planExpiresAt?: string | null;
+  }
+): Promise<void> {
+  const values: Record<string, unknown> = {
+    subscription_plan: update.subscriptionPlan,
+  };
+  if (update.stripeCustomerId !== undefined) values["stripe_customer_id"] = update.stripeCustomerId;
+  if (update.stripeSubscriptionId !== undefined) values["stripe_subscription_id"] = update.stripeSubscriptionId;
+  if (update.planExpiresAt !== undefined) values["plan_expires_at"] = update.planExpiresAt;
+
+  await sql`UPDATE users SET ${sql(values)} WHERE email = ${email.toLowerCase()}`;
 }
 
-export async function savePendingVerification(record: PendingVerification): Promise<void> {
+export async function updateUserDevMode(
+  email: string,
+  plan: "free" | "premium" | null
+): Promise<void> {
   await sql`
-    INSERT INTO pending_verifications (email, name, password_hash, verification_code, expires_at)
-    VALUES (
-      ${record.email.toLowerCase()},
-      ${record.name},
-      ${record.passwordHash},
-      ${record.verificationCode},
-      ${record.expiresAt}
-    )
-    ON CONFLICT (email) DO UPDATE SET
-      name              = EXCLUDED.name,
-      password_hash     = EXCLUDED.password_hash,
-      verification_code = EXCLUDED.verification_code,
-      expires_at        = EXCLUDED.expires_at
+    UPDATE users SET dev_mode_plan = ${plan} WHERE email = ${email.toLowerCase()}
   `;
-}
-
-export async function getPendingVerification(email: string): Promise<PendingVerification | null> {
-  const rows = await sql<PendingVerification[]>`
-    SELECT * FROM pending_verifications WHERE email = ${email.toLowerCase()} LIMIT 1
-  `;
-  return rows[0] ?? null;
-}
-
-export async function deletePendingVerification(email: string): Promise<void> {
-  await sql`DELETE FROM pending_verifications WHERE email = ${email.toLowerCase()}`;
 }

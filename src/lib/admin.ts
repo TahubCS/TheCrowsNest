@@ -1,28 +1,14 @@
 /**
- * Admin helpers — DB-backed admin check.
- *
- * Replaces the old `process.env.ADMIN_EMAILS` pattern with a lookup
- * against the `admins` table. Uses the service-role Supabase client
- * so RLS is bypassed (the admins table has no public read access).
+ * Admin helpers — checks users.is_admin as the single source of truth.
  */
 
-import { supabase } from "@/lib/supabase";
+import { getUserByEmail } from "@/lib/db";
 
 /**
  * Check if an email belongs to an admin.
- * Uses the service-role client so no RLS restrictions apply.
+ * Reads users.is_admin — the single admin flag after table consolidation.
  */
 export async function isAdmin(email: string): Promise<boolean> {
-  const { data, error } = await supabase
-    .from("admins")
-    .select("email")
-    .ilike("email", email)
-    .maybeSingle();
-
-  if (error) {
-    console.error("[Admin Check Error]", error);
-    return false;
-  }
-
-  return !!data;
+  const user = await getUserByEmail(email);
+  return user?.isAdmin ?? false;
 }

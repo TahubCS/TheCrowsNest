@@ -1,42 +1,28 @@
 /**
  * Plan helpers — determine the effective subscription plan for a user.
  *
- * Supports admin dev-mode override: admins can simulate a different plan
- * for UI testing without modifying their actual subscription.
+ * Reads directly from users table (single source of truth after consolidation).
+ * Admins can override their effective plan via dev_mode_plan for UI testing.
  */
 
-import { supabase } from "@/lib/supabase";
-import { isAdmin } from "@/lib/admin";
+import { getUserByEmail } from "@/lib/db";
 
 /**
  * Get the effective subscription plan for a user.
  *
- * For admins: checks admin_dev_mode table for a simulated plan.
- * For everyone: falls back to the profiles table, defaults to 'free'.
+ * For admins: returns dev_mode_plan if set (simulated plan for UI testing).
+ * For everyone: returns subscription_plan, defaulting to 'free'.
  */
 export async function getEffectivePlan(
   email: string
 ): Promise<"free" | "premium"> {
-  // Admin dev-mode override
-  const admin = await isAdmin(email);
-  if (admin) {
-    const { data: devMode } = await supabase
-      .from("admin_dev_mode")
-      .select("active_plan")
-      .eq("admin_email", email.toLowerCase())
-      .maybeSingle();
+  const user = await getUserByEmail(email);
+  if (!user) return "free";
 
-    if (devMode?.active_plan) {
-      return devMode.active_plan as "free" | "premium";
-    }
+  // Admin dev-mode override
+  if (user.isAdmin && user.devModePlan) {
+    return user.devModePlan as "free" | "premium";
   }
 
-  // Normal user: fetch from profiles
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("subscription_plan")
-    .eq("email", email.toLowerCase())
-    .maybeSingle();
-
-  return (profile?.subscription_plan as "free" | "premium") ?? "free";
+  return (user.subscriptionPlan as "free" | "premium") ?? "free";
 }
