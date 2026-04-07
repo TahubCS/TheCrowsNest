@@ -16,10 +16,24 @@ interface SharedData {
 }
 
 type StudyPlanItem = {
+  itemId?: string;
   title?: string;
-  topic?: string;
-  name?: string;
-  description?: string;
+  type?: string;
+  status?: string;
+  classId?: string;
+};
+
+const STUDY_PLAN_TYPE_ICON: Record<string, string> = {
+  Reading: "📚",
+  Practice: "✏️",
+  Review: "🔍",
+  Study: "📖",
+};
+
+const STUDY_PLAN_STATUS_COLOR: Record<string, string> = {
+  PLANNED: "bg-muted text-muted-foreground",
+  IN_PROGRESS: "bg-blue-100 text-blue-700",
+  COMPLETED: "bg-green-100 text-green-700",
 };
 
 export default function SharedResourcesSection({ classId, resourceType }: SharedResourcesProps) {
@@ -235,13 +249,7 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
 
   // ── Study Plan viewer ──
   if (resourceType === "studyPlan") {
-    const plan = data.studyPlan;
-    if (!plan) return null;
-
-    const structuredPlan = !Array.isArray(plan) && typeof plan === "object" && plan !== null
-      ? (plan as { items?: unknown[]; topics?: unknown[] })
-      : null;
-    const items = Array.isArray(plan) ? plan : structuredPlan?.items || structuredPlan?.topics || [];
+    const items = Array.isArray(data.studyPlan) ? (data.studyPlan as StudyPlanItem[]) : [];
     if (items.length === 0) return null;
 
     return (
@@ -251,31 +259,33 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
             <span className="text-lg">📋</span>
             <h3 className="text-sm font-bold text-foreground">Community Study Plan</h3>
             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-600">FREE</span>
+            <span className="text-xs text-muted-foreground">{items.length} topics</span>
           </div>
           <button
             onClick={() => setExpandedPlan(!expandedPlan)}
-            className="text-xs font-bold text-purple-600 hover:underline"
+            className="text-xs font-bold text-purple-600 hover:underline flex items-center gap-1"
           >
-            {expandedPlan ? "Collapse" : "Expand"}
+            {expandedPlan ? "Collapse" : "Show all"}
+            <svg className={`w-3 h-3 transition-transform ${expandedPlan ? "rotate-90" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7"/></svg>
           </button>
         </div>
 
-        <div className={`space-y-2 ${!expandedPlan ? "max-h-48 overflow-hidden relative" : ""}`}>
-          {items.map((item: unknown, i: number) => {
-            const planItem = typeof item === "object" && item !== null ? (item as StudyPlanItem) : null;
+        <div className={`space-y-2 ${!expandedPlan ? "max-h-52 overflow-hidden relative" : ""}`}>
+          {items.map((item, i) => {
+            const icon = STUDY_PLAN_TYPE_ICON[item.type ?? ""] ?? "📌";
+            const statusColor = STUDY_PLAN_STATUS_COLOR[item.status ?? "PLANNED"] ?? STUDY_PLAN_STATUS_COLOR.PLANNED;
             return (
-            <div key={i} className="flex items-start gap-3 p-3 rounded-lg bg-background border border-border">
-              <span className="text-xs font-bold text-muted-foreground mt-0.5">{i + 1}</span>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">
-                  {typeof item === "string" ? item : planItem?.title || planItem?.topic || planItem?.name || JSON.stringify(item)}
-                </p>
-                {planItem?.description && (
-                  <p className="text-xs text-muted-foreground mt-0.5">{planItem.description}</p>
-                )}
+              <div key={item.itemId ?? i} className="flex items-center gap-3 p-3 rounded-lg bg-background border border-border">
+                <span className="text-base shrink-0">{icon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-foreground leading-snug">{item.title}</p>
+                  {item.type && <p className="text-xs text-muted-foreground mt-0.5">{item.type}</p>}
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusColor}`}>
+                  {item.status ?? "PLANNED"}
+                </span>
               </div>
-            </div>
-          );
+            );
           })}
           {!expandedPlan && items.length > 3 && (
             <div className="absolute bottom-0 inset-x-0 h-16 bg-linear-to-t from-purple-500/5 to-transparent pointer-events-none" />

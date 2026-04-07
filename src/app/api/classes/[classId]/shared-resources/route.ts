@@ -67,6 +67,14 @@ export async function GET(
       sharedExamSession = examSession ?? null;
     }
 
+    // Normalize study plan items — inject classId and ensure itemId exists on each
+    const rawStudyPlan = Array.isArray(data.study_plan_json) ? data.study_plan_json : [];
+    const studyPlan = rawStudyPlan.map((item: Record<string, unknown>) => ({
+      ...item,
+      classId,
+      itemId: item.itemId ?? crypto.randomUUID(),
+    }));
+
     return NextResponse.json<ApiResponse>({
       success: true,
       message: "Shared resources fetched.",
@@ -74,7 +82,7 @@ export async function GET(
         generationStatus: data.generation_status,
         exam: data.exam_json,
         sharedExamSession,
-        studyPlan: data.study_plan_json,
+        studyPlan: studyPlan.length > 0 ? studyPlan : null,
         flashcards: data.flashcards_json,
         updatedAt: data.updated_at,
         sharedExamQuestionCount: data.shared_exam_question_count,

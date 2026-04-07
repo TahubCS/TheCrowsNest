@@ -171,14 +171,16 @@ model requests {
   @@map("requests")
 }
 
-model shared_flashcard_material_coverage {
+model shared_material_coverage {
   id String @id @default(uuid())
   class_id String
   material_id String
+  resource_type String @default("flashcards") // 'flashcards' | 'exam' | 'study_plan'
   generation_trigger_material_id String?
   created_at DateTime? @default(now())
 
-  @@map("shared_flashcard_material_coverage")
+  @@unique([class_id, material_id, resource_type])
+  @@map("shared_material_coverage")
 }
 
 model shared_resources {

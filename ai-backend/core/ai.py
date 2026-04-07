@@ -217,6 +217,221 @@ Format:
     normalized = _normalize_flashcards(parsed)
     return normalized[:count]
 
+def generate_shared_practice_exam_from_materials(
+    class_id: str,
+    material_ids: list[str],
+    count: int = 5,
+) -> list[dict]:
+    """Generate new exam questions from specific materials (for incremental shared exam growth)."""
+    context = query_documents_for_materials(
+        class_id,
+        material_ids,
+        query="High-yield exam questions, difficult concepts, common misconceptions",
+        n_results=40,
+    )
+
+    if not context.strip():
+        return []
+
+    prompt = f"""You are generating shared class exam questions for class {class_id}.
+Analyze ONLY the provided context and produce exactly {count} multiple-choice questions on the hardest, highest-yield concepts.
+
+Context from newly processed class materials:
+<context>
+{context}
+</context>
+
+Rules:
+1) Return EXACTLY {count} questions.
+2) Each question must test a specific concept, not a trivial recall.
+3) All 4 options must be plausible; only one is correct.
+4) correctAnswer is the 0-based index of the correct option.
+5) explanation must explain why the answer is correct in 1-2 sentences.
+
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
+Format:
+[
+  {{
+    "id": "q1",
+    "text": "Question text?",
+    "options": ["A", "B", "C", "D"],
+    "correctAnswer": 0,
+    "explanation": "Why this is correct."
+  }}
+]"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.2,
+        )
+    )
+
+    try:
+        parsed = json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+
+    normalized = []
+    for q in parsed:
+        if not isinstance(q, dict):
+            continue
+        text = str(q.get("text", q.get("question", ""))).strip()
+        if not text:
+            continue
+        normalized.append({
+            "id": str(q.get("id", f"q{len(normalized)+1}")),
+            "text": text,
+            "options": q.get("options", []),
+            "correctAnswer": q.get("correctAnswer", 0),
+            "explanation": str(q.get("explanation", "")).strip(),
+        })
+
+    return normalized[:count]
+
+
+def generate_shared_study_plan_from_materials(
+    class_id: str,
+    material_ids: list[str],
+    count: int = 5,
+) -> list[dict]:
+    """Generate new study plan items from specific materials (for incremental shared plan growth)."""
+    context = query_documents_for_materials(
+        class_id,
+        material_ids,
+        query="Key topics, learning objectives, important concepts students should study",
+        n_results=30,
+    )
+
+    if not context.strip():
+        return []
+
+    prompt = f"""You are generating study plan items for class {class_id}.
+Analyze the provided context and create exactly {count} actionable study tasks grounded in the material.
+
+Context from newly processed class materials:
+<context>
+{context}
+</context>
+
+Rules:
+1) Return EXACTLY {count} items.
+2) Each title must be a specific, actionable task (e.g. "Review Newton's third law and solve 3 force-balance problems").
+3) type must be one of: Reading, Practice, Review, Study.
+4) status must always be "PLANNED".
+5) Do not produce generic tasks like "Study for exam" — be specific to the content.
+
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
+Format:
+[
+  {{"title": "Specific actionable task", "type": "Practice", "status": "PLANNED"}}
+]"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.3,
+        )
+    )
+
+    try:
+        parsed = json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+
+    normalized = []
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title", "")).strip()
+        if not title:
+            continue
+        normalized.append({
+            "title": title,
+            "type": str(item.get("type", "Study")).strip(),
+            "status": "PLANNED",
+        })
+
+    return normalized[:count]
+
+
+def generate_personal_study_plan_from_materials(
+    class_id: str,
+    material_ids: list[str],
+    count: int = 5,
+) -> list[dict]:
+    """Generate a personal study plan from user-selected materials."""
+    context = query_documents_for_materials(
+        class_id,
+        material_ids,
+        query="Most important topics, difficult concepts, and key learning objectives for personal study",
+        n_results=40,
+    )
+
+    if not context.strip():
+        return []
+
+    prompt = f"""You are creating a personal study plan for a student in class {class_id}.
+Use ONLY the provided context from the student's selected materials to generate specific, actionable study tasks.
+
+Context from selected materials:
+<context>
+{context}
+</context>
+
+Requirements:
+1) Return EXACTLY {count} study tasks.
+2) Each task must be directly tied to concepts in the provided context.
+3) type must be one of: Reading, Practice, Review, Study.
+4) status must always be "PLANNED".
+5) Be specific — reference actual topics, formulas, or problem types from the materials.
+
+RETURN ONLY A VALID JSON ARRAY. NO MARKDOWN, NO EXTRA TEXT.
+Format:
+[
+  {{"title": "Specific actionable task", "type": "Practice", "status": "PLANNED"}}
+]"""
+
+    response = generate_content_with_fallback(
+        contents=prompt,
+        config=types.GenerateContentConfig(
+            response_mime_type="application/json",
+            temperature=0.3,
+        )
+    )
+
+    try:
+        parsed = json.loads(response.text)
+    except json.JSONDecodeError:
+        return []
+
+    if not isinstance(parsed, list):
+        return []
+
+    normalized = []
+    for item in parsed:
+        if not isinstance(item, dict):
+            continue
+        title = str(item.get("title", "")).strip()
+        if not title:
+            continue
+        normalized.append({
+            "title": title,
+            "type": str(item.get("type", "Study")).strip(),
+            "status": "PLANNED",
+        })
+
+    return normalized[:count]
+
+
 def generate_study_plan(class_id: str, timeframe: str) -> list[dict]:
     context = get_context_for_class(class_id, f"Study guide and syllabus schedule for {timeframe}")
     prompt = f"""Generate a structured weekly study plan for class {class_id}.

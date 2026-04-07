@@ -14,11 +14,13 @@ from core.ai import (
     generate_flashcards,
     generate_personal_flashcards_from_materials,
     generate_personal_practice_exam_from_materials,
+    generate_personal_study_plan_from_materials,
     generate_shared_flashcards_from_materials,
+    generate_shared_practice_exam_from_materials,
+    generate_shared_study_plan_from_materials,
     generate_study_plan,
     generate_practice_exam,
     chat_with_tutor,
-    suggest_practice_exam_question_count,
 )
 from core.vector_store import pool
 
@@ -156,20 +158,29 @@ def _dedupe_flashcards(cards: list[dict]) -> list[dict]:
     return deduped
 
 
-def _get_unprocessed_material_ids_for_flashcards(class_id: str) -> list[str]:
+def _get_unprocessed_material_ids(class_id: str, resource_type: str) -> list[str]:
+    """Return material IDs that are PROCESSED but not yet covered for this resource_type."""
     materials_res = _supabase.table("materials").select("material_id").eq("class_id", class_id).eq("status", "PROCESSED").execute()
-    processed_res = _supabase.table("shared_flashcard_material_coverage").select("material_id").eq("class_id", class_id).execute()
+    covered_res = (
+        _supabase.table("shared_material_coverage")
+        .select("material_id")
+        .eq("class_id", class_id)
+        .eq("resource_type", resource_type)
+        .execute()
+    )
 
     all_ids = [row.get("material_id") for row in (materials_res.data or []) if row.get("material_id")]
-    covered_ids = {row.get("material_id") for row in (processed_res.data or []) if row.get("material_id")}
-    return [material_id for material_id in all_ids if material_id not in covered_ids]
+    covered_ids = {row.get("material_id") for row in (covered_res.data or []) if row.get("material_id")}
+    return [mid for mid in all_ids if mid not in covered_ids]
 
 
-def _record_flashcard_material_coverage(class_id: str, material_ids: list[str], trigger_material_id: str | None):
+def _record_material_coverage(class_id: str, material_ids: list[str], trigger_material_id: str | None, resource_type: str):
+    """Mark materials as covered for a given resource_type."""
     rows = [
         {
             "class_id": class_id,
             "material_id": material_id,
+            "resource_type": resource_type,
             "generation_trigger_material_id": trigger_material_id,
         }
         for material_id in material_ids
@@ -177,91 +188,178 @@ def _record_flashcard_material_coverage(class_id: str, material_ids: list[str], 
     if not rows:
         return
 
-    _supabase.table("shared_flashcard_material_coverage").upsert(rows, on_conflict="class_id,material_id").execute()
+    _supabase.table("shared_material_coverage").upsert(rows, on_conflict="class_id,material_id,resource_type").execute()
+
+
+# Material types that qualify to generate study plan items.
+# Notes and Other are excluded — they don't represent structured course content.
+STUDY_PLAN_MATERIAL_TYPES = {"Lecture Slides", "Syllabus", "Study Guide", "Past Exam"}
 
 
 def _generate_shared_resources(class_id: str, trigger_material_id: str | None = None):
-    """Regenerate shared exam/study-plan/flashcards for a class.
-    Called after a high-context material is embedded."""
+    """Incrementally grow shared flashcards, exam, and study plan for a class.
+    Called after a high-context material is fully embedded.
+
+    All three resource types follow the same pattern:
+      1. Find PROCESSED materials not yet covered for this resource type.
+      2. Generate 5 new items/questions from those materials only.
+      3. Merge with existing items (deduplicated).
+      4. Record coverage so those materials are never re-processed.
+    """
     try:
-        # Mark status as generating
         _supabase.table("shared_resources").upsert({
             "class_id": class_id,
             "generation_status": "generating",
         }, on_conflict="class_id").execute()
 
-        print(f"[SHARED] Generating shared resources for class {class_id}...")
+        print(f"[SHARED] Starting incremental shared resource update for class {class_id}...")
 
-        existing_shared_res = _supabase.table("shared_resources").select("flashcards_json").eq("class_id", class_id).maybe_single().execute()
-        existing_shared_cards = _normalize_flashcards((existing_shared_res.data or {}).get("flashcards_json"))
-
-        suggested_exam_count = suggest_practice_exam_question_count(class_id, topic="Core class concepts")
-
-        # Generate each resource type using existing AI functions.
-        # Keep these defaults intentionally balanced: challenging but learnable.
-        exam_result = generate_practice_exam(
-            class_id,
-            topic="Core class concepts",
-            difficulty="Medium",
-            count=suggested_exam_count,
+        # Fetch existing shared resource row for merging
+        existing_res = (
+            _supabase.table("shared_resources")
+            .select("flashcards_json, study_plan_json, shared_exam_session_id")
+            .eq("class_id", class_id)
+            .maybe_single()
+            .execute()
         )
-        unprocessed_material_ids = _get_unprocessed_material_ids_for_flashcards(class_id)
-        flashcards_result: list[dict] = []
-        if unprocessed_material_ids:
-            flashcards_result = generate_shared_flashcards_from_materials(
-                class_id,
-                unprocessed_material_ids,
-                count=5,
-            )
-        study_plan_result = generate_study_plan(
-            class_id,
-            timeframe="Current semester",
-        )
+        existing_data = existing_res.data or {}
 
-        merged_flashcards = _dedupe_flashcards(existing_shared_cards + _normalize_flashcards(flashcards_result))
-
-        exam_questions = exam_result.get("questions", []) if isinstance(exam_result, dict) else []
-        exam_question_count = _count_exam_questions(exam_result)
-
-        exam_session_payload = {
+        shared_resource_update: dict = {
             "class_id": class_id,
-            "user_email": None,
-            "exam_scope": "shared",
-            "resource_type": "exam",
-            "suggested_question_count": suggested_exam_count,
-            "question_count": exam_question_count or suggested_exam_count,
-            "difficulty": "Medium",
-            "material_ids": [],
-            "content_json": exam_result,
-            "generation_status": "ready",
-        }
-
-        session_response = _supabase.table("exam_sessions").insert(exam_session_payload).execute()
-        shared_session_id = None
-        if session_response.data:
-            shared_session_id = session_response.data[0].get("id")
-
-        # Upsert into shared_resources table
-        _supabase.table("shared_resources").upsert({
-            "class_id": class_id,
-            "exam_json": exam_questions if exam_questions else None,
-            "shared_exam_session_id": shared_session_id,
-            "shared_exam_question_count": exam_question_count or suggested_exam_count,
-            "shared_exam_updated_at": datetime.now(timezone.utc).isoformat(),
-            "flashcards_json": merged_flashcards if merged_flashcards else None,
-            "study_plan_json": study_plan_result if study_plan_result else None,
             "generation_status": "ready",
             "updated_at": datetime.now(timezone.utc).isoformat(),
-        }, on_conflict="class_id").execute()
+        }
 
-        if unprocessed_material_ids and flashcards_result:
-            _record_flashcard_material_coverage(class_id, unprocessed_material_ids, trigger_material_id)
+        # ── Flashcards (no material_type gate — all high-context materials qualify) ──
+        unprocessed_for_flashcards = _get_unprocessed_material_ids(class_id, "flashcards")
+        if unprocessed_for_flashcards:
+            print(f"[SHARED] Generating flashcards from {len(unprocessed_for_flashcards)} new material(s)...")
+            new_cards = generate_shared_flashcards_from_materials(class_id, unprocessed_for_flashcards, count=5)
+            if new_cards:
+                existing_cards = _normalize_flashcards(existing_data.get("flashcards_json"))
+                merged_cards = _dedupe_flashcards(existing_cards + _normalize_flashcards(new_cards))
+                shared_resource_update["flashcards_json"] = merged_cards
+                _record_material_coverage(class_id, unprocessed_for_flashcards, trigger_material_id, "flashcards")
+                print(f"[SHARED] Flashcards: {len(existing_cards)} existing + {len(new_cards)} new = {len(merged_cards)} total")
+        else:
+            print(f"[SHARED] Flashcards: no new materials to process.")
 
-        print(f"[SHARED] Shared resources ready for class {class_id}")
+        # ── Exam (no material_type gate — all high-context materials qualify) ──
+        unprocessed_for_exam = _get_unprocessed_material_ids(class_id, "exam")
+        if unprocessed_for_exam:
+            print(f"[SHARED] Generating exam questions from {len(unprocessed_for_exam)} new material(s)...")
+            new_questions = generate_shared_practice_exam_from_materials(class_id, unprocessed_for_exam, count=5)
+            if new_questions:
+                existing_session_id = existing_data.get("shared_exam_session_id")
+                existing_questions: list[dict] = []
+
+                if existing_session_id:
+                    # Fetch and extend the existing exam session
+                    session_res = (
+                        _supabase.table("exam_sessions")
+                        .select("content_json, question_count")
+                        .eq("id", existing_session_id)
+                        .maybe_single()
+                        .execute()
+                    )
+                    if session_res.data:
+                        content = session_res.data.get("content_json") or {}
+                        existing_questions = content.get("questions", []) if isinstance(content, dict) else []
+
+                # Deduplicate on question text
+                seen_texts: set[str] = {" ".join(q.get("text", "").lower().split()) for q in existing_questions}
+                for q in new_questions:
+                    key = " ".join(q.get("text", "").lower().split())
+                    if key and key not in seen_texts:
+                        existing_questions.append(q)
+                        seen_texts.add(key)
+
+                merged_exam = {"title": "Community Practice Exam", "questions": existing_questions}
+                merged_count = len(existing_questions)
+
+                if existing_session_id:
+                    # Update the existing session row — do NOT create a new one
+                    _supabase.table("exam_sessions").update({
+                        "content_json": merged_exam,
+                        "question_count": merged_count,
+                        "updated_at": datetime.now(timezone.utc).isoformat(),
+                    }).eq("id", existing_session_id).execute()
+                    shared_resource_update["shared_exam_question_count"] = merged_count
+                    shared_resource_update["shared_exam_updated_at"] = datetime.now(timezone.utc).isoformat()
+                    print(f"[SHARED] Exam: updated session {existing_session_id}, now {merged_count} questions")
+                else:
+                    # First time — create the initial session
+                    session_resp = _supabase.table("exam_sessions").insert({
+                        "class_id": class_id,
+                        "user_email": None,
+                        "exam_scope": "shared",
+                        "resource_type": "exam",
+                        "suggested_question_count": merged_count,
+                        "question_count": merged_count,
+                        "difficulty": "Medium",
+                        "material_ids": [],
+                        "content_json": merged_exam,
+                        "generation_status": "ready",
+                    }).execute()
+                    if session_resp.data:
+                        new_session_id = session_resp.data[0].get("id")
+                        shared_resource_update["shared_exam_session_id"] = new_session_id
+                        shared_resource_update["exam_json"] = existing_questions
+                        shared_resource_update["shared_exam_question_count"] = merged_count
+                        shared_resource_update["shared_exam_updated_at"] = datetime.now(timezone.utc).isoformat()
+                        print(f"[SHARED] Exam: created first session with {merged_count} questions")
+
+                _record_material_coverage(class_id, unprocessed_for_exam, trigger_material_id, "exam")
+        else:
+            print(f"[SHARED] Exam: no new materials to process.")
+
+        # ── Study Plan (gated by material_type) ──
+        unprocessed_for_sp = _get_unprocessed_material_ids(class_id, "study_plan")
+        if unprocessed_for_sp:
+            # Filter to only academically structured content types
+            type_res = (
+                _supabase.table("materials")
+                .select("material_id, material_type")
+                .in_("material_id", unprocessed_for_sp)
+                .execute()
+            )
+            qualifying_ids = [
+                row["material_id"] for row in (type_res.data or [])
+                if row.get("material_type") in STUDY_PLAN_MATERIAL_TYPES
+            ]
+
+            if qualifying_ids:
+                print(f"[SHARED] Generating study plan items from {len(qualifying_ids)} qualifying material(s)...")
+                new_items = generate_shared_study_plan_from_materials(class_id, qualifying_ids, count=5)
+                if new_items:
+                    existing_items: list[dict] = existing_data.get("study_plan_json") or []
+                    if not isinstance(existing_items, list):
+                        existing_items = []
+
+                    seen_titles: set[str] = {" ".join(i.get("title", "").lower().split()) for i in existing_items}
+                    for item in new_items:
+                        key = " ".join(item.get("title", "").lower().split())
+                        if key and key not in seen_titles:
+                            existing_items.append(item)
+                            seen_titles.add(key)
+
+                    shared_resource_update["study_plan_json"] = existing_items
+                    print(f"[SHARED] Study plan: {len(existing_items)} total items after merge")
+            else:
+                print(f"[SHARED] Study plan: {len(unprocessed_for_sp)} new material(s) don't qualify by type — skipping.")
+
+            # Record coverage for ALL unprocessed materials (including non-qualifying ones)
+            # so they aren't re-evaluated on the next trigger
+            _record_material_coverage(class_id, unprocessed_for_sp, trigger_material_id, "study_plan")
+        else:
+            print(f"[SHARED] Study plan: no new materials to process.")
+
+        _supabase.table("shared_resources").upsert(shared_resource_update, on_conflict="class_id").execute()
+        print(f"[SHARED] Shared resources updated for class {class_id}")
+
     except Exception as e:
-        print(f"[SHARED ERROR] Failed to generate shared resources for {class_id}: {e}")
+        print(f"[SHARED ERROR] Failed to update shared resources for {class_id}: {e}")
         traceback.print_exc()
-        # Mark as idle (failed) so it can be retried
         try:
             _supabase.table("shared_resources").upsert({
                 "class_id": class_id,
@@ -483,11 +581,15 @@ async def flashcards(req: FlashcardsReq):
 
 class StudyPlanReq(BaseModel):
     classId: str
-    timeframe: str = "1 week"
+    timeframe: str = "Current semester"
+    materialIds: list[str] = []
 
 @app.post("/generate/study-plan")
 async def study_plan(req: StudyPlanReq):
-    plan = generate_study_plan(req.classId, req.timeframe)
+    if req.materialIds:
+        plan = generate_personal_study_plan_from_materials(req.classId, req.materialIds)
+    else:
+        plan = generate_study_plan(req.classId, req.timeframe)
     return {"success": True, "data": {"studyPlan": plan}}
 
 class PracticeExamReq(BaseModel):

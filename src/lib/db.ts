@@ -242,6 +242,36 @@ export async function deleteStudyPlan(planId: string): Promise<void> {
   await sql`DELETE FROM study_plans WHERE plan_id = ${planId}`;
 }
 
+export async function getStudyPlanById(planId: string): Promise<StudyPlan | null> {
+  const rows = await sql<StudyPlan[]>`
+    SELECT * FROM study_plans WHERE plan_id = ${planId} LIMIT 1
+  `;
+  if (!rows[0]) return null;
+  return { ...rows[0], items: normalizeStudyPlanItems(rows[0].items) };
+}
+
+export async function updateStudyPlanItemStatus(
+  planId: string,
+  userEmail: string,
+  itemId: string,
+  status: "PLANNED" | "IN_PROGRESS" | "COMPLETED"
+): Promise<void> {
+  const plan = await getStudyPlanById(planId);
+  if (!plan || plan.userEmail.toLowerCase() !== userEmail.toLowerCase()) {
+    throw Object.assign(new Error("Plan not found or access denied"), { code: 404 });
+  }
+
+  const updatedItems = plan.items.map((item) =>
+    item.itemId === itemId ? { ...item, status } : item
+  );
+
+  await sql`
+    UPDATE study_plans
+    SET items = ${JSON.stringify(updatedItems)}, updated_at = ${new Date().toISOString()}
+    WHERE plan_id = ${planId}
+  `;
+}
+
 // ============================================================
 // Materials Operations
 // ============================================================
