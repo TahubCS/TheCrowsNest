@@ -39,7 +39,7 @@ export default function MaterialSelectionModal({
           <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
         </div>
 
-        <div className="p-6 max-h-96 overflow-y-auto space-y-3">
+        <div className="p-6 max-h-96 overflow-y-auto space-y-3 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
           {materials.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-center">
               <p className="text-sm font-semibold text-foreground">No approved materials found.</p>
@@ -51,9 +51,8 @@ export default function MaterialSelectionModal({
               return (
                 <label
                   key={m.materialId}
-                  className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${
-                    checked ? "border-ecu-purple bg-ecu-purple/5" : "border-border hover:bg-muted/30"
-                  }`}
+                  className={`flex items-start gap-3 rounded-xl border p-3 cursor-pointer transition-colors ${checked ? "border-ecu-purple bg-ecu-purple/5" : "border-border hover:bg-muted/30"
+                    }`}
                 >
                   <input
                     type="checkbox"

@@ -601,7 +601,7 @@ export default function PracticeExamsPage() {
                                   }
                                 }
                               },
-                              cancel: { label: "Cancel", onClick: () => {} }
+                              cancel: { label: "Cancel", onClick: () => { } }
                             });
                           }}
                           className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-muted-foreground hover:text-red-500 hover:bg-red-500/10 rounded-lg transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
