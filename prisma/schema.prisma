@@ -1,0 +1,266 @@
+generator client {
+  provider        = "prisma-client-js"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["postgresqlExtensions"]
+}
+datasource db {
+  provider   = "postgresql"
+  extensions = [vector]
+}
+model admin_dev_mode {
+  admin_email String @id
+  active_plan String
+  updated_at DateTime? @default(now())
+
+  @@map("admin_dev_mode")
+}
+
+model admins {
+  id String @id @default(uuid())
+  email String
+  added_at DateTime? @default(now())
+  added_by String?
+
+  @@map("admins")
+}
+
+model classes {
+  class_id String @id
+  course_code String
+  course_name String
+  department String
+  credit_hours Int?
+  description String?
+  related_majors String[]
+  enrolled_count Int?
+  syllabus String?
+
+  @@map("classes")
+}
+
+model documents {
+  id String @id
+  domain String?
+  status String?
+
+  @@map("documents")
+}
+
+model embeddings {
+  id Int @id @default(autoincrement())
+  document_id String?
+  content String?
+  embedding Unsupported("vector")?
+
+  @@map("embeddings")
+}
+
+model exam_sessions {
+  id String @id @default(uuid())
+  class_id String
+  user_email String?
+  exam_scope String
+  resource_type String
+  suggested_question_count Int
+  question_count Int
+  difficulty String
+  material_ids String[]
+  content_json Json
+  generation_status String
+  created_at DateTime? @default(now())
+  updated_at DateTime? @default(now())
+
+  @@map("exam_sessions")
+}
+
+model genai_usage {
+  id String @id @default(uuid())
+  user_email String
+  api_type String
+  class_id String?
+  called_at DateTime? @default(now())
+
+  @@map("genai_usage")
+}
+
+model material_upload_events {
+  event_id BigInt @id
+  material_id String?
+  class_id String?
+  user_email String?
+  event_type String
+  event_stage String
+  decision String?
+  reason_code String?
+  reason_text String?
+  metrics Json?
+  created_at DateTime? @default(now())
+
+  @@map("material_upload_events")
+}
+
+model materials {
+  material_id String @id
+  class_id String?
+  file_name String
+  file_type String
+  storage_key String
+  material_type String
+  uploaded_by String?
+  uploaded_by_name String?
+  status String?
+  rejection_reason String?
+  expires_at BigInt?
+  uploaded_at DateTime? @default(now())
+  file_size_bytes BigInt?
+  file_extension String?
+  content_hash_sha256 String?
+  parser_status String?
+  extract_char_count Int?
+  page_count Int?
+  ocr_used Boolean?
+  ai_confidence Int?
+  rejection_code String?
+  ingestion_attempts Int?
+  processed_at DateTime?
+  failed_at DateTime?
+  last_error String?
+  high_context Boolean?
+  context_score Decimal?
+
+  @@map("materials")
+}
+
+model pending_verifications {
+  email String @id
+  name String
+  password_hash String
+  verification_code String
+  expires_at BigInt
+
+  @@map("pending_verifications")
+}
+
+model personal_resources {
+  id String @id @default(uuid())
+  user_email String
+  class_id String
+  resource_type String
+  material_ids String[]
+  content_json Json?
+  created_at DateTime? @default(now())
+  exam_session_id String?
+  suggested_question_count Int?
+  question_count Int?
+  difficulty String?
+
+  @@map("personal_resources")
+}
+
+model profiles {
+  email String @id
+  subscription_plan String
+  stripe_customer_id String?
+  stripe_subscription_id String?
+  plan_expires_at DateTime?
+  created_at DateTime? @default(now())
+
+  @@map("profiles")
+}
+
+model quota_config {
+  plan String 
+  api_type String 
+  daily_limit Int
+
+  @@id([plan, api_type])
+  @@map("quota_config")
+}
+
+model reports {
+  report_id String @id
+  type String
+  target_id String
+  target_name String?
+  class_id String?
+  reason String
+  details String?
+  status String?
+  reported_by String?
+  reported_by_name String?
+  created_at DateTime? @default(now())
+  updated_at DateTime? @default(now())
+
+  @@map("reports")
+}
+
+model requests {
+  request_id String @id
+  course_code String
+  course_name String
+  department String
+  status String?
+  admin_note String?
+  user_email String?
+  user_name String?
+  created_at DateTime? @default(now())
+  updated_at DateTime? @default(now())
+
+  @@map("requests")
+}
+
+model shared_flashcard_material_coverage {
+  id String @id @default(uuid())
+  class_id String
+  material_id String
+  generation_trigger_material_id String?
+  created_at DateTime? @default(now())
+
+  @@map("shared_flashcard_material_coverage")
+}
+
+model shared_resources {
+  id String @id @default(uuid())
+  class_id String
+  exam_json Json?
+  study_plan_json Json?
+  flashcards_json Json?
+  generation_status String
+  updated_at DateTime? @default(now())
+  shared_exam_session_id String?
+  shared_exam_question_count Int?
+  shared_exam_updated_at DateTime?
+
+  @@map("shared_resources")
+}
+
+model study_plans {
+  plan_id String @id
+  class_id String?
+  user_email String?
+  title String
+  description String?
+  items Json?
+  created_at DateTime? @default(now())
+  updated_at DateTime? @default(now())
+
+  @@map("study_plans")
+}
+
+model users {
+  email               String    @id
+  id                  String?   @default(uuid())
+  name                String
+  password_hash       String
+  pirate_id           String?
+  level               String?
+  major               String?
+  year_of_study       String?
+  enrolled_classes    String[]
+  onboarding_complete Boolean?
+  is_admin            Boolean?
+  created_at          DateTime? @default(now())
+
+  @@map("users")
+}
+
