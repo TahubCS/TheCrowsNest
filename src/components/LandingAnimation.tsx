@@ -34,9 +34,9 @@ export default function LandingAnimation() {
         },
         links: {
           color: "#592A8A",
-          distance: 150,
+          distance: 200,
           enable: true,
-          opacity: 0.08,
+          opacity: 0.18,
           width: 0.5,
         },
         move: {

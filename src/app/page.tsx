@@ -1,5 +1,6 @@
 import Link from "next/link";
 import LandingAnimation from "@/components/LandingAnimation";
+import StudyToolPreview from "@/components/StudyToolPreview";
 
 export default function Home() {
   return (
@@ -7,6 +8,9 @@ export default function Home() {
 
       {/* 3D Infinity Tunnel Background */}
       <LandingAnimation />
+
+      {/* Floating study tool preview cards */}
+      <StudyToolPreview />
 
       <main className="z-10 flex flex-col items-center text-center space-y-12 p-8 max-w-3xl w-full">
         <div className="space-y-6">
