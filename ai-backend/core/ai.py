@@ -581,7 +581,7 @@ def chat_with_tutor(class_id: str, messages: list[dict]) -> str:
     # Get context based on the user's latest message
     latest_user_message = next((msg["content"] for msg in reversed(messages) if msg["role"] == "user"), "Explain course concepts")
     context = get_context_for_class(class_id, latest_user_message)
-    
+
     system_instruction = f"""You are an advanced AI Tutor for this specific class ({class_id}).
 Use the following context from the class materials to inform your answers. If the information isn't in the context, use your general knowledge but clarify that it's not explicitly in the course materials.
 
@@ -590,13 +590,13 @@ Context:
 {context}
 </context>
 """
-    
+
     # Format messages for Gemini
     formatted_messages = []
     for msg in messages:
         role = "user" if msg["role"] == "user" else "model"
         formatted_messages.append({"role": role, "parts": [{"text": msg["content"]}]})
-        
+
     response = generate_content_with_fallback(
         contents=formatted_messages,
         config=types.GenerateContentConfig(
@@ -605,6 +605,48 @@ Context:
         )
     )
     return response.text
+
+
+def stream_chat_with_tutor(class_id: str, messages: list[dict]):
+    """Generator that yields text chunks from Gemini for streaming responses."""
+    latest_user_message = next((msg["content"] for msg in reversed(messages) if msg["role"] == "user"), "Explain course concepts")
+    context = get_context_for_class(class_id, latest_user_message)
+
+    system_instruction = f"""You are an advanced AI Tutor for this specific class ({class_id}).
+Use the following context from the class materials to inform your answers. If the information isn't in the context, use your general knowledge but clarify that it's not explicitly in the course materials.
+
+Context:
+<context>
+{context}
+</context>
+"""
+
+    formatted_messages = []
+    for msg in messages:
+        role = "user" if msg["role"] == "user" else "model"
+        formatted_messages.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+    config = types.GenerateContentConfig(
+        system_instruction=system_instruction,
+        temperature=0.7
+    )
+
+    models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-flash-lite']
+    last_error = None
+    for model_name in models:
+        try:
+            for chunk in client.models.generate_content_stream(
+                model=model_name,
+                contents=formatted_messages,
+                config=config,
+            ):
+                if chunk.text:
+                    yield chunk.text
+            return
+        except Exception as e:
+            print(f"Warning: Stream model {model_name} failed: {e}. Trying fallback...")
+            last_error = e
+    raise last_error
 
 def _deterministic_relevance_check(class_context: str, document_snippet: str) -> dict | None:
     """

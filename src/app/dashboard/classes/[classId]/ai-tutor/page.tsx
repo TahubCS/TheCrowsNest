@@ -65,7 +65,6 @@ export default function AITutorPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ classId, question: textToSend })
       });
-      const data = await res.json();
 
       if (res.status === 403) {
         toast.error("Upgrade to Premium to use the AI Tutor.");
@@ -77,14 +76,33 @@ export default function AITutorPage() {
         setMessages([...updatedMessages, { role: "tutor" as const, text: "You've reached your daily chat limit. Try again tomorrow!" }]);
         return;
       }
-      if (res.ok && data.success) {
-        setMessages([...updatedMessages, { role: "tutor" as const, text: data.data.answer }]);
-        // Update quota if provided in response
-        if (data.data?.remaining !== undefined) {
-          setQuota({ remaining: data.data.remaining, total: data.data.total ?? 25 });
+      if (!res.ok || !res.body) {
+        const data = await res.json().catch(() => ({}));
+        setMessages([...updatedMessages, { role: "tutor" as const, text: (data as any).message || "I encountered an error retrieving that information." }]);
+        return;
+      }
+
+      // Stream the response
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      let firstChunk = true;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        fullText += decoder.decode(value, { stream: true });
+        if (firstChunk) {
+          firstChunk = false;
+          setIsTyping(false);
         }
-      } else {
-        setMessages([...updatedMessages, { role: "tutor" as const, text: data.message || "I encountered an error retrieving that information." }]);
+        setMessages([...updatedMessages, { role: "tutor" as const, text: fullText }]);
+      }
+
+      // Update quota from response header
+      const remaining = res.headers.get("X-Quota-Remaining");
+      if (remaining !== null) {
+        setQuota(prev => ({ remaining: parseInt(remaining), total: prev?.total ?? 25 }));
       }
     } catch (error) {
       console.error(error);

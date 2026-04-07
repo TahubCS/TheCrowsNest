@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 import uvicorn
 
@@ -21,6 +22,7 @@ from core.ai import (
     generate_study_plan,
     generate_practice_exam,
     chat_with_tutor,
+    stream_chat_with_tutor,
 )
 from core.vector_store import pool
 
@@ -621,6 +623,13 @@ class ChatReq(BaseModel):
 async def chat(req: ChatReq):
     reply = chat_with_tutor(req.classId, req.messages)
     return {"success": True, "reply": reply}
+
+@app.post("/chat/stream")
+async def chat_stream(req: ChatReq):
+    def generate():
+        for chunk in stream_chat_with_tutor(req.classId, req.messages):
+            yield chunk
+    return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
 @app.delete("/materials/{material_id}")
 async def delete_material_vectors(material_id: str):

@@ -297,7 +297,6 @@ export async function POST(
         class_id: classId,
         resource_type: "exam",
         material_ids: materialIds,
-        content_json: normalizedContent,
         exam_session_id: savedSession.id,
         suggested_question_count: questionCount,
         question_count: generatedQuestionCount,

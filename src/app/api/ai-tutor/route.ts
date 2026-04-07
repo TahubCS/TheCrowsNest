@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const res = await fetch("http://localhost:8000/chat", {
+    const res = await fetch("http://localhost:8000/chat/stream", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ classId, messages: [{ role: "user", content: question }] }),
@@ -62,22 +62,13 @@ export async function POST(request: NextRequest) {
       throw new Error(`Python Backend Error: ${res.statusText}`);
     }
 
-    const json = await res.json();
-    if (!json.success) {
-      throw new Error(json.message || "Failed to generate AI answer.");
-    }
-
-    // Record usage after successful call
+    // Record usage before streaming starts
     await recordUsage(session.user.email, "chat", classId);
 
-    return NextResponse.json<ApiResponse>({
-      success: true,
-      message: "Answer generated.",
-      data: {
-        answer: json.reply,
-        sourcesUsed: 1,
-        relevanceScores: [],
-        remaining: quota.remaining - 1,
+    return new Response(res.body, {
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "X-Quota-Remaining": String(quota.remaining - 1),
       },
     });
   } catch (error: any) {
