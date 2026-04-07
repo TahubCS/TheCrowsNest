@@ -33,6 +33,22 @@ def get_embedding(text: str) -> list[float]:
             task_type="RETRIEVAL_DOCUMENT"
         )
     )
+    
+    try:
+        # Some SDK versions or models don't expose explicit usage_metadata for embeddings yet.
+        usage = getattr(response, 'usage_metadata', None)
+        if usage:
+            in_tokens = getattr(usage, 'prompt_token_count', 'Unknown')
+            print(f"--- [AI EMBEDDING LOG] ---")
+            print(f"Tokens embedded: {in_tokens}")
+            print(f"--------------------------")
+        else:
+            print(f"--- [AI EMBEDDING LOG] ---")
+            print(f"Tokens embedded: ~{len(text)//4} (Estimated from character count)")
+            print(f"--------------------------")
+    except Exception as e:
+        print(f"[AI EMBEDDING LOG] Parse error: {e}")
+        
     return response.embeddings[0].values
 
 def get_embedding_with_retry(text: str, max_retries: int = 5) -> list[float]:

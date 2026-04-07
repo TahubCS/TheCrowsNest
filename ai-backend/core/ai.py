@@ -12,11 +12,28 @@ def generate_content_with_fallback(contents, config):
     last_error = None
     for model_name in models:
         try:
-            return client.models.generate_content(
+            response = client.models.generate_content(
                 model=model_name,
                 contents=contents,
                 config=config
             )
+            
+            try:
+                usage = getattr(response, 'usage_metadata', None)
+                if usage:
+                    in_tokens = getattr(usage, 'prompt_token_count', 'Unknown')
+                    out_tokens = getattr(usage, 'candidates_token_count', 'Unknown')
+                    print(f"--- [AI GENERATION LOG] ---")
+                    print(f"Model used: {model_name}")
+                    print(f"Input tokens : {in_tokens}")
+                    print(f"Output tokens: {out_tokens}")
+                    print(f"---------------------------")
+                else:
+                    print(f"[AI GENERATION LOG] Model: {model_name} | Usage metadata unavailable")
+            except Exception as e:
+                print(f"[AI GENERATION LOG] Model: {model_name} | Usage parse error: {e}")
+
+            return response
         except Exception as e:
             print(f"Warning: Model {model_name} failed with error {e}. Trying fallback...")
             last_error = e
