@@ -54,7 +54,7 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
 
   useEffect(() => {
     if (state === "expanding") {
-      const duration = 6500;
+      const duration = 7600;
       const startTime = Date.now();
 
       const interval = window.setInterval(() => {
@@ -124,7 +124,7 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
 
   useEffect(() => {
     if (state === "departing") {
-      const duration = 2200;
+      const duration = 2600;
       const startTime = Date.now();
 
       const interval = window.setInterval(() => {

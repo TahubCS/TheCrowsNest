@@ -92,7 +92,7 @@ export default function PseudoParticleSystem() {
   // Generate initial pseudo-particles that will fly out from the center
   const generateParticles = useCallback(() => {
     const newParticles: PseudoParticleData[] = [];
-    const count = 3 + Math.floor(Math.random() * 2); // 3-4 pseudo-particles
+    const count = 2 + Math.floor(Math.random() * 2); // 2-3 pseudo-particles
 
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -144,7 +144,7 @@ export default function PseudoParticleSystem() {
               : p
           )
         );
-      }, 4500 + Math.random() * 8500); // 4.5-13 seconds
+      }, 8000 + Math.random() * 12000); // 8-20 seconds
     }, 100); // Small delay to ensure state reset
   }, [chooseTarget]);
 
@@ -153,7 +153,7 @@ export default function PseudoParticleSystem() {
     if (particles.length === 0) return;
 
     particles.forEach((particle, index) => {
-      const delay = 1200 + index * 2000 + Math.random() * 1200; // stagger activations
+      const delay = 1800 + index * 4200 + Math.random() * 2600; // wider stagger to avoid grouped reveals
       setTimeout(() => {
         setParticles(prev =>
           prev.map(p =>
