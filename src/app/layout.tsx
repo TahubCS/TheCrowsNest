@@ -17,6 +17,9 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "The Crow's Nest — ECU Study Hub",
   description: "Connect with ECU students to share notes, build AI-powered study plans, flashcards, and ace your exams. Exclusively for East Carolina University.",
+  icons: {
+    icon: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
