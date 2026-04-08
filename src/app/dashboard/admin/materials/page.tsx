@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 interface Material {
@@ -21,11 +21,22 @@ export default function AdminMaterialsPage() {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
-  const [previewLoading, setPreviewLoading] = useState<string | null>(null);
+
+  // Reject modal state
+  const [rejectTarget, setRejectTarget] = useState<Material | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     fetchPendingMaterials();
   }, []);
+
+  // Focus textarea when modal opens
+  useEffect(() => {
+    if (rejectTarget) {
+      setTimeout(() => textareaRef.current?.focus(), 50);
+    }
+  }, [rejectTarget]);
 
   const fetchPendingMaterials = async () => {
     try {
@@ -41,26 +52,7 @@ export default function AdminMaterialsPage() {
     }
   };
 
-  const handlePreview = async (material: Material) => {
-    setPreviewLoading(material.materialId);
-    try {
-      const res = await fetch(`/api/admin/materials/preview?storageKey=${encodeURIComponent(material.storageKey)}`);
-      const json = await res.json();
-      if (json.success && json.data?.previewUrl) {
-        window.open(json.data.previewUrl, "_blank");
-      } else {
-        toast.error("Failed to generate preview: " + json.message);
-      }
-    } catch (error) {
-      console.error("Preview error:", error);
-      toast.error("Failed to generate preview URL.");
-    } finally {
-      setPreviewLoading(null);
-    }
-  };
-
   const handleApprove = async (material: Material) => {
-    if (!confirm(`Approve "${material.fileName}" for processing? This will send it to the AI backend for ingestion.`)) return;
     setActionLoading(material.materialId);
     try {
       const res = await fetch("/api/admin/materials", {
@@ -77,6 +69,7 @@ export default function AdminMaterialsPage() {
       const json = await res.json();
       if (json.success) {
         setMaterials(prev => prev.filter(m => m.materialId !== material.materialId));
+        toast.success("Material approved and sent for processing.");
       } else {
         toast.error("Approval failed: " + json.message);
       }
@@ -88,9 +81,20 @@ export default function AdminMaterialsPage() {
     }
   };
 
-  const handleReject = async (material: Material) => {
-    const reason = prompt(`Why are you rejecting "${material.fileName}"?\n\nThis reason will be visible to the uploader.`);
-    if (reason === null) return; // cancelled
+  const openRejectModal = (material: Material) => {
+    setRejectReason("");
+    setRejectTarget(material);
+  };
+
+  const closeRejectModal = () => {
+    setRejectTarget(null);
+    setRejectReason("");
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    const material = rejectTarget;
+    closeRejectModal();
     setActionLoading(material.materialId);
     try {
       const res = await fetch("/api/admin/materials", {
@@ -101,12 +105,13 @@ export default function AdminMaterialsPage() {
           materialId: material.materialId,
           storageKey: material.storageKey,
           action: "REJECT",
-          rejectionReason: reason || "No reason provided",
+          rejectionReason: rejectReason.trim() || "No reason provided",
         }),
       });
       const json = await res.json();
       if (json.success) {
         setMaterials(prev => prev.filter(m => m.materialId !== material.materialId));
+        toast.success("Material rejected.");
       } else {
         toast.error("Rejection failed: " + json.message);
       }
@@ -136,7 +141,7 @@ export default function AdminMaterialsPage() {
               <span>📄</span> Pending Material Uploads
             </h2>
             <p className="text-muted-foreground text-sm mt-1">
-              Review uploaded files before they are processed by the AI backend. Preview content to ensure materials are appropriate for the class.
+              Review uploaded files before they are processed by the AI backend. Approve or reject materials with a reason visible to the uploader.
             </p>
           </div>
           <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
@@ -189,26 +194,7 @@ export default function AdminMaterialsPage() {
 
                 {/* Action buttons */}
                 <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/40">
-                  <button
-                    onClick={() => handlePreview(mat)}
-                    disabled={previewLoading === mat.materialId}
-                    className="px-4 py-2 text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 flex items-center gap-1.5"
-                  >
-                    {previewLoading === mat.materialId ? (
-                      <span className="flex items-center gap-1.5">
-                        <svg className="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                        Opening...
-                      </span>
-                    ) : (
-                      <>
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
-                        Preview File
-                      </>
-                    )}
-                  </button>
-
                   <div className="flex-1" />
-
                   <button
                     onClick={() => handleApprove(mat)}
                     disabled={actionLoading === mat.materialId}
@@ -217,11 +203,11 @@ export default function AdminMaterialsPage() {
                     {actionLoading === mat.materialId ? "Processing..." : "✓ Approve & Process"}
                   </button>
                   <button
-                    onClick={() => handleReject(mat)}
+                    onClick={() => openRejectModal(mat)}
                     disabled={actionLoading === mat.materialId}
                     className="px-5 py-2 text-xs font-bold bg-red-50 text-red-600 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
                   >
-                    {actionLoading === mat.materialId ? "..." : "✕ Reject"}
+                    ✕ Reject
                   </button>
                 </div>
               </div>
@@ -229,6 +215,65 @@ export default function AdminMaterialsPage() {
           </div>
         )}
       </section>
+
+      {/* Reject Modal */}
+      {rejectTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-150"
+          onClick={(e) => { if (e.target === e.currentTarget) closeRejectModal(); }}
+        >
+          <div className="bg-background border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 animate-in zoom-in-95 duration-150">
+            {/* Modal header */}
+            <div className="flex items-start gap-3 mb-5">
+              <div className="w-9 h-9 rounded-full bg-red-100 flex items-center justify-center shrink-0 mt-0.5">
+                <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-base font-bold text-foreground">Reject Material</h3>
+                <p className="text-sm text-muted-foreground mt-0.5 truncate" title={rejectTarget.fileName}>
+                  {rejectTarget.fileName}
+                </p>
+              </div>
+            </div>
+
+            {/* Reason input */}
+            <div className="mb-5">
+              <label className="block text-sm font-semibold text-foreground mb-1.5">
+                Rejection Reason
+                <span className="text-muted-foreground font-normal ml-1">(visible to uploader)</span>
+              </label>
+              <textarea
+                ref={textareaRef}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) confirmReject(); }}
+                placeholder="e.g. This file does not appear to be relevant to the class syllabus."
+                rows={4}
+                className="w-full px-3 py-2.5 text-sm bg-muted/40 border border-border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-red-400/50 focus:border-red-400 transition-colors placeholder:text-muted-foreground/60"
+              />
+              <p className="text-xs text-muted-foreground mt-1.5">Leave blank to submit with &ldquo;No reason provided&rdquo;.</p>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={closeRejectModal}
+                className="px-4 py-2 text-sm font-semibold text-muted-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmReject}
+                className="px-5 py-2 text-sm font-bold bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors"
+              >
+                Confirm Rejection
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
