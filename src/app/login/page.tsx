@@ -7,6 +7,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import NodeEdgeCanvas from "@/components/NodeEdgeCanvas";
 import { validateEcuEmail } from "@/lib/validators";
 
 export default function LoginPage() {
@@ -63,8 +64,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-      <div className="w-full max-w-md space-y-8 bg-background p-8 rounded-2xl shadow-xl border border-border">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05050A] p-4">
+      <NodeEdgeCanvas />
+      <div className="relative z-10 w-full max-w-md space-y-8 bg-background p-8 rounded-2xl shadow-xl border border-border">
 
         <div className="text-center">
           <Link href="/" className="inline-block mb-6 font-bold text-2xl tracking-tight hover:opacity-80 transition-opacity">
