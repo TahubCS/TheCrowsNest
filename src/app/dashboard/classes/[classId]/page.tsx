@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import PreviewModal from "@/components/PreviewModal";
 
 interface Material {
   materialId: string;
@@ -85,6 +86,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const [showConfirm, setShowConfirm] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
   const [openUserMenu, setOpenUserMenu] = useState<string | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<Material | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
   const userMenuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -582,7 +584,17 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z" /></svg>
                         </div>
                         <div className="overflow-hidden">
-                          <p className="font-medium text-foreground truncate">{file.fileName}</p>
+                          {file.status === "APPROVED" || file.status === "PROCESSED" ? (
+                            <button
+                              onClick={() => setPreviewTarget(file)}
+                              className="font-medium text-foreground truncate hover:text-ecu-purple hover:underline transition-colors text-left w-full"
+                              title={`Preview ${file.fileName}`}
+                            >
+                              {file.fileName}
+                            </button>
+                          ) : (
+                            <p className="font-medium text-foreground truncate">{file.fileName}</p>
+                          )}
                           <p className="text-xs text-muted-foreground">{timeAgo}</p>
                         </div>
                       </div>
@@ -850,6 +862,17 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
             </form>
           </div>
         </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewTarget && classId && (
+        <PreviewModal
+          materialId={previewTarget.materialId}
+          classId={classId}
+          fileName={previewTarget.fileName}
+          fileType={previewTarget.fileType}
+          onClose={() => setPreviewTarget(null)}
+        />
       )}
     </div>
   );

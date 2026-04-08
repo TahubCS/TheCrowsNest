@@ -613,6 +613,21 @@ export interface ActivityEvent {
   resourceType?: string;
 }
 
+export async function getMaterialByFileName(classId: string, fileName: string): Promise<Material | null> {
+  try {
+    const rows = await sql<Material[]>`
+      SELECT * FROM materials
+      WHERE class_id = ${classId} AND file_name = ${fileName}
+      ORDER BY uploaded_at DESC
+      LIMIT 1
+    `;
+    return rows[0] ?? null;
+  } catch (error) {
+    console.error("[DB Error] getMaterialByFileName failed:", error);
+    throw error;
+  }
+}
+
 export async function logActivityEvent(event: ActivityEvent): Promise<void> {
   try {
     await sql`

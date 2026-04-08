@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/Button";
 import SharedResourcesSection from "@/components/SharedResourcesSection";
 import QuotaIndicator from "@/components/QuotaIndicator";
-import ReferenceModal from "@/components/ui/ReferenceModal";
+import ReferencePreviewModal from "@/components/ReferencePreviewModal";
 import { usePlan } from "@/hooks/usePlan";
 import type { StudyPlan, StudyPlanItem, Material, SourceReference } from "@/types";
 
@@ -47,7 +47,6 @@ export default function ClassStudyPlansPage() {
   // Form state
   const [showForm, setShowForm] = useState(false);
   const [newTitle, setNewTitle] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [expandedPlanId, setExpandedPlanId] = useState<string | null>(null);
 
@@ -330,7 +329,7 @@ export default function ClassStudyPlansPage() {
               <div className="flex gap-3 pt-2">
                 <Button
                   type="submit"
-                  disabled={isGenerating || isSubmitting || selectedMaterialIds.length === 0}
+                  disabled={isGenerating || selectedMaterialIds.length === 0}
                   className="bg-linear-to-r from-ecu-purple to-purple-800 text-white font-bold px-6 border-transparent shadow-[0_0_15px_rgba(147,51,234,0.3)] hover:shadow-[0_0_20px_rgba(147,51,234,0.5)] transition-all disabled:opacity-50"
                 >
                   {isGenerating ? "Generating..." : "✨ Generate with AI"}
@@ -425,7 +424,7 @@ export default function ClassStudyPlansPage() {
                                           className="text-[10px] sm:text-xs font-semibold px-2 py-1 bg-ecu-purple/10 text-ecu-purple border border-ecu-purple/20 rounded-md hover:bg-ecu-purple/20 transition-colors flex items-center gap-1.5"
                                         >
                                           <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                                          <span className="truncate max-w-[150px]">{ref.fileName}</span>
+                                          <span className="truncate max-w-37.5">{ref.fileName}</span>
                                           {ref.page && <span className="opacity-75">(Pg {ref.page})</span>}
                                         </button>
                                       ))}
@@ -456,11 +455,13 @@ export default function ClassStudyPlansPage() {
         )}
       </div>
 
-      <ReferenceModal 
-        isOpen={!!activeReference} 
-        reference={activeReference} 
-        onClose={() => setActiveReference(null)} 
-      />
+      {activeReference && (
+        <ReferencePreviewModal
+          reference={activeReference}
+          classId={classId}
+          onClose={() => setActiveReference(null)}
+        />
+      )}
     </div>
   );
 }

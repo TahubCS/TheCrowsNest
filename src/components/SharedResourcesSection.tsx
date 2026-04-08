@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import ReferenceModal from "@/components/ui/ReferenceModal";
+import ReferencePreviewModal from "@/components/ReferencePreviewModal";
 import type { SourceReference } from "@/types";
 
 interface SharedResourcesProps {
@@ -313,11 +313,13 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
           )}
         </div>
         
-        <ReferenceModal 
-          isOpen={!!activeReference} 
-          reference={activeReference} 
-          onClose={() => setActiveReference(null)} 
-        />
+        {activeReference && (
+          <ReferencePreviewModal
+            reference={activeReference}
+            classId={classId}
+            onClose={() => setActiveReference(null)}
+          />
+        )}
       </div>
     );
   }

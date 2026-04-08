@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import PreviewModal from "@/components/PreviewModal";
 
 interface Material {
   materialId: string;
@@ -26,6 +27,9 @@ export default function AdminMaterialsPage() {
   const [rejectTarget, setRejectTarget] = useState<Material | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Preview modal state
+  const [previewTarget, setPreviewTarget] = useState<Material | null>(null);
 
   useEffect(() => {
     fetchPendingMaterials();
@@ -175,11 +179,21 @@ export default function AdminMaterialsPage() {
                 {/* Top row: file info */}
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <span className="text-2xl shrink-0 mt-0.5">{getFileIcon(mat.fileType)}</span>
+                    <button
+                      onClick={() => setPreviewTarget(mat)}
+                      className="text-2xl shrink-0 mt-0.5 hover:scale-110 transition-transform"
+                      title="Preview file"
+                    >
+                      {getFileIcon(mat.fileType)}
+                    </button>
                     <div className="min-w-0">
-                      <h3 className="font-bold text-foreground truncate" title={mat.fileName}>
+                      <button
+                        onClick={() => setPreviewTarget(mat)}
+                        className="font-bold text-foreground truncate hover:text-ecu-purple hover:underline transition-colors text-left w-full"
+                        title={mat.fileName}
+                      >
                         {mat.fileName}
-                      </h3>
+                      </button>
                       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-muted-foreground">
                         <span className="font-semibold bg-muted px-2 py-0.5 rounded text-foreground">
                           {mat.classId.toUpperCase()}
@@ -273,6 +287,17 @@ export default function AdminMaterialsPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Preview Modal */}
+      {previewTarget && (
+        <PreviewModal
+          materialId={previewTarget.materialId}
+          classId={previewTarget.classId}
+          fileName={previewTarget.fileName}
+          fileType={previewTarget.fileType}
+          onClose={() => setPreviewTarget(null)}
+        />
       )}
     </div>
   );
