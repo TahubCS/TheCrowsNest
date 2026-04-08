@@ -1,6 +1,6 @@
 # 🏴‍☠️ The Crow's Nest: An ECU Student Hub
 
-**The Crow's Nest** is a premium, AI-driven academic management platform built specifically for East Carolina University (ECU) students. Originally born out of a high-pressure ECU Hackathon, it has since evolved into a highly sophisticated dual-stack application featuring serverless AWS infrastructure and a dedicated continuous-learning AI microservice.
+**The Crow's Nest** is a premium, AI-driven academic management platform built specifically for East Carolina University (ECU) students. Originally born out of a high-pressure ECU Hackathon, it has since evolved into a highly sophisticated dual-stack application featuring serverless AWS infrastructure, a dedicated continuous-learning AI microservice, and centralized observability.
 
 ---
 
@@ -10,15 +10,16 @@ The platform is split into two primary environments: a blisteringly fast React f
 
 ### 1. The Core Application (`/src`)
 - **Framework**: Next.js 16 (App Router) for hybrid rendering and optimized routing.
-- **Styling**: Tailwind CSS 4.0 prioritizing a vibrant, glassmorphic ECU-purple and gold aesthetic.
-- **Primary Database**: Amazon DynamoDB for ultra-low latency NoSQL storage of Users, Enrolled Classes, and Material Metadata.
+- **Styling**: Tailwind CSS 4.0 prioritizing a vibrant, glassmorphic ECU-purple and gold aesthetic. Features highly custom, consistent UI down to unified `webkit-scrollbar` styling and form controls.
+- **Primary Database**: Amazon DynamoDB for ultra-low latency NoSQL storage of Users, Enrolled Classes, Study Plans, and Material Metadata.
 - **File Storage**: AWS S3 for secure, massive-scale storage of student-uploaded textbooks, lecture slides, and images.
 - **Authentication**: NextAuth.js v5 using custom JWT strategies.
+- **Monetization & Quotas**: Stripe integration handles premium tier subscriptions, enforcing granular usage quotas on AI generations with admin-bypass capabilities.
 
 ### 2. The AI Engine (`/ai-backend`)
 - **Framework**: Python FastAPI acting as an asynchronous internal microservice.
-- **Vector Database**: PostgreSQL enhanced with the `pgvector` extension for permanent mathematical mapping of textual relationships.
-- **LLM Integration**: Google Gemini (`google-genai`) for multi-modal parsing, embeddings, and content generation.
+- **Vector & Telemetry Database**: Supabase (PostgreSQL) enhanced with the `pgvector` extension for permanent mathematical mapping of textual relationships, alongside robust telemetry tables.
+- **LLM Integration**: Google Gemini (`google-genai` SDK) for multi-modal parsing, embeddings (`gemini-embedding-001`), and generative content.
 
 ---
 
@@ -32,13 +33,18 @@ To prevent spam, storage bloat, and irrelevant files, **every file uploaded by a
 
 ### 📚 RAG Pipeline (Vectorized Knowledge Base)
 The Crow's Nest does not use "stuffed context windows" that forget data. It implements an industry-grade **RAG (Retrieval-Augmented Generation)** database.
-When textbooks or hundreds of powerpoint slides are uploaded, the AI backend chops them into thousands of chunks, generates 768-dimensional vector embeddings with Google Gemini (utilizing exponential backoffs and strict API pacing), and saves them forever into PostgreSQL (`pgvector`). 
+When textbooks or hundreds of powerpoint slides are uploaded, the AI backend chops them into thousands of chunks, generates 768-dimensional vector embeddings, and saves them forever into Supabase (`pgvector`). 
 
 ### 🤖 The AI Tutor Suite
 Because every class has a permanent memory bank of uploaded materials, students can generate highly accurate resources instantly:
-- **Flashcard Generation**: The AI pulls the top 5 most relevant paragraphs from the Vector Database and generates JSON flashcards.
-- **Practice Exams**: Evaluates the entire matrix of a class's knowledge base to generate custom-tailored practice tests.
-- **Chat Tutor**: Students can ask deep, contextual questions about their specific class, and the Tutor knows the answers based on the uploaded syllabus and files without needing to "re-read" the textbooks.
+- **Personal & Shared Decks**: The AI pulls the most relevant paragraphs from the Vector Database and generates JSON flashcards. Students can generate custom-sized private decks or rely on community-shared decks.
+- **Practice Exams**: Evaluates the entire matrix of a class's knowledge base to generate custom-tailored practice tests with varying difficulties.
+- **Chat Tutor**: Students can ask deep, contextual questions about their specific class. The Tutor answers using a streaming generation path for instantaneous feedback.
+
+### 📊 Centralized Observability & Token Telemetry
+A dedicated, atomic token-tracking system operates silently across all AI operations:
+- **Atomic Operations**: Resolves race conditions across multiple contributors using PostgreSQL `ON CONFLICT DO UPDATE` upserts via Supabase service roles.
+- **Comprehensive Logging**: Automatically logs daily and lifetime total usage metrics (Input/Output/Embedding tokens) split distinctly by model name, ensuring precise cost-monitoring regardless of the endpoint utilized (streaming chat, bulk generation, or vector embedding).
 
 ---
 
@@ -47,9 +53,10 @@ Because every class has a permanent memory bank of uploaded materials, students 
 ### Prerequisites
 - Node.js (v18+)
 - Python (3.12+)
-- Running PostgreSQL database compiled with `pgvector`
 - AWS IAM Credentials (S3 + DynamoDB access)
+- Supabase Project URL & Service Role Key (for `pgvector` and Telemetry)
 - Google Gemini API Key
+- Stripe API Keys (for Premium features)
 
 ### Start the Next.js Frontend
 ```bash
@@ -65,6 +72,9 @@ python -m venv venv
 pip install -r requirements.txt
 py main.py
 ```
+
+### Database Migrations
+Ensure you run any pending Supabase SQL migrations located in the `/supabase/migrations` folder via your Supabase SQL Editor.
 
 ---
 *Built for Pirates. Go ECU!* 🏴‍☠️
