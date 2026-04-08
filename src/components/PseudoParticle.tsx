@@ -151,6 +151,7 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
   const dotSize = 6;
   const cardWidth = 260;
   const cardHeight = 136;
+  const morphGlowSize = 10 + cardMorphProgress * 20;
   const directionX = targetX - centerX;
   const directionY = targetY - centerY;
   const departureDistance = 260;
@@ -167,12 +168,23 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
   const isMorphingIn = state === "box" && cardMorphProgress < 1;
   const isDeparting = state === "departing";
   const isBoxVisible = state === "box" || state === "collapsing";
-  const cardScale = state === "collapsing"
-    ? 0.28 + cardMorphProgress * 0.72
-    : 0.28 + cardMorphProgress * 0.72;
-  const cardOpacity = state === "collapsing"
-    ? 0.15 + cardMorphProgress * 0.85
-    : 0.15 + cardMorphProgress * 0.85;
+  const cardScale = 0.28 + cardMorphProgress * 0.72;
+  const cardOpacity = 0.15 + cardMorphProgress * 0.85;
+  const cardTranslateY = state === "collapsing"
+    ? (1 - cardMorphProgress) * -10
+    : (1 - cardMorphProgress) * 10;
+  const cardRotate = state === "collapsing"
+    ? -(1 - cardMorphProgress) * 3
+    : (1 - cardMorphProgress) * 3;
+  const shellScaleX = state === "collapsing"
+    ? 1 - (1 - cardMorphProgress) * 0.3
+    : 0.45 + cardMorphProgress * 0.55;
+  const shellScaleY = state === "collapsing"
+    ? 1 - (1 - cardMorphProgress) * 0.65
+    : 0.18 + cardMorphProgress * 0.82;
+  const shellOpacity = state === "collapsing"
+    ? 0.2 + cardMorphProgress * 0.45
+    : 0.18 + cardMorphProgress * 0.4;
   const dotOpacity = state === "dot"
     ? 0
     : isTraveling
@@ -202,7 +214,11 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
           background: dotColor,
           opacity: dotOpacity,
           transform: `scale(${dotScale})`,
-          boxShadow: isDeparting ? `0 0 22px ${dotColor}, 0 0 42px ${dotColor}` : `0 0 12px ${dotColor}`,
+          boxShadow: isDeparting
+            ? `0 0 22px ${dotColor}, 0 0 42px ${dotColor}`
+            : isMorphingIn
+              ? `0 0 ${morphGlowSize}px ${dotColor}, 0 0 ${morphGlowSize + 10}px ${dotColor}`
+              : `0 0 12px ${dotColor}`,
           transition: isDeparting ? "none" : "opacity 180ms ease, transform 180ms ease",
         }}
       />
@@ -214,7 +230,7 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
             left: cardLeft,
             top: cardTop,
             zIndex: 10,
-            transform: `scale(${cardScale})`,
+            transform: `translateY(${cardTranslateY}px) rotate(${cardRotate}deg) scale(${cardScale})`,
             opacity: cardOpacity,
             transformOrigin: "center center",
             transition: state === "collapsing"
@@ -222,6 +238,16 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
               : "none",
           }}
         >
+          <div
+            className="absolute inset-0 rounded-xl"
+            style={{
+              transform: `scaleX(${shellScaleX}) scaleY(${shellScaleY})`,
+              opacity: shellOpacity,
+              background: `radial-gradient(circle at center, ${sample.accent}22 0%, ${sample.accent}12 42%, transparent 75%)`,
+              filter: "blur(8px)",
+            }}
+          />
+
           <div
             className="relative rounded-xl overflow-hidden"
             style={{
