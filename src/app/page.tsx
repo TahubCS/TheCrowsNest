@@ -1,6 +1,6 @@
 import Link from "next/link";
 import LandingAnimation from "@/components/LandingAnimation";
-import StudyToolPreview from "@/components/StudyToolPreview";
+import PseudoParticleSystem from "@/components/PseudoParticleSystem";
 
 export default function Home() {
   return (
@@ -9,8 +9,8 @@ export default function Home() {
       {/* 3D Infinity Tunnel Background */}
       <LandingAnimation />
 
-      {/* Floating study tool preview cards */}
-      <StudyToolPreview />
+      {/* Pseudo-particle system that becomes boxes */}
+      <PseudoParticleSystem />
 
       <main className="z-10 flex flex-col items-center text-center space-y-12 p-8 max-w-3xl w-full">
         <div className="space-y-6">
