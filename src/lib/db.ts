@@ -631,6 +631,6 @@ export async function logActivityEvent(event: ActivityEvent): Promise<void> {
     `;
   } catch (err) {
     // Best-effort — never let activity logging break the main operation
-    console.warn("[Activity Feed Warning] Failed to log event:", err);
+    console.error("[Activity Feed ERROR] Failed to log event:", err);
   }
 }

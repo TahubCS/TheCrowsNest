@@ -10,6 +10,7 @@ import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage, type QuotaApiType } from "@/lib/quota";
+import { getClassById, logActivityEvent } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 function clampQuestionCount(value: unknown, defaultValue = 15) {
@@ -211,6 +212,23 @@ export async function POST(
 
     // Record usage
     await recordUsage(session.user.email, quotaType, classId);
+
+    // Log activity for flashcards only — exams are logged in exam-sessions route,
+    // study_plans are logged in study-plans POST (which is always called after this).
+    if (resourceType === "flashcards") {
+      const firstName = session.user.name?.split(" ")[0] ?? session.user.email.split("@")[0];
+      const classData = await getClassById(classId).catch(() => null);
+      const courseCode = classData?.courseCode ?? classId;
+      await logActivityEvent({
+        userEmail: session.user.email,
+        firstName,
+        eventType: "flashcards",
+        description: `${firstName} created Flashcards in ${courseCode}`,
+        classId,
+        courseCode,
+        resourceType: "flashcards",
+      });
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,
