@@ -10,8 +10,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getAllClasses, getClassesByIds } from "@/lib/db";
-import { getRecommendedClassIds } from "@/lib/data/major-class-map";
+import { getAllClasses } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -25,29 +24,10 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const major = searchParams.get("major");
-    const year = searchParams.get("year");
     const search = searchParams.get("search");
 
-    // If major + year provided, return recommended classes
-    if (major && year) {
-      const recommendedIds = getRecommendedClassIds(major, year);
-
-      if (recommendedIds.length > 0) {
-        const classes = await getClassesByIds(recommendedIds);
-
-        return NextResponse.json<ApiResponse>({
-          success: true,
-          message: "Recommended classes",
-          data: { classes, source: "recommended" },
-        });
-      }
-    }
-
-    // Default: return all classes from database
     const allClasses = await getAllClasses();
 
-    // If search query, filter the loaded classes
     if (search) {
       const query = search.toLowerCase();
       const filtered = allClasses.filter(

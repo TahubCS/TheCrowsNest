@@ -81,7 +81,7 @@ export async function POST(request: NextRequest) {
       onboardingComplete: true,
     });
 
-    const response = NextResponse.json<ApiResponse>(
+    return NextResponse.json<ApiResponse>(
       {
         success: true,
         message: "Onboarding complete! Welcome to TheCrowsNest.",
@@ -89,17 +89,6 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-
-    // Set cookie so proxy.ts knows onboarding is done (avoids DB call on every request)
-    response.cookies.set("onboarding-complete", "true", {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365, // 1 year
-    });
-
-    return response;
   } catch (error: any) {
     console.error("[Onboarding Error]", error);
     

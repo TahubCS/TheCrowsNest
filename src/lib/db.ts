@@ -13,12 +13,19 @@
 import postgres from "postgres";
 import type { User, CourseClass, StudyPlan, Material, ClassRequest, Report, MaterialUploadEvent } from "@/types";
 
-// Singleton connection — postgres.camel auto-converts snake_case columns to camelCase
-const sql = postgres(process.env.DATABASE_URL!, {
-  transform: postgres.camel,
-  ssl: "require",
-  max: 10,
-});
+// Global singleton — prevents Turbopack HMR from creating a new connection pool
+// on every hot reload (which exhausts the Supabase connection limit).
+const g = global as typeof globalThis & { _sql?: ReturnType<typeof postgres> };
+
+if (!g._sql) {
+  g._sql = postgres(process.env.DATABASE_URL!, {
+    transform: postgres.camel,
+    ssl: "require",
+    max: 10,
+  });
+}
+
+const sql = g._sql;
 
 // ============================================================
 // User Operations

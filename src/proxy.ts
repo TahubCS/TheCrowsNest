@@ -1,9 +1,9 @@
 /**
  * Next.js 16 Proxy (formerly middleware.ts)
- * 
+ *
  * IMPORTANT: This is NOT a security boundary.
  * Auth checks are done in server components via requireAuth().
- * 
+ *
  * This proxy handles:
  * 1. Redirect unauthenticated users away from protected pages → /login
  * 2. Redirect logged-in users away from public auth pages → /dashboard
@@ -11,21 +11,19 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { getToken } from "next-auth/jwt";
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check for NextAuth session token cookie
-  const hasToken =
-    request.cookies.has("authjs.session-token") ||
-    request.cookies.has("__Secure-authjs.session-token");
-
-  // Check if onboarding is complete (set by onboarding API)
-  const onboardingComplete =
-    request.cookies.get("onboarding-complete")?.value === "true";
+  // Read onboardingComplete directly from the JWT — no separate cookie needed.
+  // getToken decodes the same session token NextAuth already sets, so it's
+  // always in sync with updateSession() calls from the client.
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const hasToken = !!token;
+  const onboardingComplete = (token?.onboardingComplete as boolean) ?? false;
 
   // --- Unauthenticated users ---
-  // If accessing protected pages without auth, redirect to login
   if (
     (pathname.startsWith("/dashboard") || pathname === "/onboarding") &&
     !hasToken
@@ -34,7 +32,6 @@ export function proxy(request: NextRequest) {
   }
 
   // --- Authenticated but not onboarded ---
-  // If accessing dashboard without completing onboarding, redirect to onboarding
   if (pathname.startsWith("/dashboard") && hasToken && !onboardingComplete) {
     return NextResponse.redirect(new URL("/onboarding", request.url));
   }
@@ -49,11 +46,9 @@ export function proxy(request: NextRequest) {
     (pathname === "/" || pathname === "/login" || pathname === "/signup") &&
     hasToken
   ) {
-    // If not onboarded, send to onboarding instead of dashboard
-    if (!onboardingComplete) {
-      return NextResponse.redirect(new URL("/onboarding", request.url));
-    }
-    return NextResponse.redirect(new URL("/dashboard", request.url));
+    return NextResponse.redirect(
+      new URL(onboardingComplete ? "/dashboard" : "/onboarding", request.url)
+    );
   }
 
   return NextResponse.next();
