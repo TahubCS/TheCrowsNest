@@ -1,10 +1,12 @@
 import Link from "next/link";
 import LandingAnimation from "@/components/LandingAnimation";
 import PseudoParticleSystem from "@/components/PseudoParticleSystem";
+import NodeEdgeCanvas from "@/components/NodeEdgeCanvas";
 
 export default function Home() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-[#05050A] relative overflow-hidden">
+      <NodeEdgeCanvas />
 
       {/* 3D Infinity Tunnel Background */}
       <LandingAnimation />

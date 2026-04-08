@@ -82,7 +82,22 @@ export default function NodeEdgeCanvas({
   }
 
   return (
-    <div className={`absolute inset-0 z-0 pointer-events-none ${className}`}>
+    <div 
+      className={`absolute inset-0 z-0 pointer-events-none ${className}`}
+      style={{
+        animation: "fadeIn 500ms ease-in-out forwards",
+      }}
+    >
+      <style>{`
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+      `}</style>
       <Particles
         id="node-edge-canvas"
         options={options}
