@@ -1,6 +1,14 @@
 # 🏴‍☠️ The Crow's Nest: An ECU Student Hub
 
-**The Crow's Nest** is a premium, AI-driven academic management platform built specifically for East Carolina University (ECU) students. Originally born out of a high-pressure ECU Hackathon, it has since evolved into a highly sophisticated dual-stack application featuring serverless AWS infrastructure, a dedicated continuous-learning AI microservice, and centralized observability.
+**The Crow's Nest** is a premium, AI-driven academic management platform built specifically for East Carolina University (ECU) students. Originally born out of a high-pressure ECU Hackathon, it has since evolved into a highly sophisticated dual-stack application featuring a Supabase-powered Postgres database, a dedicated continuous-learning AI microservice, and centralized observability.
+
+---
+
+## 🌟 What's New
+- **Centralized Token Telemetry**: Automatically tracks input, output, and embedding API tokens collectively across all contributors via atomic Supabase PostgreSQL operations.
+- **Unified Deletions**: Added seamless API and UI flows to manage and delete personal AI-generated flashcards, practice exams, and study plans.
+- **Glassmorphic UI & Interactive Backgrounds**: Implemented dynamic `tsparticles`, `PseudoParticleSystem` backgrounds, custom form controls, and unified 6px `webkit-scrollbar` styling across all components.
+- **Admin Quota Bypasses**: Integrated Stripe usage quotas that can be intelligently bypassed by platform administrators.
 
 ---
 
@@ -11,8 +19,8 @@ The platform is split into two primary environments: a blisteringly fast React f
 ### 1. The Core Application (`/src`)
 - **Framework**: Next.js 16 (App Router) for hybrid rendering and optimized routing.
 - **Styling**: Tailwind CSS 4.0 prioritizing a vibrant, glassmorphic ECU-purple and gold aesthetic. Features highly custom, consistent UI down to unified `webkit-scrollbar` styling and form controls.
-- **Primary Database**: Amazon DynamoDB for ultra-low latency NoSQL storage of Users, Enrolled Classes, Study Plans, and Material Metadata.
-- **File Storage**: AWS S3 for secure, massive-scale storage of student-uploaded textbooks, lecture slides, and images.
+- **Primary Database**: Supabase PostgreSQL for relational storage of Users, Enrolled Classes, Study Plans, and Material Metadata.
+- **File Storage**: Supabase Storage for secure, massive-scale storage of student-uploaded textbooks, lecture slides, and images.
 - **Authentication**: NextAuth.js v5 using custom JWT strategies.
 - **Monetization & Quotas**: Stripe integration handles premium tier subscriptions, enforcing granular usage quotas on AI generations with admin-bypass capabilities.
 
@@ -27,7 +35,7 @@ The platform is split into two primary environments: a blisteringly fast React f
 
 ### 🛡️ Autonomous AI Material Gatekeeper 
 To prevent spam, storage bloat, and irrelevant files, **every file uploaded by a student is intercepted and graded by an AI Administrator.**
-- **Tri-State Logic**: Files are strictly graded against the official class syllabus. Highly accurate files (≥ 75% confidence) are instantly approved. Ambiguous files (50-74%) are heavily scrutinized and left for manual Admin dashboard review. Irrelevant files or spam (< 50%) are instantly rejected, and the raw file is permanently deleted from the S3 bucket to save costs.
+- **Tri-State Logic**: Files are strictly graded against the official class syllabus. Highly accurate files (≥ 75% confidence) are instantly approved. Ambiguous files (50-74%) are heavily scrutinized and left for manual Admin dashboard review. Irrelevant files or spam (< 50%) are instantly rejected, and the raw file is permanently deleted from Supabase Storage to save costs.
 - **Native Document Parsing**: Leveraging `PyMuPDF`, `python-pptx`, and `python-docx`, the backend natively reads inside massive PDFs, PowerPoints, and Word Documents.
 - **Gemini Vision OCR**: Utilizing `Pillow` and Gemini Vision, the server natively reads text directly out of student-uploaded images and screenshots (`.webp`, `.jpg`, `.png`).
 
@@ -53,8 +61,7 @@ A dedicated, atomic token-tracking system operates silently across all AI operat
 ### Prerequisites
 - Node.js (v18+)
 - Python (3.12+)
-- AWS IAM Credentials (S3 + DynamoDB access)
-- Supabase Project URL & Service Role Key (for `pgvector` and Telemetry)
+- Supabase Project URL, Anon Key, & Service Role Key (for Database, Storage, `pgvector`, and Telemetry)
 - Google Gemini API Key
 - Stripe API Keys (for Premium features)
 
