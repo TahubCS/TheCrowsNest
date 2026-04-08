@@ -302,7 +302,7 @@ export default function ClassStudyPlansPage() {
                   <label className="text-sm font-semibold mb-2 block">
                     Select Materials <span className="text-muted-foreground font-normal">(plan is grounded in these)</span>
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
                     {materials.map(m => (
                       <button
                         key={m.materialId}

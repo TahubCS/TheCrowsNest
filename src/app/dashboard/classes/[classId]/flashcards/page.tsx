@@ -8,6 +8,7 @@ import MaterialSelectionModal from "@/components/MaterialSelectionModal";
 import QuotaIndicator from "@/components/QuotaIndicator";
 import UpgradePrompt from "@/components/UpgradePrompt";
 import { usePlan } from "@/hooks/usePlan";
+import { NumberInput } from "@/components/ui/NumberInput";
 
 interface MaterialOption {
   materialId: string;
@@ -429,17 +430,14 @@ export default function FlashcardsPage() {
                   <p className="text-sm text-muted-foreground mb-4">
                     Generate a personal deck from selected materials and reopen it anytime.
                   </p>
-                  <label className="space-y-2 text-sm font-medium text-foreground block mb-4">
-                    <span>Deck size</span>
-                    <input
-                      type="number"
-                      min={5}
-                      max={30}
-                      value={deckSize}
-                      onChange={(event) => setDeckSize(Number(event.target.value))}
-                      className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                    />
-                  </label>
+                  <NumberInput
+                    label="Deck size"
+                    min={5}
+                    max={30}
+                    value={deckSize}
+                    onChangeValue={(val) => setDeckSize(val)}
+                    className="mb-4"
+                  />
                   <button
                     onClick={() => setShowMaterialModal(true)}
                     disabled={isGenerating}
@@ -448,7 +446,7 @@ export default function FlashcardsPage() {
                     {isGenerating ? "Generating Personal Deck..." : "Select Materials & Generate"}
                   </button>
 
-                  <div className="mt-5 space-y-3">
+                  <div className="mt-5 space-y-3 max-h-[350px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
                     {personalDecks.length > 0 ? personalDecks.map((deck) => (
                       <div key={deck.id} className="relative group">
                         <button

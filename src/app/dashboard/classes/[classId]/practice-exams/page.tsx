@@ -8,6 +8,7 @@ import MaterialSelectionModal from "@/components/MaterialSelectionModal";
 import QuotaIndicator from "@/components/QuotaIndicator";
 import UpgradePrompt from "@/components/UpgradePrompt";
 import { usePlan } from "@/hooks/usePlan";
+import { NumberInput } from "@/components/ui/NumberInput";
 
 interface MaterialOption {
   materialId: string;
@@ -530,17 +531,13 @@ export default function PracticeExamsPage() {
                     Generate a new exam from approved materials and keep it in your history.
                   </p>
                   <div className="grid gap-3 sm:grid-cols-2 mb-4">
-                    <label className="space-y-2 text-sm font-medium text-foreground">
-                      <span>Question count</span>
-                      <input
-                        type="number"
-                        min={5}
-                        max={30}
-                        value={questionCount}
-                        onChange={(event) => setQuestionCount(Number(event.target.value))}
-                        className="w-full rounded-xl border border-border bg-background px-3 py-2 text-sm"
-                      />
-                    </label>
+                    <NumberInput
+                      label="Question count"
+                      min={5}
+                      max={30}
+                      value={questionCount}
+                      onChangeValue={(val) => setQuestionCount(val)}
+                    />
                     <label className="space-y-2 text-sm font-medium text-foreground">
                       <span>Difficulty</span>
                       <select
@@ -562,7 +559,7 @@ export default function PracticeExamsPage() {
                     {isGenerating ? "Generating Personal Exam..." : "Select Materials & Generate"}
                   </button>
 
-                  <div className="mt-5 space-y-3">
+                  <div className="mt-5 space-y-3 max-h-[350px] overflow-y-auto pr-2 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
                     {sessions.personalSessions.length > 0 ? sessions.personalSessions.map((session) => (
                       <div key={session.id} className="relative group">
                         <button

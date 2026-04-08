@@ -55,7 +55,7 @@ export default function ReferenceModal({ reference, isOpen, onClose }: Reference
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto max-h-[60vh] bg-background">
+        <div className="p-6 overflow-y-auto max-h-[60vh] bg-background [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
           <div className="relative">
             <div className="absolute left-0 top-0 bottom-0 w-1 bg-ecu-purple rounded-full"></div>
             <p className="pl-4 text-sm leading-relaxed text-foreground whitespace-pre-wrap font-medium">

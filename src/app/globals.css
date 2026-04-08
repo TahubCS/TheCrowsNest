@@ -63,4 +63,15 @@
     color: var(--foreground);
     font-family: var(--font-sans), sans-serif;
   }
+
+  /* Hide standard number input arrows globally */
+  input::-webkit-outer-spin-button,
+  input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  input[type=number] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
 }
