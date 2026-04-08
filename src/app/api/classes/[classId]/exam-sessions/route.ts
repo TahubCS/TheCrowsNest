@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage, type QuotaApiType } from "@/lib/quota";
+import { getClassById, logActivityEvent } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 type SessionScope = "shared" | "personal";
@@ -310,6 +311,19 @@ export async function POST(
     }
 
     await recordUsage(session.user.email, "exam", classId);
+
+    const firstName = session.user.name?.split(" ")[0] ?? session.user.email.split("@")[0];
+    const classData = await getClassById(classId).catch(() => null);
+    const courseCode = classData?.courseCode ?? classId;
+    await logActivityEvent({
+      userEmail: session.user.email,
+      firstName,
+      eventType: "exam",
+      description: `${firstName} created an Exam in ${courseCode}`,
+      classId,
+      courseCode,
+      resourceType: "exam",
+    });
 
     return NextResponse.json<ApiResponse>({
       success: true,

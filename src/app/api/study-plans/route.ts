@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getStudyPlansByEmail, createStudyPlan, deleteStudyPlan } from "@/lib/db";
+import { getStudyPlansByEmail, createStudyPlan, deleteStudyPlan, getClassById, logActivityEvent } from "@/lib/db";
 import type { StudyPlan, ApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -62,6 +62,19 @@ export async function POST(request: NextRequest) {
     };
 
     await createStudyPlan(plan);
+
+    const firstName = session.user.name?.split(" ")[0] ?? session.user.email.split("@")[0];
+    const classData = await getClassById(classId).catch(() => null);
+    const courseCode = classData?.courseCode ?? classId;
+    await logActivityEvent({
+      userEmail: session.user.email,
+      firstName,
+      eventType: "study_plan",
+      description: `${firstName} created a Study Plan in ${courseCode}`,
+      classId,
+      courseCode,
+      resourceType: "study_plan",
+    });
 
     return NextResponse.json<ApiResponse>({
       success: true,

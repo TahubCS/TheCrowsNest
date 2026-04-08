@@ -9,6 +9,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage } from "@/lib/quota";
+import { getClassById, logActivityEvent } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -70,6 +71,19 @@ export async function POST(request: NextRequest) {
 
     // Record usage
     await recordUsage(session.user.email, "flashcards", classId);
+
+    const firstName = session.user.name?.split(" ")[0] ?? session.user.email.split("@")[0];
+    const classData = await getClassById(classId).catch(() => null);
+    const courseCode = classData?.courseCode ?? classId;
+    await logActivityEvent({
+      userEmail: session.user.email,
+      firstName,
+      eventType: "flashcards",
+      description: `${firstName} created Flashcards in ${courseCode}`,
+      classId,
+      courseCode,
+      resourceType: "flashcards",
+    });
 
     return NextResponse.json<ApiResponse>({
       success: true,

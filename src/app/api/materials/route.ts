@@ -15,6 +15,7 @@ import {
   countRecentUploads,
   countRecentRejections,
   findDuplicateByHash,
+  logActivityEvent,
 } from "@/lib/db";
 import { supabase, STORAGE_BUCKET } from "@/lib/supabase";
 import {
@@ -169,6 +170,16 @@ export async function POST(request: NextRequest) {
       eventStage: "metadata_saved",
       decision: forceReview ? "FORCE_REVIEW" : undefined,
       reasonCode: forceReview ? "suspicious_upload_pattern" : undefined,
+    });
+
+    const firstName = session.user.name?.split(" ")[0] ?? session.user.email.split("@")[0];
+    await logActivityEvent({
+      userEmail: session.user.email,
+      firstName,
+      eventType: "upload",
+      description: `${firstName} uploaded ${fileName}`,
+      fileName,
+      classId,
     });
 
     // If abuse pattern detected, skip AI eval and route directly to review

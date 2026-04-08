@@ -294,7 +294,7 @@ export default function SharedResourcesSection({ classId, resourceType }: Shared
                             className="text-[10px] font-semibold px-2 py-1 bg-purple-500/10 text-purple-700 border border-purple-500/20 rounded-md hover:bg-purple-500/20 transition-colors flex items-center gap-1.5"
                           >
                             <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                            <span className="truncate max-w-[150px]">{ref.fileName}</span>
+                            <span className="truncate max-w-37.5">{ref.fileName}</span>
                             {ref.page && <span className="opacity-75">(Pg {ref.page})</span>}
                           </button>
                         ))}

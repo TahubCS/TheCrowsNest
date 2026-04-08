@@ -595,3 +595,42 @@ export async function updateUserDevMode(
     UPDATE users SET dev_mode_plan = ${plan} WHERE email = ${email.toLowerCase()}
   `;
 }
+
+// ============================================================
+// Activity Feed
+// ============================================================
+
+export type ActivityEventType = "upload" | "flashcards" | "exam" | "study_plan";
+
+export interface ActivityEvent {
+  userEmail: string;
+  firstName: string;
+  eventType: ActivityEventType;
+  description: string;
+  fileName?: string;
+  classId?: string;
+  courseCode?: string;
+  resourceType?: string;
+}
+
+export async function logActivityEvent(event: ActivityEvent): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO user_activity_feed
+        (user_email, first_name, event_type, description, file_name, class_id, course_code, resource_type)
+      VALUES (
+        ${event.userEmail.toLowerCase()},
+        ${event.firstName},
+        ${event.eventType},
+        ${event.description},
+        ${event.fileName ?? null},
+        ${event.classId ?? null},
+        ${event.courseCode ?? null},
+        ${event.resourceType ?? null}
+      )
+    `;
+  } catch (err) {
+    // Best-effort — never let activity logging break the main operation
+    console.warn("[Activity Feed Warning] Failed to log event:", err);
+  }
+}
