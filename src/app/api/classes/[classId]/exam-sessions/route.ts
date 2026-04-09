@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { aiBackendUrl } from "@/lib/ai-backend";
 import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getEffectivePlan } from "@/lib/plan";
@@ -252,7 +253,7 @@ export async function POST(
       );
     }
 
-    const res = await fetch("http://localhost:8000/generate/practice-exam", {
+    const res = await fetch(aiBackendUrl("/generate/practice-exam"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ classId, topic, difficulty, count: questionCount, materialIds }),

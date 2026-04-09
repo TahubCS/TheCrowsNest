@@ -7,6 +7,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { aiBackendUrl } from "@/lib/ai-backend";
 import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage } from "@/lib/quota";
 import type { ApiResponse } from "@/types";
@@ -52,14 +53,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const res = await fetch("http://localhost:8000/chat/stream", {
+    const res = await fetch(aiBackendUrl("/chat/stream"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ classId, messages: [{ role: "user", content: question }] }),
     });
 
     if (!res.ok) {
-      throw new Error(`Python Backend Error: ${res.statusText}`);
+      const backendErrorText = await res.text().catch(() => "");
+      throw new Error(
+        `Python backend error (${res.status}): ${backendErrorText || res.statusText || "Unknown error"}`
+      );
     }
 
     // Record usage before streaming starts
@@ -71,10 +75,22 @@ export async function POST(request: NextRequest) {
         "X-Quota-Remaining": String(quota.remaining - 1),
       },
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[AI Tutor Error]", error);
+    const message = error instanceof Error ? error.message : String(error);
+    const isConnectivityError =
+      message.includes("fetch failed") ||
+      message.includes("ENOTFOUND") ||
+      message.includes("ECONNREFUSED") ||
+      message.includes("AI_BACKEND_URL is not configured");
+
     return NextResponse.json<ApiResponse>(
-      { success: false, message: error.message?.includes("fetch") ? "Failed to connect to the Python AI server. Please make sure the python backend is running on port 8000." : "Failed to generate AI response." },
+      {
+        success: false,
+        message: isConnectivityError
+          ? "Failed to connect to the Python AI service. Please verify AI_BACKEND_URL and backend health."
+          : message || "Failed to generate AI response.",
+      },
       { status: 500 }
     );
   }

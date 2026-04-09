@@ -8,6 +8,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { aiBackendUrl } from "@/lib/ai-backend";
 import { isAdmin } from "@/lib/admin";
 import { getAllPendingMaterials, updateMaterialStatus, updateMaterialWithRejection } from "@/lib/db";
 import { supabase, STORAGE_BUCKET } from "@/lib/supabase";
@@ -95,7 +96,7 @@ export async function PATCH(request: NextRequest) {
     await updateMaterialStatus(classId, materialId, "PROCESSING");
 
     try {
-      const res = await fetch("http://localhost:8000/ingest", {
+      const res = await fetch(aiBackendUrl("/ingest"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ classId, materialId, storageKey, fileName }),

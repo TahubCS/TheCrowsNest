@@ -4,6 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { aiBackendUrl } from "@/lib/ai-backend";
 import { auth } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import {
@@ -221,7 +222,7 @@ ${classData.syllabus || "No syllabus provided."}
     // Fire-and-forget: trigger Python evaluation (non-blocking)
     // If Python is immediately unreachable, the .catch() cleans up so the
     // material does not hang in PROCESSING forever.
-    fetch("http://localhost:8000/evaluate-and-ingest", {
+    fetch(aiBackendUrl("/evaluate-and-ingest"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -322,7 +323,7 @@ export async function DELETE(request: NextRequest) {
 
     // Step 3: Delete vectors from PostgreSQL via Python backend
     try {
-      await fetch(`http://localhost:8000/materials/${materialId}`, { method: "DELETE" });
+      await fetch(aiBackendUrl(`/materials/${materialId}`), { method: "DELETE" });
     } catch (err) {
       console.error("[Python Sync Error] Failed to delete vectors from PostgreSQL.", err);
     }

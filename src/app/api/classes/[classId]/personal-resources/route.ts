@@ -6,6 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { aiBackendUrl } from "@/lib/ai-backend";
 import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getEffectivePlan } from "@/lib/plan";
@@ -119,9 +120,9 @@ export async function POST(
 
     // Map resource type to Python backend endpoint
     const endpointMap: Record<string, string> = {
-      exam: "http://localhost:8000/generate/practice-exam",
-      study_plan: "http://localhost:8000/generate/study-plan",
-      flashcards: "http://localhost:8000/generate/flashcards",
+      exam: aiBackendUrl("/generate/practice-exam"),
+      study_plan: aiBackendUrl("/generate/study-plan"),
+      flashcards: aiBackendUrl("/generate/flashcards"),
     };
 
     // Call the Python backend with specific materialIds

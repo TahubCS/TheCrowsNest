@@ -4,7 +4,7 @@ import time
 import traceback
 from datetime import datetime, timezone
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, BackgroundTasks
+from fastapi import FastAPI, BackgroundTasks, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
@@ -620,14 +620,32 @@ class ChatReq(BaseModel):
 
 @app.post("/chat")
 async def chat(req: ChatReq):
-    reply = chat_with_tutor(req.classId, req.messages)
-    return {"success": True, "reply": reply}
+    try:
+        reply = chat_with_tutor(req.classId, req.messages)
+        return {"success": True, "reply": reply}
+    except Exception as err:
+        print(f"[CHAT ERROR] class={req.classId}: {err}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Chat generation failed: {err}")
 
 @app.post("/chat/stream")
 async def chat_stream(req: ChatReq):
     def generate():
-        for chunk in stream_chat_with_tutor(req.classId, req.messages):
-            yield chunk
+        yielded = False
+        try:
+            for chunk in stream_chat_with_tutor(req.classId, req.messages):
+                if chunk:
+                    yielded = True
+                    yield chunk
+
+            if not yielded:
+                # Prevent empty successful responses that look like a client crash.
+                yield "The AI tutor could not generate a response. Please try again."
+        except Exception as err:
+            print(f"[CHAT STREAM ERROR] class={req.classId}: {err}")
+            traceback.print_exc()
+            yield "The AI tutor backend is temporarily unavailable. Please try again in a moment."
+
     return StreamingResponse(generate(), media_type="text/plain; charset=utf-8")
 
 @app.delete("/materials/{material_id}")

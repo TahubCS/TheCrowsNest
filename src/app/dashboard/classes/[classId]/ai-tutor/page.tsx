@@ -77,8 +77,17 @@ export default function AITutorPage() {
         return;
       }
       if (!res.ok || !res.body) {
-        const data = await res.json().catch(() => ({}));
-        setMessages([...updatedMessages, { role: "tutor" as const, text: (data as any).message || "I encountered an error retrieving that information." }]);
+        const rawError = await res.text().catch(() => "");
+        let errorMessage = "I encountered an error retrieving that information.";
+        if (rawError) {
+          try {
+            const parsed = JSON.parse(rawError) as { message?: string; detail?: string };
+            errorMessage = parsed.message || parsed.detail || rawError;
+          } catch {
+            errorMessage = rawError;
+          }
+        }
+        setMessages([...updatedMessages, { role: "tutor" as const, text: errorMessage }]);
         return;
       }
 
@@ -97,6 +106,17 @@ export default function AITutorPage() {
           setIsTyping(false);
         }
         setMessages([...updatedMessages, { role: "tutor" as const, text: fullText }]);
+      }
+
+      if (!fullText.trim()) {
+        setMessages([
+          ...updatedMessages,
+          {
+            role: "tutor" as const,
+            text: "The AI tutor backend returned an empty response. Please try again in a moment.",
+          },
+        ]);
+        return;
       }
 
       // Update quota from response header
