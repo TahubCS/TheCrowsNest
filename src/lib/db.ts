@@ -11,14 +11,54 @@
  */
 
 import postgres from "postgres";
+import fs from "node:fs";
+import path from "node:path";
 import type { User, CourseClass, StudyPlan, Material, ClassRequest, Report, MaterialUploadEvent } from "@/types";
 
 // Global singleton — prevents Turbopack HMR from creating a new connection pool
 // on every hot reload (which exhausts the Supabase connection limit).
 const g = global as typeof globalThis & { _sql?: ReturnType<typeof postgres> };
 
+function readDatabaseUrlFromEnvLocal(): string | null {
+  try {
+    const envPath = path.join(process.cwd(), ".env.local");
+    const content = fs.readFileSync(envPath, "utf8");
+    const match = content.match(/^\s*DATABASE_URL\s*=\s*(.+)\s*$/m);
+    if (!match) return null;
+
+    const rawValue = match[1].trim();
+    if (
+      (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+      (rawValue.startsWith("'") && rawValue.endsWith("'"))
+    ) {
+      return rawValue.slice(1, -1);
+    }
+    return rawValue;
+  } catch {
+    return null;
+  }
+}
+
+function resolveDatabaseUrl(): string {
+  const envValue = process.env.DATABASE_URL?.trim();
+  const envLocalValue = readDatabaseUrlFromEnvLocal();
+
+  // Prisma can inject a local proxy URL in terminal sessions; prefer the explicit
+  // .env.local database URL so auth routes always use the intended Supabase DB.
+  if (envValue?.startsWith("prisma+postgres://localhost:")) {
+    if (envLocalValue) return envLocalValue;
+    throw new Error("DATABASE_URL was overridden by a local Prisma proxy and .env.local DATABASE_URL could not be read.");
+  }
+
+  if (envValue) return envValue;
+  if (envLocalValue) return envLocalValue;
+  throw new Error("DATABASE_URL is not configured.");
+}
+
+const databaseUrl = resolveDatabaseUrl();
+
 if (!g._sql) {
-  g._sql = postgres(process.env.DATABASE_URL!, {
+  g._sql = postgres(databaseUrl, {
     transform: postgres.camel,
     ssl: "require",
     max: 10,
@@ -40,6 +80,46 @@ export async function getUserByEmail(email: string): Promise<User | null> {
   } catch (error) {
     console.error("[DB Error] getUserByEmail failed:", error);
     throw error;
+  }
+}
+
+export interface PendingVerification {
+  email: string;
+  name: string;
+  passwordHash: string;
+  code?: string;
+  verificationCode?: string;
+  expiresAt: number;
+}
+
+export async function getPendingVerification(email: string): Promise<PendingVerification | null> {
+  try {
+    const result = await sql<PendingVerification[]>`
+      SELECT * FROM pending_verifications WHERE email = ${email} LIMIT 1
+    `;
+    return result.length ? result[0] : null;
+  } catch (error) {
+    console.error("[DB Error] getPendingVerification failed:", error);
+    return null;
+  }
+}
+
+export async function deletePendingVerification(email: string): Promise<void> {
+  try {
+    await sql`DELETE FROM pending_verifications WHERE email = ${email}`;
+  } catch (error) {
+    console.error("[DB Error] deletePendingVerification failed:", error);
+  }
+}
+
+export async function savePendingVerification(data: PendingVerification): Promise<void> {
+  try {
+    await sql`
+      INSERT INTO pending_verifications (email, name, password_hash, code, expires_at)
+      VALUES (${data.email}, ${data.name}, ${data.passwordHash}, ${data.code ?? null}, ${data.expiresAt})
+    `;
+  } catch (error) {
+    console.error("[DB Error] savePendingVerification failed:", error);
   }
 }
 
@@ -656,3 +736,4 @@ export async function logActivityEvent(event: ActivityEvent): Promise<void> {
     console.error("[Activity Feed ERROR] Failed to log event:", err);
   }
 }
+

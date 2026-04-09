@@ -11,8 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
-import { getUserByEmail, savePendingVerification, createUser } from "@/lib/db";
-import { sendVerificationEmail } from "@/lib/email";
+import { getUserByEmail, createUser } from "@/lib/db";
 import { validateEcuEmail, validatePassword } from "@/lib/validators";
 import type { RegisterPayload, ApiResponse } from "@/types";
 
@@ -115,3 +114,6 @@ export async function POST(request: NextRequest) {
     );
   }
 }
+
+
+
