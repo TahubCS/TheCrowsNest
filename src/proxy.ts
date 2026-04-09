@@ -21,8 +21,8 @@ export async function proxy(request: NextRequest) {
   // always in sync with updateSession() calls from the client.
   const token = await getToken({ 
     req: request, 
-    secret: process.env.NEXTAUTH_SECRET,
-    cookieName: "authjs.session-token" // NextAuth v5 cookie name
+    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+    cookieName: "authjs.session-token"
   });
   const hasToken = !!token;
   const onboardingComplete = (token?.onboardingComplete as boolean) ?? false;
