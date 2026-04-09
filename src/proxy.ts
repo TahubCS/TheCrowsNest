@@ -22,7 +22,9 @@ export async function proxy(request: NextRequest) {
   const token = await getToken({ 
     req: request, 
     secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-    cookieName: "authjs.session-token"
+    cookieName: process.env.NODE_ENV === "production" 
+      ? "__Secure-authjs.session-token" 
+      : "authjs.session-token"
   });
   const hasToken = !!token;
   const onboardingComplete = (token?.onboardingComplete as boolean) ?? false;
