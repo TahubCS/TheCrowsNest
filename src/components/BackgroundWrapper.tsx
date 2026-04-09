@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import NodeEdgeCanvas from "@/components/NodeEdgeCanvas";
+import LandingAnimation from "@/components/LandingAnimation";
 
 export default function BackgroundWrapper() {
   const pathname = usePathname();
@@ -11,5 +12,10 @@ export default function BackgroundWrapper() {
 
   if (!showBackground) return null;
 
-  return <NodeEdgeCanvas />;
+  return (
+    <>
+      <NodeEdgeCanvas />
+      <LandingAnimation />
+    </>
+  );
 }

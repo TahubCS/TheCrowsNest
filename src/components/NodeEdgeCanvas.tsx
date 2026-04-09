@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, memo } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 import type { ISourceOptions } from "@tsparticles/engine";
+
+const DEFAULT_COLORS: string[] = ["#ffffff", "#8a6bbf", "#d4b856"];
 
 interface NodeEdgeCanvasProps {
   particleCount?: number;
@@ -12,10 +14,10 @@ interface NodeEdgeCanvasProps {
   className?: string;
 }
 
-export default function NodeEdgeCanvas({
+const NodeEdgeCanvas = memo(function NodeEdgeCanvas({
   particleCount = 60,
   showLinks = true,
-  colors = ["#ffffff", "#8a6bbf", "#d4b856"],
+  colors = DEFAULT_COLORS,
   className = ""
 }: NodeEdgeCanvasProps) {
   const [init, setInit] = useState(false);
@@ -105,4 +107,6 @@ export default function NodeEdgeCanvas({
       />
     </div>
   );
-}
+});
+
+export default NodeEdgeCanvas;

@@ -43,14 +43,46 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
 
   useEffect(() => {
     if (shouldActivate && state === "dot") {
-      setSample(SAMPLES[Math.floor(Math.random() * SAMPLES.length)]);
-      setDotColor(DOT_COLORS[Math.floor(Math.random() * DOT_COLORS.length)]);
-      setTravelProgress(0);
-      setCardMorphProgress(0);
-      setDepartureProgress(0);
-      setState("expanding");
+      const newSample = SAMPLES[Math.floor(Math.random() * SAMPLES.length)];
+      const newDotColor = DOT_COLORS[Math.floor(Math.random() * DOT_COLORS.length)];
+      
+      // Use a microtask to defer state updates after render
+      queueMicrotask(() => {
+        setSample(newSample);
+        setDotColor(newDotColor);
+        setTravelProgress(0);
+        setCardMorphProgress(0);
+        setDepartureProgress(0);
+        setState("expanding");
+      });
     }
   }, [shouldActivate, state]);
+
+  useEffect(() => {
+    if (state === "departing") {
+      const duration = 2600;
+      const startTime = Date.now();
+
+      const interval = window.setInterval(() => {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        setDepartureProgress(progress);
+
+        if (progress >= 1) {
+          window.clearInterval(interval);
+          setState("dot");
+          setSample(null);
+          setTravelProgress(0);
+          setCardMorphProgress(0);
+          setDepartureProgress(0);
+          onComplete(id);
+        }
+      }, 16);
+
+      return () => window.clearInterval(interval);
+    }
+    return undefined;
+  }, [state, id, onComplete]);
 
   useEffect(() => {
     if (state === "expanding") {
@@ -261,7 +293,7 @@ export default function PseudoParticle({ id, targetX, targetY, onComplete, shoul
             }}
           >
             <div
-              className="h-[2px] w-full"
+              className="h-0.5 w-full"
               style={{
                 background: `linear-gradient(90deg, transparent, ${sample.accent}, transparent)`,
                 opacity: 0.7,

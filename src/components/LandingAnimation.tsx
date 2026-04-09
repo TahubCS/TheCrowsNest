@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, memo } from "react";
 import Particles, { initParticlesEngine } from "@tsparticles/react";
 import { loadSlim } from "@tsparticles/slim";
 import type { ISourceOptions } from "@tsparticles/engine";
 
-export default function LandingAnimation() {
+const LandingAnimation = memo(function LandingAnimation() {
   const [init, setInit] = useState(false);
 
   useEffect(() => {
@@ -78,4 +78,6 @@ export default function LandingAnimation() {
       />
     </div>
   );
-}
+});
+
+export default LandingAnimation;

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
+import BackgroundWrapper from "@/components/BackgroundWrapper";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning className="min-h-full flex flex-col">
         <Providers>
+          <BackgroundWrapper />
           {children}
           <Toaster 
             position="bottom-right" 

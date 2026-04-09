@@ -11,9 +11,29 @@ interface PseudoParticleData {
 }
 
 export default function PseudoParticleSystem() {
-  const [particles, setParticles] = useState<PseudoParticleData[]>([]);
-  const [centerX, setCenterX] = useState(0);
-  const [centerY, setCenterY] = useState(0);
+  const [particles, setParticles] = useState<PseudoParticleData[]>(() => {
+    if (typeof window === 'undefined') return [];
+    
+    const newParticles: PseudoParticleData[] = [];
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    
+    // Generate initial pseudo-particles that will fly out from the center
+    const count = 2 + Math.floor(Math.random() * 2); // 2-3 pseudo-particles
+    
+    for (let i = 0; i < count; i++) {
+      newParticles.push({
+        id: `pseudo-${i}-${Date.now()}`,
+        targetX: viewportWidth / 2,
+        targetY: viewportHeight / 2,
+        shouldActivate: false,
+      });
+    }
+    
+    return newParticles;
+  });
+  const [centerX, setCenterX] = useState(() => typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
+  const [centerY, setCenterY] = useState(() => typeof window !== 'undefined' ? window.innerHeight / 2 : 0);
 
   const minTargetSpacing = 220;
 
@@ -164,16 +184,9 @@ export default function PseudoParticleSystem() {
         );
       }, delay);
     });
-  }, [particles.length]); // Only run when particles are first created
+  }, [particles]); // Only run when particles are first created
 
   useEffect(() => {
-    setCenterX(window.innerWidth / 2);
-    setCenterY(window.innerHeight / 2);
-  }, []);
-
-  useEffect(() => {
-    generateParticles();
-
     // Regenerate on window resize
     const handleResize = () => {
       generateParticles();

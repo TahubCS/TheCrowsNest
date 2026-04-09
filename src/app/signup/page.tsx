@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import NodeEdgeCanvas from "@/components/NodeEdgeCanvas";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { validateEcuEmail, validatePassword } from "@/lib/validators";
@@ -180,14 +179,13 @@ export default function SignupPage() {
   // =========================================================================
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#05050A] p-4 py-12">
-      <NodeEdgeCanvas />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-transparent p-4 py-12">
       <div className="relative z-10 w-full max-w-md overflow-hidden rounded-2xl border border-border bg-background p-8 shadow-xl">
         
         {/* LOGO AREA */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-4 font-bold text-2xl tracking-tight hover:opacity-80 transition-opacity">
-            <span className="text-ecu-purple">The Crow's</span>
+            <span className="text-ecu-purple">The Crow&apos;s</span>
             <span className="text-ecu-gold"> Nest</span>
           </Link>
           <h1 className="text-3xl font-extrabold text-foreground">
@@ -341,7 +339,7 @@ export default function SignupPage() {
 
             <div className="mt-6 text-center text-sm text-muted-foreground border-t border-border pt-6 flex flex-col gap-2">
               <div>
-                Didn't receive the email?{" "}
+                Didn&apos;t receive the email?{" "}
                 <button
                   type="button"
                   onClick={handleResendCode}
