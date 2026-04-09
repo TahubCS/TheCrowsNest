@@ -19,7 +19,11 @@ export async function proxy(request: NextRequest) {
   // Read onboardingComplete directly from the JWT — no separate cookie needed.
   // getToken decodes the same session token NextAuth already sets, so it's
   // always in sync with updateSession() calls from the client.
-  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const token = await getToken({ 
+    req: request, 
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: "authjs.session-token" // NextAuth v5 cookie name
+  });
   const hasToken = !!token;
   const onboardingComplete = (token?.onboardingComplete as boolean) ?? false;
 
