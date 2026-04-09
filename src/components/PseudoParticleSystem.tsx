@@ -11,29 +11,10 @@ interface PseudoParticleData {
 }
 
 export default function PseudoParticleSystem() {
-  const [particles, setParticles] = useState<PseudoParticleData[]>(() => {
-    if (typeof window === 'undefined') return [];
-    
-    const newParticles: PseudoParticleData[] = [];
-    const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
-    
-    // Generate initial pseudo-particles that will fly out from the center
-    const count = 2 + Math.floor(Math.random() * 2); // 2-3 pseudo-particles
-    
-    for (let i = 0; i < count; i++) {
-      newParticles.push({
-        id: `pseudo-${i}-${Date.now()}`,
-        targetX: viewportWidth / 2,
-        targetY: viewportHeight / 2,
-        shouldActivate: false,
-      });
-    }
-    
-    return newParticles;
-  });
-  const [centerX, setCenterX] = useState(() => typeof window !== 'undefined' ? window.innerWidth / 2 : 0);
-  const [centerY, setCenterY] = useState(() => typeof window !== 'undefined' ? window.innerHeight / 2 : 0);
+  const [isMounted, setIsMounted] = useState(false);
+  const [particles, setParticles] = useState<PseudoParticleData[]>([]);
+  const [centerX, setCenterX] = useState(0);
+  const [centerY, setCenterY] = useState(0);
 
   const minTargetSpacing = 220;
 
@@ -110,12 +91,12 @@ export default function PseudoParticleSystem() {
   }, []);
 
   // Generate initial pseudo-particles that will fly out from the center
-  const generateParticles = useCallback(() => {
+  const generateParticles = useCallback((forceViewportHeight?: number) => {
     const newParticles: PseudoParticleData[] = [];
     const count = 2 + Math.floor(Math.random() * 2); // 2-3 pseudo-particles
 
     const viewportWidth = window.innerWidth;
-    const viewportHeight = window.innerHeight;
+    const viewportHeight = forceViewportHeight ?? window.innerHeight;
 
     for (let i = 0; i < count; i++) {
       const side = i % 2 === 0 ? "left" : "right";
@@ -170,11 +151,23 @@ export default function PseudoParticleSystem() {
 
   // Schedule initial activations
   useEffect(() => {
+    let timeoutId: number;
+    
+    if (!isMounted) {
+      timeoutId = window.setTimeout(() => {
+        setIsMounted(true);
+        setCenterX(window.innerWidth / 2);
+        setCenterY(window.innerHeight / 2);
+        generateParticles(window.innerHeight);
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
+    }
+    
     if (particles.length === 0) return;
 
     particles.forEach((particle, index) => {
       const delay = 1800 + index * 4200 + Math.random() * 2600; // wider stagger to avoid grouped reveals
-      setTimeout(() => {
+      timeoutId = window.setTimeout(() => {
         setParticles(prev =>
           prev.map(p =>
             p.id === particle.id
@@ -184,7 +177,9 @@ export default function PseudoParticleSystem() {
         );
       }, delay);
     });
-  }, [particles]); // Only run when particles are first created
+    
+    // Using an empty clean up here specifically for the individual delayed reveals since they are fire-and-forget for this specific component
+  }, [particles, isMounted, generateParticles]); // Only run when particles are first created
 
   useEffect(() => {
     // Regenerate on window resize
@@ -196,7 +191,9 @@ export default function PseudoParticleSystem() {
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [generateParticles]);
+  }, [generateParticles, isMounted]);
+
+  if (!isMounted) return null;
 
   return (
     <div className="absolute inset-0 pointer-events-none z-5">
