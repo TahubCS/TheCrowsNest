@@ -636,5 +636,9 @@ async def delete_material_vectors(material_id: str):
     delete_documents(material_id)
     return {"success": True}
 
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "TheCrowsNest AI Backend"}
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
