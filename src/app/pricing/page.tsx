@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import { toast } from "sonner";
 import { usePlan } from "@/hooks/usePlan";
+
 
 const FREE_FEATURES = [
   { text: "Unlimited material uploads", included: true },
@@ -29,7 +30,7 @@ const PREMIUM_FEATURES = [
   { text: "Priority support", included: true },
 ];
 
-export default function PricingPage() {
+function PricingContent() {
   const { plan, loading, refetch } = usePlan();
   const searchParams = useSearchParams();
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("monthly");
@@ -201,5 +202,13 @@ export default function PricingPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background flex items-center justify-center">Loading...</div>}>
+      <PricingContent />
+    </Suspense>
   );
 }
