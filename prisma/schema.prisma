@@ -109,6 +109,7 @@ model materials {
   last_error String?
   high_context Boolean?
   context_score Decimal?
+  popularity_rating Int @default(0)
 
   @@map("materials")
 }

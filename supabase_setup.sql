@@ -50,7 +50,8 @@ CREATE TABLE IF NOT EXISTS materials (
     status          TEXT DEFAULT 'PENDING_REVIEW',
     rejection_reason TEXT,
     expires_at      BIGINT,   -- Unix timestamp, manually checked (no auto-TTL)
-    uploaded_at     TIMESTAMPTZ DEFAULT NOW()
+    uploaded_at     TIMESTAMPTZ DEFAULT NOW(),
+    popularity_rating INTEGER NOT NULL DEFAULT 0 CHECK (popularity_rating >= 0)
 );
 
 CREATE TABLE IF NOT EXISTS study_plans (
@@ -139,6 +140,7 @@ CREATE TABLE IF NOT EXISTS edges (
 -- ============================================================
 
 CREATE INDEX IF NOT EXISTS idx_materials_class_id ON materials(class_id);
+CREATE INDEX IF NOT EXISTS idx_materials_class_popularity_uploaded_at ON materials(class_id, popularity_rating DESC, uploaded_at DESC);
 CREATE INDEX IF NOT EXISTS idx_materials_uploaded_by ON materials(uploaded_by);
 CREATE INDEX IF NOT EXISTS idx_materials_status ON materials(status);
 CREATE INDEX IF NOT EXISTS idx_study_plans_user_email ON study_plans(user_email);
