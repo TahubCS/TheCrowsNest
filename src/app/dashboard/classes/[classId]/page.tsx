@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback, type ChangeEvent, type DragEvent } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, type ChangeEvent, type DragEvent } from "react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -17,6 +17,8 @@ interface Material {
   uploadedAt: string;
   status: string;
   storageKey: string;
+  popularity?: number;
+  popularityRating?: number;
   rejectionReason?: string;
   rejectionCode?: string;
   aiConfidence?: number;
@@ -33,6 +35,8 @@ const STAGE_LABELS: Record<string, string> = {
 };
 
 const TERMINAL_STATUSES = ["PROCESSED", "REJECTED", "FAILED", "PENDING_REVIEW"];
+const POPULARITY_GOLD = { h: 43, s: 92, l: 60 };
+const POPULARITY_PURPLE = { h: 266, s: 78, l: 62 };
 
 const REASON_MESSAGES: Record<string, string> = {
   unsupported_type: "This file type is not supported.",
@@ -62,6 +66,42 @@ async function computeFileHash(file: File): Promise<string> {
   const hashBuffer = await crypto.subtle.digest("SHA-256", buffer);
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function getMaterialPopularity(material: Pick<Material, "popularity" | "popularityRating">): number {
+  const rawPopularity = material.popularityRating ?? material.popularity ?? 0;
+  const numericPopularity = typeof rawPopularity === "number" ? rawPopularity : Number(rawPopularity);
+  return Number.isFinite(numericPopularity) && numericPopularity > 0 ? numericPopularity : 0;
+}
+
+function compareMaterialsByPopularity(a: Material, b: Material): number {
+  const popularityDiff = getMaterialPopularity(b) - getMaterialPopularity(a);
+  if (popularityDiff !== 0) return popularityDiff;
+  return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+}
+
+function getPopularityColor(rankIndex: number, totalCount: number): string {
+  if (totalCount <= 1) {
+    return `hsl(${POPULARITY_GOLD.h} ${POPULARITY_GOLD.s}% ${POPULARITY_GOLD.l}%)`;
+  }
+
+  const progress = rankIndex / (totalCount - 1);
+  const hue = POPULARITY_GOLD.h + (POPULARITY_PURPLE.h - POPULARITY_GOLD.h) * progress;
+  const saturation = POPULARITY_GOLD.s + (POPULARITY_PURPLE.s - POPULARITY_GOLD.s) * progress;
+  const lightness = POPULARITY_GOLD.l + (POPULARITY_PURPLE.l - POPULARITY_GOLD.l) * progress;
+
+  return `hsl(${Math.round(hue)} ${Math.round(saturation)}% ${Math.round(lightness)}%)`;
+}
+
+function shortenMaterialName(fileName: string, maxLength = 30): string {
+  if (fileName.length <= maxLength) return fileName;
+
+  const extensionIndex = fileName.lastIndexOf(".");
+  const extension = extensionIndex > -1 ? fileName.slice(extensionIndex) : "";
+  const baseName = extensionIndex > -1 ? fileName.slice(0, extensionIndex) : fileName;
+  const trimmedBaseLength = Math.max(10, maxLength - extension.length - 1);
+
+  return `${baseName.slice(0, trimmedBaseLength)}...${extension}`;
 }
 
 // Mock materials for the Onboarding 101 demo class
@@ -114,7 +154,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const loadMaterials = useCallback(async (cid: string) => {
     // Demo class: load static mock data instead of hitting the API
     if (cid === "onboarding101") {
-      setMaterials(MOCK_MATERIALS);
+      setMaterials([...MOCK_MATERIALS].sort(compareMaterialsByPopularity));
       setLoading(false);
       return;
     }
@@ -128,7 +168,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
         const filtered = allMats.filter((m: Material) =>
           m.status === "PROCESSED" || m.uploadedBy === userEmail
         );
-        setMaterials(filtered);
+        setMaterials([...filtered].sort(compareMaterialsByPopularity));
 
         // Auto-detect any materials still processing (e.g. after a page refresh)
         const stillProcessing = filtered.filter((m: Material) => m.status === "PROCESSING");
@@ -244,6 +284,19 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   };
 
   const { communityFilesCount, contextRating } = calculateMetrics();
+  const popularityChartMaterials = useMemo(() => {
+    const rankedMaterials = [...materials]
+      .filter((material) => material.status === "PROCESSED")
+      .sort(compareMaterialsByPopularity);
+    const highestPopularity = rankedMaterials[0] ? Math.max(getMaterialPopularity(rankedMaterials[0]), 1) : 1;
+    const totalPopularity = rankedMaterials.reduce((sum, material) => sum + getMaterialPopularity(material), 0);
+
+    return {
+      rankedMaterials,
+      highestPopularity,
+      totalPopularity,
+    };
+  }, [materials]);
 
   const handleRemoveClass = async () => {
     setIsRemoving(true);
@@ -381,6 +434,8 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
           uploadedAt: new Date().toISOString(),
           status: "PROCESSING",
           storageKey,
+          popularity: 0,
+          popularityRating: 0,
           parserStatus: "queued",
         };
         setMaterials(prev => [optimisticMaterial, ...prev]);
@@ -426,7 +481,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
   const formattedClass = classId.toUpperCase();
 
   return (
-    <div className="max-w-5xl mx-auto space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="mx-auto max-w-7xl space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex items-start justify-between">
         <div>
           <Link href="/dashboard" className="text-sm font-medium text-muted-foreground hover:text-ecu-purple inline-flex items-center gap-1 mb-4">
@@ -537,7 +592,87 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
           </button>
         </div>
 
-        <div className="bg-background rounded-2xl border border-border overflow-hidden shadow-sm">
+        <div className="grid gap-6 xl:grid-cols-[19rem_minmax(0,1fr)] xl:items-start">
+          <div className="order-2 overflow-hidden rounded-2xl border border-border bg-background shadow-sm xl:order-1">
+            <div className="border-b border-border bg-linear-to-b from-ecu-gold/10 via-background to-ecu-purple/10 px-5 py-4">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">Material Usage</p>
+              <div className="mt-2 flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold text-foreground">Popularity</h3>
+                <span className="rounded-full border border-border bg-muted/40 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
+                  {popularityChartMaterials.rankedMaterials.length} ranked
+                </span>
+              </div>
+              <p className="mt-1 text-sm text-muted-foreground">Gold marks the most used material. The scale fades to purple at the least used end.</p>
+            </div>
+
+            {loading ? (
+              <div className="flex items-center justify-center py-16">
+                <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-ecu-purple"></div>
+              </div>
+            ) : popularityChartMaterials.rankedMaterials.length === 0 ? (
+              <div className="px-5 py-10 text-sm text-muted-foreground">
+                Processed materials will appear here once students start using them in study tools.
+              </div>
+            ) : (
+              <div className="px-5 py-5">
+                <div className="mb-4 flex items-center justify-between pl-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  <span className="text-[hsl(43_92%_60%)]">Most Used</span>
+                  <span>{popularityChartMaterials.totalPopularity} total uses</span>
+                </div>
+
+                <div className="relative pl-8">
+                  <div className="absolute bottom-3 left-3 top-3 w-px bg-linear-to-b from-[#f0c24b] via-[#b182f6] to-[#7c3aed]"></div>
+                  <div className="max-h-[42rem] space-y-4 overflow-y-auto pr-1">
+                    {popularityChartMaterials.rankedMaterials.map((material, index) => {
+                      const popularity = getMaterialPopularity(material);
+                      const widthPercent = Math.max(
+                        popularity === 0 ? 14 : 22,
+                        Math.round((popularity / popularityChartMaterials.highestPopularity) * 100)
+                      );
+                      const barColor = getPopularityColor(index, popularityChartMaterials.rankedMaterials.length);
+
+                      return (
+                        <div key={material.materialId} className="relative pl-4">
+                          <span
+                            className="absolute left-[-22px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full ring-4 ring-background"
+                            style={{ backgroundColor: barColor }}
+                          ></span>
+
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between gap-3">
+                              <p className="min-w-0 truncate text-sm font-medium text-foreground" title={material.fileName}>
+                                {shortenMaterialName(material.fileName)}
+                              </p>
+                              <span className="shrink-0 text-xs font-semibold text-muted-foreground">
+                                {popularity} {popularity === 1 ? "use" : "uses"}
+                              </span>
+                            </div>
+
+                            <div className="overflow-hidden rounded-full bg-muted/70">
+                              <div
+                                className="h-2.5 rounded-full transition-all duration-500"
+                                style={{
+                                  width: `${widthPercent}%`,
+                                  background: `linear-gradient(90deg, ${barColor} 0%, ${barColor}dd 100%)`,
+                                }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-between pl-8 text-[11px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                  <span className="text-[hsl(266_78%_62%)]">Least Used</span>
+                  <span>Sorted live from class usage</span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="order-1 bg-background rounded-2xl border border-border overflow-hidden shadow-sm xl:order-2">
           {loading ? (
             <div className="flex justify-center items-center py-16">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-ecu-purple"></div>
@@ -576,6 +711,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                   const icon = file.fileType.includes("pdf") ? "text-red-600 bg-red-100" : file.fileType.includes("presentation") ? "text-blue-600 bg-blue-100" : "text-green-600 bg-green-100";
                   const initial = file.uploadedByName.charAt(0).toUpperCase();
                   const timeAgo = new Date(file.uploadedAt).toLocaleDateString();
+                  const popularity = getMaterialPopularity(file);
 
                   return (
                     <div key={file.materialId} id={idx === 0 ? "tour-material-row" : undefined} className="grid grid-cols-12 gap-4 p-4 items-center hover:bg-muted/30 transition-colors group">
@@ -595,7 +731,14 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
                           ) : (
                             <p className="font-medium text-foreground truncate">{file.fileName}</p>
                           )}
-                          <p className="text-xs text-muted-foreground">{timeAgo}</p>
+                          <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                            <span>{timeAgo}</span>
+                            {file.status === "PROCESSED" && (
+                              <span className="inline-flex items-center rounded-full border border-ecu-purple/20 bg-ecu-purple/8 px-2 py-0.5 font-medium text-ecu-purple">
+                                {popularity} {popularity === 1 ? "use" : "uses"}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="col-span-3 md:col-span-2 hidden md:block text-sm text-foreground">{file.materialType}</div>
@@ -684,6 +827,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
               </div>
             </>
           )}
+          </div>
         </div>
 
         <p className="text-xs text-muted-foreground text-center">

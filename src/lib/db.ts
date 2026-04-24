@@ -411,7 +411,7 @@ export async function getMaterialsByClassId(classId: string): Promise<Material[]
   return sql<Material[]>`
     SELECT * FROM materials
     WHERE class_id = ${classId}
-    ORDER BY popularity_rating DESC, uploaded_at DESC
+    ORDER BY uploaded_at DESC
   `;
 }
 
@@ -427,13 +427,30 @@ export async function incrementMaterialPopularity(classId: string, materialIds: 
   const uniqueMaterialIds = [...new Set(materialIds.filter((id) => typeof id === "string" && id.trim().length > 0))];
   if (uniqueMaterialIds.length === 0) return 0;
 
-  const result = await sql`
-    UPDATE materials
-    SET popularity_rating = COALESCE(popularity_rating, 0) + 1
-    WHERE class_id = ${classId}
-      AND status = 'PROCESSED'
-      AND material_id = ANY(${uniqueMaterialIds})
+  const popularityColumns = await sql<{ columnName: string }[]>`
+    SELECT column_name AS "columnName"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'materials'
+      AND column_name IN ('popularity_rating', 'popularity')
   `;
+
+  const popularityColumn =
+    popularityColumns.find((column) => column.columnName === "popularity_rating")?.columnName ??
+    popularityColumns.find((column) => column.columnName === "popularity")?.columnName;
+
+  if (!popularityColumn) return 0;
+
+  const result = await sql.unsafe(
+    `
+      UPDATE materials
+      SET ${popularityColumn} = COALESCE(${popularityColumn}, 0) + 1
+      WHERE class_id = $1
+        AND status = 'PROCESSED'
+        AND material_id = ANY($2::text[])
+    `,
+    [classId, uniqueMaterialIds]
+  );
 
   return result.count;
 }

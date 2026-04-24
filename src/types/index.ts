@@ -85,6 +85,7 @@ export interface Material {
   rejectionReason?: string;
   expiresAt?: number; // Unix timestamp for TTL deletion of rejected files
   uploadedAt: string;
+  popularity?: number;
   popularityRating?: number;
   // Safety & audit fields (Phase 1)
   fileSizeBytes?: number;

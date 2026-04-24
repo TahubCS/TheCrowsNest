@@ -28,6 +28,11 @@ import type { ApiResponse, Material } from "@/types";
 
 const MATERIAL_TYPES = ["Syllabus", "Lecture Slides", "Study Guide", "Past Exam", "Notes", "Other"];
 
+function getMaterialPopularity(material: Material): number {
+  const rawPopularity = material.popularityRating ?? material.popularity ?? 0;
+  return typeof rawPopularity === "number" && Number.isFinite(rawPopularity) ? rawPopularity : 0;
+}
+
 // ============================================================
 // GET — list materials
 // ============================================================
@@ -57,7 +62,7 @@ export async function GET(request: NextRequest) {
 
     if (classId) {
       materials.sort((a, b) => {
-        const popularityDiff = (b.popularityRating ?? 0) - (a.popularityRating ?? 0);
+        const popularityDiff = getMaterialPopularity(b) - getMaterialPopularity(a);
         if (popularityDiff !== 0) return popularityDiff;
         return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
       });
