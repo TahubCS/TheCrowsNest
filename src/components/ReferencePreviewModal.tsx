@@ -313,7 +313,7 @@ export default function ReferencePreviewModal({
                     </div>
                   ) : isText ? (
                     <div className="p-4">
-                      <pre className="whitespace-pre-wrap break-words rounded-xl border border-border bg-background p-4 font-mono text-sm text-foreground">
+                      <pre className="whitespace-pre-wrap wrap-break-word rounded-xl border border-border bg-background p-4 font-mono text-sm text-foreground">
                         {textContent || "This text file is empty."}
                       </pre>
                     </div>
