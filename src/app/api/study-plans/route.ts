@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getStudyPlansByEmail, createStudyPlan, deleteStudyPlan, getClassById, logActivityEvent } from "@/lib/db";
+import { getStudyPlansByEmail, createStudyPlan, deleteStudyPlan, getClassById, incrementMaterialPopularity, logActivityEvent } from "@/lib/db";
 import type { StudyPlan, ApiResponse } from "@/types";
 
 export async function GET(request: NextRequest) {
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title, description, classId, items } = body;
+    const { title, description, classId, items, materialIds } = body;
 
     if (!title || !classId) {
       return NextResponse.json<ApiResponse>({ success: false, message: "Title and classId are required" }, { status: 400 });
@@ -62,6 +62,14 @@ export async function POST(request: NextRequest) {
     };
 
     await createStudyPlan(plan);
+
+    if (Array.isArray(materialIds) && materialIds.length > 0) {
+      try {
+        await incrementMaterialPopularity(classId, materialIds);
+      } catch (popularityError) {
+        console.warn("[Material Popularity Warning] Failed to increment selected materials:", popularityError);
+      }
+    }
 
     const firstName = session.user.name?.split(" ")[0] ?? session.user.email.split("@")[0];
     const classData = await getClassById(classId).catch(() => null);

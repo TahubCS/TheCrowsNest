@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage, type QuotaApiType } from "@/lib/quota";
-import { getClassById, logActivityEvent } from "@/lib/db";
+import { getClassById, incrementMaterialPopularity, logActivityEvent } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 type SessionScope = "shared" | "personal";
@@ -309,6 +309,12 @@ export async function POST(
 
     if (resourceError) {
       throw new Error(resourceError.message);
+    }
+
+    try {
+      await incrementMaterialPopularity(classId, materialIds);
+    } catch (popularityError) {
+      console.warn("[Material Popularity Warning] Failed to increment selected materials:", popularityError);
     }
 
     await recordUsage(session.user.email, "exam", classId);

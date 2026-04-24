@@ -11,7 +11,7 @@ import { auth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { getEffectivePlan } from "@/lib/plan";
 import { checkQuota, recordUsage, type QuotaApiType } from "@/lib/quota";
-import { getClassById, logActivityEvent } from "@/lib/db";
+import { getClassById, incrementMaterialPopularity, logActivityEvent } from "@/lib/db";
 import type { ApiResponse } from "@/types";
 
 function clampQuestionCount(value: unknown, defaultValue = 15) {
@@ -210,6 +210,14 @@ export async function POST(
       .single();
 
     if (saveError) throw new Error(saveError.message);
+
+    if (resourceType === "flashcards" || resourceType === "exam") {
+      try {
+        await incrementMaterialPopularity(classId, materialIds);
+      } catch (popularityError) {
+        console.warn("[Material Popularity Warning] Failed to increment selected materials:", popularityError);
+      }
+    }
 
     // Record usage
     await recordUsage(session.user.email, quotaType, classId);

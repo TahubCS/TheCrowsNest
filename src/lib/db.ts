@@ -408,7 +408,11 @@ export async function getMaterial(classId: string, materialId: string): Promise<
 }
 
 export async function getMaterialsByClassId(classId: string): Promise<Material[]> {
-  return sql<Material[]>`SELECT * FROM materials WHERE class_id = ${classId}`;
+  return sql<Material[]>`
+    SELECT * FROM materials
+    WHERE class_id = ${classId}
+    ORDER BY popularity_rating DESC, uploaded_at DESC
+  `;
 }
 
 export async function getMaterialsByUserEmail(userEmail: string): Promise<Material[]> {
@@ -417,6 +421,21 @@ export async function getMaterialsByUserEmail(userEmail: string): Promise<Materi
 
 export async function deleteMaterial(classId: string, materialId: string): Promise<void> {
   await sql`DELETE FROM materials WHERE material_id = ${materialId} AND class_id = ${classId}`;
+}
+
+export async function incrementMaterialPopularity(classId: string, materialIds: string[]): Promise<number> {
+  const uniqueMaterialIds = [...new Set(materialIds.filter((id) => typeof id === "string" && id.trim().length > 0))];
+  if (uniqueMaterialIds.length === 0) return 0;
+
+  const result = await sql`
+    UPDATE materials
+    SET popularity_rating = COALESCE(popularity_rating, 0) + 1
+    WHERE class_id = ${classId}
+      AND status = 'PROCESSED'
+      AND material_id = ANY(${uniqueMaterialIds})
+  `;
+
+  return result.count;
 }
 
 export async function getAllPendingMaterials(): Promise<Material[]> {

@@ -151,7 +151,7 @@ export default function ClassStudyPlansPage() {
       const saveRes = await fetch("/api/study-plans", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: newTitle, classId, items }),
+        body: JSON.stringify({ title: newTitle, classId, items, materialIds: selectedMaterialIds }),
       });
 
       if (saveRes.ok) {

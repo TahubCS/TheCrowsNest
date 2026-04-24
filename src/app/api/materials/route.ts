@@ -55,8 +55,15 @@ export async function GET(request: NextRequest) {
     const now = Math.floor(Date.now() / 1000);
     const materials = allMaterials.filter(m => !m.expiresAt || m.expiresAt > now);
 
-    // Sort newest first
-    materials.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    if (classId) {
+      materials.sort((a, b) => {
+        const popularityDiff = (b.popularityRating ?? 0) - (a.popularityRating ?? 0);
+        if (popularityDiff !== 0) return popularityDiff;
+        return new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+      });
+    } else {
+      materials.sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+    }
 
     return NextResponse.json<ApiResponse>({
       success: true,
