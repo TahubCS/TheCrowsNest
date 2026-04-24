@@ -4,6 +4,7 @@
  * Run with: node --env-file=.env.local scripts/seed-classes.js
  * Requires DATABASE_URL to be set in .env.local
  */
+/* eslint-disable @typescript-eslint/no-require-imports */
 const postgres = require("postgres");
 
 const sql = postgres(process.env.DATABASE_URL, {

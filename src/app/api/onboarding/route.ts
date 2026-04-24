@@ -89,11 +89,12 @@ export async function POST(request: NextRequest) {
       },
       { status: 200 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("[Onboarding Error]", error);
     
     // Bubble up the actual error for debugging
-    const errorDetails = error?.message || error?.name || String(error);
+    const errorDetails =
+      error instanceof Error ? error.message || error.name : String(error);
     
     return NextResponse.json<ApiResponse>(
       { success: false, message: `Server Error: ${errorDetails}` },

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/Button";
 import Link from "next/link";
@@ -9,7 +8,6 @@ import { ECU_MAJORS, STUDY_LEVELS, YEARS_OF_STUDY } from "@/lib/data/ecu-majors"
 import type { CourseClass } from "@/types";
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const { update: updateSession } = useSession();
   const [step, setStep] = useState(1);
   const [level, setLevel] = useState<string>("Undergraduate");

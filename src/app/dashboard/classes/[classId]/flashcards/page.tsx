@@ -477,7 +477,7 @@ export default function FlashcardsPage() {
                                     } else {
                                       toast.error("Failed to delete deck.");
                                     }
-                                  } catch (error) {
+                                  } catch {
                                     toast.error("Network error.");
                                   }
                                 }

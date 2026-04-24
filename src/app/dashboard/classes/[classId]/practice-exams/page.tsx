@@ -593,7 +593,7 @@ export default function PracticeExamsPage() {
                                     } else {
                                       toast.error("Failed to delete exam.");
                                     }
-                                  } catch (error) {
+                                  } catch {
                                     toast.error("Network error.");
                                   }
                                 }

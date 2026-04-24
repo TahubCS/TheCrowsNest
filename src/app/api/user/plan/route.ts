@@ -5,13 +5,13 @@
  * Used by the frontend usePlan() hook.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { isAdmin } from "@/lib/admin";
 import { getEffectivePlan } from "@/lib/plan";
 import type { ApiResponse } from "@/types";
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.email) {

@@ -10,7 +10,7 @@ import { auth } from "@/lib/auth";
 import { createClassRequest, getRequestsByEmail } from "@/lib/db";
 import type { ClassRequest, ApiResponse } from "@/types";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.email) {

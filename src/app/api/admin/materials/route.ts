@@ -16,7 +16,7 @@ import type { ApiResponse } from "@/types";
 
 // isAdmin is now imported from @/lib/admin (DB-backed)
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.email || !(await isAdmin(session.user.email))) {
