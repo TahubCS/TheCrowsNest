@@ -17,6 +17,13 @@ interface ReferencePreviewModalProps {
 
 type LoadState = "lookup" | "fetching" | "ready" | "error";
 
+const OFFICE_MIME_TYPES = new Set([
+  "application/msword",
+  "application/vnd.ms-powerpoint",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+]);
+
 function getFileIcon(fileType: string): string {
   if (fileType.includes("pdf")) return "📕";
   if (fileType.includes("presentation") || fileType.includes("powerpoint")) return "📊";
@@ -54,6 +61,7 @@ export default function ReferencePreviewModal({
   const [signedUrl, setSignedUrl] = useState<string | null>(null);
   const [fileType, setFileType] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [textContent, setTextContent] = useState("");
   const [pdfWidth, setPdfWidth] = useState(760);
   const viewerContainerRef = useRef<HTMLDivElement>(null);
 
@@ -105,6 +113,13 @@ export default function ReferencePreviewModal({
         }
 
         setSignedUrl(preview.data.previewUrl);
+        if (ft.startsWith("text/") || reference.fileName.toLowerCase().endsWith(".txt")) {
+          const textRes = await fetch(preview.data.previewUrl, { signal: controller.signal });
+          if (!textRes.ok) {
+            throw new Error("Failed to load text preview.");
+          }
+          setTextContent(await textRes.text());
+        }
         setLoadState("ready");
       } catch (err: unknown) {
         if (err instanceof Error && err.name === "AbortError") return;
@@ -121,6 +136,8 @@ export default function ReferencePreviewModal({
 
   const isPdf = fileType.includes("pdf");
   const isImage = fileType.startsWith("image/");
+  const isText = fileType.startsWith("text/") || reference.fileName.toLowerCase().endsWith(".txt");
+  const isOffice = OFFICE_MIME_TYPES.has(fileType) || /\.(doc|docx|ppt|pptx)$/i.test(reference.fileName);
   const pageNumber =
     typeof reference.page === "number"
       ? reference.page
@@ -128,8 +145,8 @@ export default function ReferencePreviewModal({
       ? parseInt(reference.page) || 1
       : 1;
 
-  const docsViewerUrl = signedUrl
-    ? `https://docs.google.com/viewer?url=${encodeURIComponent(signedUrl)}&embedded=true`
+  const docsViewerUrl = signedUrl && isOffice
+    ? `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(signedUrl)}`
     : null;
 
   const highlighter = makeHighlighter(reference.snippet ?? "");
@@ -294,12 +311,19 @@ export default function ReferencePreviewModal({
                         className="max-w-full max-h-full object-contain rounded-lg"
                       />
                     </div>
+                  ) : isText ? (
+                    <div className="p-4">
+                      <pre className="whitespace-pre-wrap break-words rounded-xl border border-border bg-background p-4 font-mono text-sm text-foreground">
+                        {textContent || "This text file is empty."}
+                      </pre>
+                    </div>
                   ) : docsViewerUrl ? (
                     <iframe
                       src={docsViewerUrl}
                       className="w-full h-full border-0"
                       title={reference.fileName}
-                      sandbox="allow-scripts allow-same-origin allow-popups"
+                      referrerPolicy="no-referrer"
+                      sandbox="allow-scripts allow-same-origin allow-popups allow-forms"
                     />
                   ) : null}
                 </div>
