@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 
 const SUPO_PRODUCT_ID = "e0e8bd03-68fd-4252-8be1-934fd71617f5";
-const SUPO_WIDGET_URL = "http://localhost:3000/widget.js";
+const SUPO_WIDGET_URL = "https://supo-mu.vercel.app/widget.js";
 
 declare global {
   interface Window {
