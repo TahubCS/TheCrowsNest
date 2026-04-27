@@ -622,7 +622,7 @@ export default function ClassOverviewPage({ params }: { params: { classId: strin
 
                 <div className="relative pl-8">
                   <div className="absolute bottom-3 left-3 top-3 w-px bg-linear-to-b from-[#f0c24b] via-[#b182f6] to-[#7c3aed]"></div>
-                  <div className="max-h-[42rem] space-y-4 overflow-y-auto pr-1">
+                  <div className="max-h-[42rem] space-y-4 overflow-y-auto pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-border/60 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-border">
                     {popularityChartMaterials.rankedMaterials.map((material, index) => {
                       const popularity = getMaterialPopularity(material);
                       const widthPercent = Math.max(
