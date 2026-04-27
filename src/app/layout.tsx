@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Providers } from "@/components/Providers";
 import BackgroundWrapper from "@/components/BackgroundWrapper";
+import SupoWidget from "@/components/SupoWidget";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -38,8 +39,8 @@ export default function RootLayout({
         <Providers>
           <BackgroundWrapper />
           {children}
-          <Toaster 
-            position="bottom-right" 
+          <Toaster
+            position="bottom-right"
             theme="dark"
             toastOptions={{
               classNames: {
@@ -49,9 +50,10 @@ export default function RootLayout({
                 success: "border-green-500/30 bg-green-500/10 text-green-400",
                 error: "border-red-500/30 bg-red-500/10 text-red-400",
                 info: "border-blue-500/30 bg-blue-500/10 text-blue-400",
-              }
+              },
             }}
           />
+          <SupoWidget />
         </Providers>
       </body>
     </html>
