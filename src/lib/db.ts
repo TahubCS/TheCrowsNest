@@ -256,6 +256,114 @@ export async function putClass(courseClass: CourseClass): Promise<void> {
   `;
 }
 
+export type ClassUpdate = Pick<
+  CourseClass,
+  "courseName" | "department" | "creditHours" | "description" | "relatedMajors"
+> & {
+  syllabus?: string | null;
+};
+
+export async function updateClass(classId: string, updates: ClassUpdate): Promise<boolean> {
+  const result = await sql`
+    UPDATE classes
+    SET
+      course_name    = ${updates.courseName},
+      department     = ${updates.department},
+      credit_hours   = ${updates.creditHours},
+      description    = ${updates.description ?? ""},
+      related_majors = ${updates.relatedMajors ?? []},
+      syllabus       = ${updates.syllabus ?? null}
+    WHERE class_id = ${classId}
+  `;
+
+  return result.count > 0;
+}
+
+export interface ClassUsageSummary {
+  enrolledUsers: number;
+  enrolledCount: number;
+  materials: number;
+  studyPlans: number;
+  sharedResources: number;
+  personalResources: number;
+  examSessions: number;
+  reports: number;
+  materialUploadEvents: number;
+  sharedMaterialCoverage: number;
+  activityFeed: number;
+}
+
+export function getClassUsageTotal(summary: ClassUsageSummary): number {
+  return Object.values(summary).reduce((total, value) => total + value, 0);
+}
+
+async function countRows(query: Promise<Array<{ count: number | string }>>): Promise<number> {
+  const rows = await query;
+  return Number(rows[0]?.count ?? 0);
+}
+
+export async function getClassUsageSummary(classId: string): Promise<ClassUsageSummary> {
+  const classRows = await sql<Array<{ enrolledCount: number | null }>>`
+    SELECT enrolled_count FROM classes WHERE class_id = ${classId} LIMIT 1
+  `;
+
+  const [
+    enrolledUsers,
+    materials,
+    studyPlans,
+    sharedResources,
+    personalResources,
+    examSessions,
+    reports,
+    materialUploadEvents,
+    sharedMaterialCoverage,
+    activityFeed,
+  ] = await Promise.all([
+    countRows(sql`SELECT COUNT(*)::int AS count FROM users WHERE enrolled_classes @> ARRAY[${classId}]`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM materials WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM study_plans WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM shared_resources WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM personal_resources WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM exam_sessions WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM reports WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM material_upload_events WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM shared_material_coverage WHERE class_id = ${classId}`),
+    countRows(sql`SELECT COUNT(*)::int AS count FROM user_activity_feed WHERE class_id = ${classId}`),
+  ]);
+
+  return {
+    enrolledUsers,
+    enrolledCount: classRows[0]?.enrolledCount ?? 0,
+    materials,
+    studyPlans,
+    sharedResources,
+    personalResources,
+    examSessions,
+    reports,
+    materialUploadEvents,
+    sharedMaterialCoverage,
+    activityFeed,
+  };
+}
+
+export async function deleteClassIfUnused(
+  classId: string
+): Promise<{ deleted: boolean; usage: ClassUsageSummary; exists: boolean }> {
+  const existingClass = await getClassById(classId);
+  const usage = await getClassUsageSummary(classId);
+
+  if (!existingClass) {
+    return { deleted: false, usage, exists: false };
+  }
+
+  if (getClassUsageTotal(usage) > 0) {
+    return { deleted: false, usage, exists: true };
+  }
+
+  const result = await sql`DELETE FROM classes WHERE class_id = ${classId}`;
+  return { deleted: result.count > 0, usage, exists: true };
+}
+
 export async function incrementClassEnrollment(classId: string): Promise<void> {
   await sql`
     UPDATE classes SET enrolled_count = COALESCE(enrolled_count, 0) + 1 WHERE class_id = ${classId}
